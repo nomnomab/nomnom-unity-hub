@@ -27,10 +27,18 @@ export default function InstallsView() {
 }
 
 function Header() {
+	const { state } = useContext(Context);
 	return (
 		<div className="flex flex-row border-b border-b-stone-700 justify-center">
 			<div className="flex flex-row w-full max-w-6xl px-12 py-8 items-center">
-				<h1 className="text-stone-50">Installs</h1>
+				<div className="text-stone-50 flex flex-row items-center">
+					<h1>Editors</h1>
+					{state.installs.length > 0 && (
+						<h4 className="text-stone-500 text-lg ml-2 leading-none">
+							({state.installs.length})
+						</h4>
+					)}
+				</div>
 				<div className="ml-auto" />
 				{/* <button className="rounded-md bg-stone-700 px-3 py-1">Locate</button> */}
 				<button className="rounded-md text-stone-50 bg-sky-600 px-3 py-1 ml-3">

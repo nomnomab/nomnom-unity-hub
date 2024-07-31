@@ -6,11 +6,10 @@ import {
 	Menu,
 	Item,
 	Separator,
-	Submenu,
 	useContextMenu,
 	TriggerEvent,
 } from "react-contexify";
-import { Command } from "@tauri-apps/api/shell";
+import EllipsisVertical from "./svg/ellipsis-vertical";
 
 export default function ProjectsView() {
 	const { dispatch } = useContext(Context);
@@ -32,7 +31,7 @@ export default function ProjectsView() {
 }
 
 function Header() {
-	const { dispatch } = useContext(Context);
+	const { state, dispatch } = useContext(Context);
 
 	async function addExistingProject() {
 		const folder = await open({
@@ -51,17 +50,25 @@ function Header() {
 	return (
 		<div className="flex flex-row border-b border-b-stone-700 justify-center">
 			<div className="flex flex-row w-full max-w-6xl px-12 py-8 items-center">
-				<h1 className="text-stone-50">Projects</h1>
+				<div className="text-stone-50 flex flex-row items-center">
+					<h1>Projects</h1>
+					{state.projects.length > 0 && (
+						<h4 className="text-stone-500 text-lg ml-2 leading-none">
+							({state.projects.length})
+						</h4>
+					)}
+				</div>
 				<div className="ml-auto" />
 				<button
-					className="rounded-md rounded-tr-none rounded-br-none bg-stone-700 px-3 py-1"
+					// className="rounded-md rounded-tr-none rounded-br-none bg-stone-700 px-3 py-1"
+					className="rounded-md bg-stone-700 px-3 py-1"
 					onClick={addExistingProject}
 				>
 					Add
 				</button>
-				<button className="rounded-md rounded-tl-none rounded-bl-none bg-stone-700 px-3 py-1 border-l border-l-stone-900">
+				{/* <button className="rounded-md rounded-tl-none rounded-bl-none bg-stone-700 px-3 py-1 border-l border-l-stone-900">
 					v
-				</button>
+				</button> */}
 				<button className="rounded-md text-stone-50 bg-sky-600 px-3 py-1 ml-3">
 					New
 				</button>
@@ -164,10 +171,10 @@ function ProjectItem(props: ProjectItemProps) {
 			</div>
 
 			<button
-				className="rounded-md text-stone-50 bg-sky-600 px-3 py-1 ml-3"
+				className="flex items-center justify-center w-12 h-12 aspect-square rounded-md text-stone-50 hover:bg-stone-500"
 				onClick={openOptions}
 			>
-				...
+				<EllipsisVertical width={20} height={20} />
 			</button>
 
 			<Menu id={"project-" + props.project.path} theme="dark_custom">
