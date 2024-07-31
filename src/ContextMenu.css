@@ -1,0 +1,41 @@
+.contexify_theme-dark_custom {
+	--contexify-menu-bgColor: #292524;
+	--contexify-separator-color: #44403c;
+	--contexify-item-color: #fff;
+	--contexify-activeItem-color: #fff;
+	--contexify-activeItem-bgColor: #0284c7;
+	--contexify-rightSlot-color: #6f6e77;
+	--contexify-activeRightSlot-color: #fff;
+	--contexify-arrow-color: #6f6e77;
+	--contexify-activeArrow-color: #fff;
+}
+
+@keyframes contexify_fadeIn {
+	from {
+		opacity: 0;
+		transform: translateY(10px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@keyframes contexify_fadeOut {
+	from {
+		opacity: 1;
+		transform: translateY(0);
+	}
+	to {
+		opacity: 0;
+		transform: translateY(50px);
+	}
+}
+
+.contexify_willEnter-fade {
+	animation: contexify_fadeIn 0.1s ease !important;
+}
+
+.contexify_willLeave-fade {
+	animation: contexify_fadeOut 0.1s ease !important;
+}

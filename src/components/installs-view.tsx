@@ -1,0 +1,116 @@
+import { useContext, useEffect, useState } from "react";
+import {
+	Context,
+	EditorInstall,
+	InstallModule,
+} from "../context/global-context";
+import { invoke } from "@tauri-apps/api/tauri";
+import { groupBy } from "../utils";
+
+export default function InstallsView() {
+	const { dispatch } = useContext(Context);
+	useEffect(() => {
+		loadEditorInstalls();
+	}, []);
+
+	async function loadEditorInstalls() {
+		const results: EditorInstall[] = await invoke("get_editor_installs");
+		dispatch({ type: "set_installs", installs: results });
+	}
+
+	return (
+		<div className="flex flex-col w-full">
+			<Header />
+			<Installs />
+		</div>
+	);
+}
+
+function Header() {
+	return (
+		<div className="flex flex-row border-b border-b-stone-700 justify-center">
+			<div className="flex flex-row w-full max-w-6xl px-12 py-8 items-center">
+				<h1 className="text-stone-50">Installs</h1>
+				<div className="ml-auto" />
+				{/* <button className="rounded-md bg-stone-700 px-3 py-1">Locate</button> */}
+				<button className="rounded-md text-stone-50 bg-sky-600 px-3 py-1 ml-3">
+					Install
+				</button>
+			</div>
+		</div>
+	);
+}
+
+function Installs() {
+	const { state } = useContext(Context);
+	return (
+		<>
+			<div className="w-full max-w-6xl self-center overflow-y-auto h-full">
+				<div className="flex flex-col p-8 gap-4">
+					{state.installs.map((i) => (
+						<Install key={i.version} data={i} />
+					))}
+				</div>
+			</div>
+		</>
+	);
+}
+
+function Install(props: { data: EditorInstall }) {
+	const [groups, setGroups] = useState<
+		{
+			key: string;
+			values: InstallModule[];
+		}[]
+	>([]);
+
+	useEffect(() => getGroups(), []);
+
+	function getGroups() {
+		const groups = groupBy(props.data.modules, (x) => x.category);
+		const keys = Object.keys(groups);
+
+		// get proper groups
+		const filledKeys = keys.filter(
+			(x) => groups[x].filter((x) => x.visible && x.selected).length > 0
+		);
+
+		const filledGroups = filledKeys.map((x) => {
+			return {
+				key: x,
+				values: groups[x].filter((x) => x.visible && x.selected),
+			};
+		});
+		setGroups(filledGroups);
+	}
+
+	return (
+		<div className="flex flex-col px-4 py-3 bg-stone-900 rounded-md border border-stone-600">
+			<p className="text-stone-50">
+				Unity{" "}
+				<span className="inline text-stone-500">({props.data.version})</span>
+			</p>
+			<p className={`text-sm ${groups.length > 0 && "mb-4"}`}>
+				{props.data.path}
+			</p>
+			<div className="flex flex-col gap-5">
+				{groups.map((g) => (
+					<div key={g.key}>
+						<p className="mb-1 text-stone-50">{g.key}</p>
+
+						<div className="flex flex-row gap-2 flex-wrap">
+							{g.values.map((x) => (
+								<p
+									key={x.name}
+									className="rounded-md px-3 py-1 border border-stone-600 text-sm"
+								>
+									{x.id}
+								</p>
+							))}
+						</div>
+					</div>
+				))}
+			</div>
+		</div>
+	);
+}
