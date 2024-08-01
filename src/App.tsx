@@ -1,11 +1,12 @@
 import "./App.css";
 import "react-contexify/ReactContexify.css";
 import "./ContextMenu.css";
-import MainSidebar from "./components/main-sidebar";
-import ProjectsView from "./components/projects-view";
-import InstallsView from "./components/installs-view";
 import { useContext } from "react";
 import { Context } from "./context/global-context";
+import MainSidebar from "./components/main-sidebar";
+import ProjectsView from "./components/projects-view";
+import EditorsView from "./components/editors-view";
+import NewProjectView from "./components/new-project-view";
 
 function App() {
 	const { state } = useContext(Context);
@@ -15,7 +16,8 @@ function App() {
 			<MainSidebar />
 			<div className="flex flex-grow h-screen overflow-hidden">
 				{state.currentTab === "projects" && <ProjectsView />}
-				{state.currentTab === "installs" && <InstallsView />}
+				{state.currentTab === "editors" && <EditorsView />}
+				{state.currentTab === "new_project" && <NewProjectView />}
 			</div>
 		</div>
 	);

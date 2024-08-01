@@ -44,9 +44,9 @@ function Options() {
 				onClick={() => dispatch({ type: "change_tab", tab: "projects" })}
 			/>
 			<OptionItem
-				title="Installs"
-				selected={state.currentTab === "installs"}
-				onClick={() => dispatch({ type: "change_tab", tab: "installs" })}
+				title="Editors"
+				selected={state.currentTab === "editors"}
+				onClick={() => dispatch({ type: "change_tab", tab: "editors" })}
 			/>
 		</div>
 	);

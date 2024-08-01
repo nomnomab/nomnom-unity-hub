@@ -1,23 +1,16 @@
 import { useContext, useEffect, useState } from "react";
-import {
-	Context,
-	EditorInstall,
-	InstallModule,
-} from "../context/global-context";
+import { Context, Editor, EditorModule } from "../context/global-context";
 import { invoke } from "@tauri-apps/api/tauri";
 import { groupBy } from "../utils";
 import EllipsisVertical from "./svg/ellipsis-vertical";
+import React from "react";
+import { Menu, Item, TriggerEvent, useContextMenu } from "react-contexify";
 
-export default function InstallsView() {
-	const { dispatch } = useContext(Context);
+export default function EditorsView() {
+	const { state } = useContext(Context);
 	useEffect(() => {
-		loadEditorInstalls();
+		state.getEditors();
 	}, []);
-
-	async function loadEditorInstalls() {
-		const results: EditorInstall[] = await invoke("get_editor_installs");
-		dispatch({ type: "set_installs", installs: results });
-	}
 
 	return (
 		<div className="flex flex-col w-full">
@@ -34,9 +27,9 @@ function Header() {
 			<div className="flex flex-row w-full max-w-6xl px-12 py-8 items-center">
 				<div className="text-stone-50 flex flex-row items-center">
 					<h1>Editors</h1>
-					{state.installs.length > 0 && (
+					{state.editors.length > 0 && (
 						<h4 className="text-stone-500 text-lg ml-2 leading-none">
-							({state.installs.length})
+							({state.editors.length})
 						</h4>
 					)}
 				</div>
@@ -52,17 +45,18 @@ function Header() {
 
 function Installs() {
 	const { state } = useContext(Context);
+	const [currentGroup, setCurrentGroup] = useState<string>("");
 	const [groups, setGroups] = useState<
 		{
 			key: string;
-			values: EditorInstall[];
+			values: Editor[];
 		}[]
 	>([]);
 
-	useEffect(() => getGroups(), []);
+	useEffect(() => getGroups(), [state]);
 
 	function getGroups() {
-		const groups = groupBy(state.installs, (x) => x.version.split(".")[0]);
+		const groups = groupBy(state.editors, (x) => x.version.split(".")[0]);
 		const keys = Object.keys(groups);
 
 		const filledGroups = keys
@@ -74,22 +68,37 @@ function Installs() {
 			})
 			.reverse();
 		setGroups(filledGroups);
+
+		if (filledGroups.length > 0) {
+			setCurrentGroup(filledGroups[0].key);
+		}
+	}
+
+	const selectedGroup = groups.find((x) => x.key === currentGroup);
+	if (!selectedGroup) {
+		return null;
 	}
 
 	return (
 		<>
-			<div className="w-full max-w-6xl self-center overflow-y-auto h-full">
-				<div className="flex flex-col p-8 gap-4">
-					{/* {state.installs.map((i) => (
-						<Install key={i.version} data={i} />
-					))} */}
+			<div className="w-full max-w-6xl self-center h-full flex overflow-hidden">
+				<div className="flex flex-col gap-4 border-r py-4 border-r-stone-700 w-32 flex-shrink-0 overflow-y-auto">
 					{groups.map((i) => (
-						<>
-							<h4 key={i.key}>{i.key}</h4>
-							{i.values.map((x) => (
-								<Install key={x.version} data={x} />
-							))}
-						</>
+						<button
+							key={i.key}
+							className={`text-stone-50 text-sm px-3 py-3 hover:bg-stone-700 transition-colors ${
+								currentGroup === i.key ? "bg-stone-700" : ""
+							}`}
+							onClick={() => setCurrentGroup(i.key)}
+						>
+							{i.key}
+						</button>
+					))}
+				</div>
+
+				<div className="flex flex-col p-8 gap-4 w-full overflow-y-auto">
+					{selectedGroup.values.map((x) => (
+						<Install key={x.path + x.version} data={x} />
 					))}
 				</div>
 			</div>
@@ -97,11 +106,14 @@ function Installs() {
 	);
 }
 
-function Install(props: { data: EditorInstall }) {
+function Install(props: { data: Editor }) {
+	const { show } = useContextMenu({
+		id: "editor-" + props.data.path,
+	});
 	const [groups, setGroups] = useState<
 		{
 			key: string;
-			values: InstallModule[];
+			values: EditorModule[];
 		}[]
 	>([]);
 
@@ -125,6 +137,25 @@ function Install(props: { data: EditorInstall }) {
 		setGroups(filledGroups);
 	}
 
+	function openOptions(event: TriggerEvent) {
+		event.stopPropagation();
+		show({
+			id: "editor-" + props.data.path,
+			event,
+			props: {},
+		});
+	}
+
+	function handleItemClick({ id, event, _ }: any) {
+		event.stopPropagation();
+
+		switch (id) {
+			case "open":
+				invoke("show_path_in_file_manager", { path: props.data.path });
+				break;
+		}
+	}
+
 	return (
 		<div className="flex flex-col px-4 py-3 bg-stone-900 rounded-md border border-stone-600">
 			<div className="flex">
@@ -132,7 +163,10 @@ function Install(props: { data: EditorInstall }) {
 					{/* Unity{" "} */}
 					<span className="inline">{props.data.version}</span>
 				</p>
-				<button className="ml-auto flex items-center justify-center w-[30px] h-[30px] aspect-square rounded-md text-stone-50 hover:bg-stone-500">
+				<button
+					className="ml-auto flex items-center justify-center w-[30px] h-[30px] aspect-square rounded-md text-stone-50 hover:bg-stone-500"
+					onClick={openOptions}
+				>
 					<EllipsisVertical width={20} height={20} />
 				</button>
 			</div>
@@ -157,6 +191,12 @@ function Install(props: { data: EditorInstall }) {
 					</div>
 				))}
 			</div>
+
+			<Menu id={"editor-" + props.data.path} theme="dark_custom">
+				<Item id="open" onClick={handleItemClick}>
+					Show in Exporer
+				</Item>
+			</Menu>
 		</div>
 	);
 }

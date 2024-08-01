@@ -3,8 +3,13 @@
 
 use anyhow::Context;
 
-mod installs;
+mod editors;
 mod prefs;
+mod templates;
+mod graphql;
+mod project;
+mod io_util;
+mod git;
 
 #[tauri::command]
 fn get_config_path(app: tauri::AppHandle) -> String {
@@ -23,12 +28,23 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             get_config_path, 
             show_path_in_file_manager,
-            installs::get_editor_installs, 
+            editors::get_editor_installs, 
+            editors::get_last_used_editor,
+            editors::set_last_used_editor,
+            prefs::get_prefs,
             prefs::get_projects,
             prefs::add_project,
             prefs::remove_project,
-            installs::open_project,
-            installs::open_editor,
+            prefs::get_default_project_path,
+            prefs::clean_projects,
+            editors::open_project,
+            editors::open_editor,
+            templates::get_quick_templates,
+            templates::load_template,
+            graphql::parse_graphql,
+            project::generate_project,
+            project::change_project_editor_version,
+            git::get_git_package_json,
         ])
         .setup(|app| {
             let handle = app.handle().clone();

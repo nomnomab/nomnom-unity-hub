@@ -2,7 +2,7 @@ use std::process::Command;
 
 use serde::{Deserialize, Serialize};
 
-use crate::prefs::{Prefs};
+use crate::prefs::Prefs;
 
 #[tauri::command]
 pub fn open_project(app: tauri::AppHandle, project_path: String, editor_version: String) {
@@ -24,7 +24,7 @@ pub fn open_editor(app: tauri::AppHandle, editor_version: String, arguments: Vec
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(default, rename_all = "camelCase")]
-pub struct InstallModule {
+pub struct EditorModule {
     name: String,
     id: String,
     description: String,
@@ -33,7 +33,7 @@ pub struct InstallModule {
     selected: bool,
 }
 
-impl Default for InstallModule {
+impl Default for EditorModule {
     fn default() -> Self {
         Self {
             name: String::new(),
@@ -48,13 +48,13 @@ impl Default for InstallModule {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(default, rename_all = "camelCase")]
-pub struct EditorInstall {
-    version: String,
-    path: String,
-    modules: Vec<InstallModule>
+pub struct Editor {
+    pub version: String,
+    pub path: String,
+    pub modules: Vec<EditorModule>
 }
 
-impl Default for EditorInstall {
+impl Default for Editor {
     fn default() -> Self {
         Self {
             version: String::new(),
@@ -64,21 +64,21 @@ impl Default for EditorInstall {
     }
 }
 
-impl EditorInstall {
+impl Editor {
     pub fn get_folder(path: &str) -> std::path::PathBuf {
         std::path::PathBuf::from(path).parent().unwrap().parent().unwrap().to_path_buf()
     }
 
-    pub fn load_modules(folder: std::path::PathBuf) -> Vec<InstallModule> {
+    pub fn load_modules(folder: std::path::PathBuf) -> Vec<EditorModule> {
         let json_path = folder.join("modules.json");
         let modules_json = std::fs::read_to_string(json_path).unwrap();
-        let modules: Vec<InstallModule> = serde_json::from_str(&modules_json).unwrap();
+        let modules: Vec<EditorModule> = serde_json::from_str(&modules_json).unwrap();
         modules
     }
 }
 
 #[tauri::command]
-pub fn get_editor_installs(app: tauri::AppHandle) -> Result<Vec<EditorInstall>, String> {
+pub fn get_editor_installs(app: tauri::AppHandle) -> Result<Vec<Editor>, String> {
     match Prefs::create(&app) {
         Ok(prefs) => {
             let install_dir = prefs.hub_editors_path.unwrap();
@@ -93,9 +93,9 @@ pub fn get_editor_installs(app: tauri::AppHandle) -> Result<Vec<EditorInstall>, 
                     let version = entry.file_name().to_str().unwrap().to_string();
                     let path = entry.path().join("Editor").join("Unity.exe").to_str().unwrap().to_string();
                     let folder = entry.path();
-                    let modules = EditorInstall::load_modules(folder);
+                    let modules = Editor::load_modules(folder);
 
-                    EditorInstall {
+                    Editor {
                         version,
                         path,
                         modules
@@ -121,4 +121,26 @@ pub fn get_editor_installs(app: tauri::AppHandle) -> Result<Vec<EditorInstall>, 
         },
         Err(err) => Err(err.to_string()),
     }
+}
+
+#[tauri::command]
+pub fn get_last_used_editor(app: tauri::AppHandle) -> String {
+    let prefs = Prefs::create(&app).unwrap();
+    if let Some(editor) = prefs.last_used_editor_version {
+        return editor;
+    }
+
+    let editors = get_editor_installs(app).unwrap();
+    if editors.len() > 0 {
+        return editors[0].version.clone();
+    }
+
+    String::new()
+}
+
+#[tauri::command]
+pub fn set_last_used_editor(app: tauri::AppHandle, editor_version: String) {
+    let mut prefs = Prefs::create(&app).unwrap();
+    prefs.last_used_editor_version = Some(editor_version);
+    prefs.save(&app).unwrap();
 }

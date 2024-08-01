@@ -1,5 +1,5 @@
 import { useContext, useEffect, useState } from "react";
-import { Context, Project } from "../context/global-context";
+import { Context, Editor, Project } from "../context/global-context";
 import { invoke } from "@tauri-apps/api/tauri";
 import { open } from "@tauri-apps/api/dialog";
 import {
@@ -8,12 +8,14 @@ import {
 	Separator,
 	useContextMenu,
 	TriggerEvent,
+	Submenu,
 } from "react-contexify";
 import EllipsisVertical from "./svg/ellipsis-vertical";
 
 export default function ProjectsView() {
-	const { dispatch } = useContext(Context);
+	const { state, dispatch } = useContext(Context);
 	useEffect(() => {
+		state.getEditors();
 		loadProjects();
 	}, []);
 
@@ -41,10 +43,16 @@ function Header() {
 
 		if (!folder) return;
 
+		console.log(folder);
+
 		const project = await invoke("add_project", { path: folder });
 
 		const results: Project[] = await invoke("get_projects");
 		dispatch({ type: "set_projects", projects: results });
+	}
+
+	function startNewProject() {
+		dispatch({ type: "change_tab", tab: "new_project" });
 	}
 
 	return (
@@ -69,7 +77,10 @@ function Header() {
 				{/* <button className="rounded-md rounded-tl-none rounded-bl-none bg-stone-700 px-3 py-1 border-l border-l-stone-900">
 					v
 				</button> */}
-				<button className="rounded-md text-stone-50 bg-sky-600 px-3 py-1 ml-3">
+				<button
+					className="rounded-md text-stone-50 bg-sky-600 px-3 py-1 ml-3"
+					onClick={startNewProject}
+				>
 					New
 				</button>
 			</div>
@@ -107,8 +118,8 @@ type ProjectItemProps = {
 };
 
 function ProjectItem(props: ProjectItemProps) {
-	const { dispatch } = useContext(Context);
-	const { show } = useContextMenu({
+	const { state, dispatch } = useContext(Context);
+	const { show, hideAll } = useContextMenu({
 		id: "project-" + props.project.path,
 	});
 
@@ -126,7 +137,7 @@ function ProjectItem(props: ProjectItemProps) {
 		dispatch({ type: "set_projects", projects: results });
 	}
 
-	function handleItemClick({ id, event, _ }: any) {
+	function handleItemClick({ id, event, data }: any) {
 		event.stopPropagation();
 
 		switch (id) {
@@ -138,7 +149,12 @@ function ProjectItem(props: ProjectItemProps) {
 					loadProjects();
 				});
 				break;
+			case "version":
+				versionSelected(data);
+				break;
 		}
+
+		hideAll();
 	}
 
 	function openProject() {
@@ -146,6 +162,17 @@ function ProjectItem(props: ProjectItemProps) {
 			projectPath: props.project.path,
 			editorVersion: props.project.version,
 		});
+	}
+
+	async function versionSelected(version: string) {
+		if (version === props.project.version) return;
+
+		await invoke("change_project_editor_version", {
+			projectPath: props.project.path,
+			editorVersion: version,
+		});
+
+		loadProjects();
 	}
 
 	return (
@@ -181,6 +208,26 @@ function ProjectItem(props: ProjectItemProps) {
 				<Item id="open" onClick={handleItemClick}>
 					Show in Exporer
 				</Item>
+				<Submenu label="Change Editor Version">
+					{/* <div className="overflow-y-auto max-h-64">
+						
+					</div> */}
+					{state.editors.map((x) => (
+						<Item
+							key={x.path}
+							id="version"
+							data={x.version}
+							onClick={handleItemClick}
+							className={
+								x.version === props.project.version
+									? "bg-sky-600 rounded-md"
+									: ""
+							}
+						>
+							{x.version}
+						</Item>
+					))}
+				</Submenu>
 				<Separator />
 				<Item id="remove" onClick={handleItemClick}>
 					Remove

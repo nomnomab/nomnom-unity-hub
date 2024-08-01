@@ -1580,9 +1580,12 @@ name = "nomnom-unity-hub"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "dirs-next",
+ "flate2",
  "serde",
  "serde_json",
  "showfile",
+ "tar",
  "tauri",
  "tauri-build",
 ]

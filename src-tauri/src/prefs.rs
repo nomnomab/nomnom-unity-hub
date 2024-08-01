@@ -4,6 +4,8 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use tauri::{api::{dialog, path::app_config_dir}, AppHandle, Manager};
 
+use crate::editors;
+
 pub fn setup(app: &AppHandle) -> Result<()> {
     let prefs = Prefs::create(app)?;
     app.manage(Mutex::new(prefs));
@@ -12,6 +14,8 @@ pub fn setup(app: &AppHandle) -> Result<()> {
 
 #[tauri::command]
 pub fn get_projects(app: tauri::AppHandle) -> Vec<Project> {
+    clean_projects(app.clone());
+
     let prefs = Prefs::create(&app).unwrap();
     prefs.projects
 }
@@ -21,7 +25,12 @@ pub fn add_project(app: tauri::AppHandle, path: String) -> Result<Project, Strin
     let mut prefs = Prefs::create(&app).unwrap();
     match Project::load(path) {
         Ok(project) => {
-            prefs.projects.push(project.clone());
+            // if project already exists, don't add it
+            if prefs.projects.iter().any(|x| x.path == project.path) {
+                return Err("Project already exists".to_string());
+            }
+            
+            prefs.projects.insert(0, project.clone());
             prefs.save(&app).unwrap();
             return Ok(project);
         },
@@ -32,6 +41,16 @@ pub fn add_project(app: tauri::AppHandle, path: String) -> Result<Project, Strin
 }
 
 #[tauri::command]
+pub fn clean_projects(app: tauri::AppHandle) {
+    let mut prefs = Prefs::create(&app).unwrap();
+    
+    // remove any projects that don't exist
+    prefs.projects.retain(|x| fs::metadata(&x.path).is_ok());
+
+    prefs.save(&app).unwrap();
+}
+
+#[tauri::command]
 pub fn remove_project(app: tauri::AppHandle, path: String) {
     let mut prefs = Prefs::create(&app).unwrap();
     let index = prefs.projects.iter().position(|x| x.path == path);
@@ -39,6 +58,22 @@ pub fn remove_project(app: tauri::AppHandle, path: String) {
         prefs.projects.remove(index);
         prefs.save(&app).unwrap();
     }
+}
+
+#[tauri::command]
+pub fn get_prefs(app: tauri::AppHandle) -> Prefs {
+    Prefs::create(&app).unwrap()
+}
+
+#[tauri::command]
+pub fn get_default_project_path(app: tauri::AppHandle) -> String {
+    let prefs = Prefs::create(&app).unwrap();
+
+    if let Some(path) = prefs.new_project_path {
+        return path.to_str().unwrap().to_string();
+    }
+    
+    dirs_next::document_dir().unwrap().join("Unity Projects").to_str().unwrap().to_string()
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -82,16 +117,21 @@ pub struct Prefs {
     pub new_project_path: Option<PathBuf>,
     // typically C:\Program Files\Unity\Hub\Editor
     pub hub_editors_path: Option<PathBuf>,
+    // typically C:\Users\nomno\AppData\Roaming\UnityHub\
+    pub hub_appdata_path: Option<PathBuf>,
 
     pub projects: Vec<Project>,
+    pub last_used_editor_version: Option<String>,
 }
 
 impl Default for Prefs {
     fn default() -> Self {
         Self { 
-            new_project_path: Default::default(), 
+            new_project_path: Some(dirs_next::document_dir().unwrap().join("Unity Projects")), 
             hub_editors_path: Some(PathBuf::from(r#"C:\Program Files\Unity\Hub\Editor"#)),
-            projects: Vec::new()
+            hub_appdata_path: Some(PathBuf::from(r#"C:\Users\nomno\AppData\Roaming\UnityHub"#)),
+            projects: Vec::new(),
+            last_used_editor_version: Default::default()
         }
     }
 }

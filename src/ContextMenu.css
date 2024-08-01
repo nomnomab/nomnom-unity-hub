@@ -39,3 +39,9 @@
 .contexify_willLeave-fade {
 	animation: contexify_fadeOut 0.1s ease !important;
 }
+
+.contexify_submenu {
+	/* overflow-y-auto max-h-64 */
+	overflow-y: auto;
+	max-height: 16rem;
+}
