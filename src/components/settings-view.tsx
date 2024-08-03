@@ -124,10 +124,11 @@ function Body() {
 
 	return (
 		<div className="w-full max-w-6xl self-center overflow-y-auto h-full">
-			<div className="flex flex-col px-8 py-4 gap-2">
+			<div className="flex flex-col px-8 py-4 gap-4">
 				<ValidateInputContext onErrorChanged={setHasError}>
 					<ValidateInputWithButton
 						label="New Project Path"
+						subtitle="The default path that the project creator will use as its root folder."
 						name="newProjectPath"
 						value={state.prefs.newProjectPath ?? ""}
 						errorMessage={() => getErrorState("newProjectPath") ?? ""}
@@ -155,6 +156,7 @@ function Body() {
 
 					<ValidateInputWithButton
 						label="Unity Hub Path"
+						subtitle="The path to the Unity Hub executable."
 						name="hubPath"
 						value={state.prefs.hubPath ?? ""}
 						errorMessage={() => getErrorState("hubPath") ?? ""}
@@ -182,6 +184,7 @@ function Body() {
 
 					<ValidateInputWithButton
 						label="Unity Hub Editors Path"
+						subtitle="The path to the Unity Hub Editors folder."
 						name="hubEditorsPath"
 						value={state.prefs.hubEditorsPath ?? ""}
 						errorMessage={() => getErrorState("hubEditorsPath") ?? ""}
@@ -209,6 +212,7 @@ function Body() {
 
 					<ValidateInputWithButton
 						label="Unity Hub Appdata Path"
+						subtitle="The path to the Unity Hub Appdata folder."
 						name="hubAppdataPath"
 						value={state.prefs.hubAppdataPath ?? ""}
 						errorMessage={() => getErrorState("hubAppdataPath") ?? ""}

@@ -61,6 +61,7 @@ export function ValidateInputContext(props: ContextProps) {
 
 type InputProps = {
 	label?: string;
+	subtitle?: string;
 	value: string;
 	errorMessage: () => string;
 	hasError: () => boolean;
@@ -68,6 +69,7 @@ type InputProps = {
 } & React.InputHTMLAttributes<HTMLInputElement>;
 export function ValidateInput({
 	label,
+	subtitle,
 	value,
 	errorMessage,
 	hasError,
@@ -99,8 +101,9 @@ export function ValidateInput({
 
 	return (
 		<div {...divProps} className={`flex flex-col ${divProps?.className ?? ""}`}>
-			{label && <label className="select-none pb-1">{label}</label>}
-			<input {...props} value={value} />
+			{label && <label className="select-none">{label}</label>}
+			{subtitle && <p className="text-stone-400">{subtitle}</p>}
+			<input {...props} autoComplete="off" value={value} />
 			{hasErrorCheck && <p className="text-red-500">{errorMessage()}</p>}
 		</div>
 	);
@@ -108,6 +111,7 @@ export function ValidateInput({
 
 type InputWithButtonProps = {
 	label?: string;
+	subtitle?: string;
 	value: string;
 	errorMessage: () => string;
 	hasError: () => boolean;
@@ -116,13 +120,14 @@ type InputWithButtonProps = {
 } & React.InputHTMLAttributes<HTMLInputElement>;
 export function ValidateInputWithButton({
 	label,
+	subtitle,
 	value,
 	errorMessage,
 	hasError,
 	divProps,
 	children,
 	...props
-}: InputProps) {
+}: InputWithButtonProps) {
 	const { state, dispatch } = useContext(Context);
 
 	useEffect(() => {
@@ -148,9 +153,11 @@ export function ValidateInputWithButton({
 
 	return (
 		<div {...divProps} className={`flex flex-col ${divProps?.className ?? ""}`}>
-			{label && <label className="select-none pb-1">{label}</label>}
+			{label && <label className="select-none">{label}</label>}
+			{subtitle && <p className="text-stone-400">{subtitle}</p>}
+			<div className="pb-1" />
 			<div className="flex">
-				<input {...props} value={value} />
+				<input {...props} autoComplete="off" value={value} />
 				{children}
 			</div>
 			{hasErrorCheck && <p className="text-red-500">{errorMessage()}</p>}
