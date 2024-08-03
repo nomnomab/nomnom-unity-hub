@@ -242,12 +242,12 @@ function Install(props: { data: Editor }) {
 			<div className="flex">
 				<p className="text-stone-50">
 					{/* Unity{" "} */}
-					<p
+					<span
 						className="inline select-none cursor-pointer underline underline-offset-4 decoration-stone-500"
 						onClick={openUrl}
 					>
 						{props.data.version}
-					</p>
+					</span>
 				</p>
 				<button
 					className="ml-auto flex items-center justify-center w-[30px] h-[30px] aspect-square rounded-md text-stone-50 hover:bg-stone-500"
