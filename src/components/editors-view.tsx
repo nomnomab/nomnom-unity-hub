@@ -1,6 +1,7 @@
 import { useContext, useEffect, useState } from "react";
 import { Context, Editor, EditorModule } from "../context/global-context";
 import { invoke } from "@tauri-apps/api/tauri";
+import { open } from "@tauri-apps/api/shell";
 import { convertBytes, groupBy } from "../utils";
 import EllipsisVertical from "./svg/ellipsis-vertical";
 import { Menu, Item, TriggerEvent, useContextMenu } from "react-contexify";
@@ -166,7 +167,7 @@ function Installs() {
 }
 
 function Install(props: { data: Editor }) {
-	const { show } = useContextMenu({
+	const { show, hideAll } = useContextMenu({
 		id: "editor-" + props.data.path,
 	});
 	const [groups, setGroups] = useState<
@@ -205,33 +206,40 @@ function Install(props: { data: Editor }) {
 		});
 	}
 
+	const trimmedF1Version = props.data.version.endsWith("f1")
+		? props.data.version.slice(0, -2)
+		: props.data.version;
+	const url = `https://unity.com/releases/editor/whats-new/${trimmedF1Version}`;
+
+	function openUrl() {
+		open(url);
+	}
+
 	function handleItemClick({ id, event, _ }: any) {
 		event.stopPropagation();
+		hideAll();
 
 		switch (id) {
 			case "open":
 				invoke("show_path_in_file_manager", { path: props.data.path });
 				break;
+			case "changelog":
+				openUrl();
+				break;
 		}
 	}
-
-	const trimmedF1Version = props.data.version.endsWith("f1")
-		? props.data.version.slice(0, -2)
-		: props.data.version;
-	const url = `https://unity.com/releases/editor/whats-new/${trimmedF1Version}`;
 
 	return (
 		<div className="flex flex-col px-4 py-3 bg-stone-900 rounded-md border border-stone-600">
 			<div className="flex">
 				<p className="text-stone-50">
 					{/* Unity{" "} */}
-					<a
+					<p
 						className="inline select-none cursor-pointer underline underline-offset-4 decoration-stone-500"
-						href={url}
-						target="_blank"
+						onClick={openUrl}
 					>
 						{props.data.version}
-					</a>
+					</p>
 				</p>
 				<button
 					className="ml-auto flex items-center justify-center w-[30px] h-[30px] aspect-square rounded-md text-stone-50 hover:bg-stone-500"
@@ -271,6 +279,9 @@ function Install(props: { data: Editor }) {
 			<Menu id={"editor-" + props.data.path} theme="dark_custom">
 				<Item id="open" onClick={handleItemClick}>
 					Show in Exporer
+				</Item>
+				<Item id="changelog" onClick={handleItemClick}>
+					Open Changelog
 				</Item>
 			</Menu>
 		</div>
