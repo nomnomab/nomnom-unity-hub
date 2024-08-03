@@ -12,6 +12,7 @@ import NewTemplateView from "./components/new-template-view";
 import NewTemplateContext from "./context/new-template-context";
 import { invoke } from "@tauri-apps/api";
 import SettingsView from "./components/settings-view";
+import FirstTimeBoot from "./components/first-time-boot";
 
 function App() {
 	const { state } = useContext(Context);
@@ -26,18 +27,20 @@ function App() {
 	}, []);
 
 	return (
-		<div className="flex flex-row w-screen h-screen overflow-hidden">
-			<MainSidebar />
-			<div className="flex flex-grow h-screen overflow-hidden">
-				{state.currentTab === "projects" && <ProjectsView />}
-				{state.currentTab === "editors" && <EditorsView />}
-				<NewTemplateContext>
-					{state.currentTab === "new_project" && <NewProjectView />}
-					{state.currentTab === "new_template" && <NewTemplateView />}
-				</NewTemplateContext>
-				{state.currentTab === "settings" && <SettingsView />}
+		<FirstTimeBoot>
+			<div className="flex flex-row w-screen h-screen overflow-hidden">
+				<MainSidebar />
+				<div className="flex flex-grow h-screen overflow-hidden">
+					{state.currentTab === "projects" && <ProjectsView />}
+					{state.currentTab === "editors" && <EditorsView />}
+					<NewTemplateContext>
+						{state.currentTab === "new_project" && <NewProjectView />}
+						{state.currentTab === "new_template" && <NewTemplateView />}
+					</NewTemplateContext>
+					{state.currentTab === "settings" && <SettingsView />}
+				</div>
 			</div>
-		</div>
+		</FirstTimeBoot>
 	);
 }
 

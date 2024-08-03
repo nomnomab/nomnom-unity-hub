@@ -40,6 +40,8 @@ fn main() {
             prefs::remove_project,
             prefs::get_default_project_path,
             prefs::clean_projects,
+            prefs::is_first_boot,
+            prefs::set_past_first_boot,
             editors::open_project,
             editors::open_editor,
             templates::get_quick_templates,
@@ -53,6 +55,7 @@ fn main() {
             project::is_valid_project_root_dir,
             project::is_valid_new_project_root_dir,
             project::is_valid_folder_dir,
+            project::open_unity_hub,
             git::get_git_package_json,
         ])
         .setup(|app| {

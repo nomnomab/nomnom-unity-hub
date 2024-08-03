@@ -26,6 +26,11 @@ export default function EditorsView() {
 
 function Header() {
 	const { state } = useContext(Context);
+
+	function openHub() {
+		invoke("open_unity_hub");
+	}
+
 	return (
 		<div className="flex flex-row border-b border-b-stone-700 justify-center">
 			<div className="flex flex-row w-full max-w-6xl px-8 py-8 items-center">
@@ -39,7 +44,10 @@ function Header() {
 				</div>
 				<div className="ml-auto" />
 				{/* <button className="rounded-md bg-stone-700 px-3 py-1">Locate</button> */}
-				<button className="rounded-md text-stone-50 bg-sky-600 px-3 py-1 ml-3 select-none">
+				<button
+					className="rounded-md text-stone-50 bg-sky-600 px-3 py-1 ml-3 select-none"
+					onClick={openHub}
+				>
 					Install
 				</button>
 			</div>

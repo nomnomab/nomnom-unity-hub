@@ -70,6 +70,8 @@ pub fn get_prefs(app: tauri::AppHandle) -> Prefs {
 pub struct DummyPrefs {
     // where new projects are created
     pub new_project_path: Option<PathBuf>,
+    // typically C:\Program Files\Unity Hub\Unity Hub.exe
+    pub hub_path: Option<PathBuf>,
     // typically C:\Program Files\Unity\Hub\Editor
     pub hub_editors_path: Option<PathBuf>,
     // typically C:\Users\nomno\AppData\Roaming\UnityHub\
@@ -80,6 +82,7 @@ impl Default for DummyPrefs {
     fn default() -> Self {
         Self {
             new_project_path: None,
+            hub_path: None,
             hub_editors_path: None,
             hub_appdata_path: None
         }
@@ -159,8 +162,11 @@ impl Project {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(default, rename_all = "camelCase")]
 pub struct Prefs {
+    pub past_first_boot: bool,
     // where new projects are created
     pub new_project_path: Option<PathBuf>,
+    // typically C:\Program Files\Unity Hub\Unity Hub.exe
+    pub hub_path: Option<PathBuf>,
     // typically C:\Program Files\Unity\Hub\Editor
     pub hub_editors_path: Option<PathBuf>,
     // typically C:\Users\nomno\AppData\Roaming\UnityHub\
@@ -173,7 +179,9 @@ pub struct Prefs {
 impl Default for Prefs {
     fn default() -> Self {
         Self { 
+            past_first_boot: false,
             new_project_path: Some(dirs_next::document_dir().unwrap().join("Unity Projects")), 
+            hub_path: Some(PathBuf::from(r#"C:\Program Files\Unity Hub\Unity Hub.exe"#)),
             hub_editors_path: Some(PathBuf::from(r#"C:\Program Files\Unity\Hub\Editor"#)),
             // hub_appdata_path: Some(PathBuf::from(r#"C:\Users\nomno\AppData\Roaming\UnityHub"#)),
             hub_appdata_path: Some(dirs_next::config_dir().unwrap().join("UnityHub")),
@@ -232,4 +240,17 @@ impl Prefs {
 
         Ok(())
     }
+}
+
+#[tauri::command]
+pub fn is_first_boot(app: tauri::AppHandle) -> bool {
+    let prefs = Prefs::create(&app).unwrap();
+    !prefs.past_first_boot
+}
+
+#[tauri::command]
+pub fn set_past_first_boot(app: tauri::AppHandle) {
+    let mut prefs = Prefs::create(&app).unwrap();
+    prefs.past_first_boot = true;
+    prefs.save(&app).unwrap();
 }

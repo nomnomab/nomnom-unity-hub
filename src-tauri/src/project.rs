@@ -174,3 +174,17 @@ pub fn is_valid_new_project_root_dir(path: String, name: String) -> Result<(), S
 
     Ok(())
 }
+
+#[tauri::command]
+pub fn open_unity_hub(app: tauri::AppHandle) {
+    let prefs = prefs::get_prefs(app.clone());
+
+    if let Some(unity_hub_path) = prefs.hub_path  {
+        if !unity_hub_path.exists() {
+            println!("Unity hub path does not exist");
+            return;
+        }
+        std::process::Command::new(unity_hub_path).spawn().unwrap();
+        println!("Opened unity hub");        
+    }
+}
