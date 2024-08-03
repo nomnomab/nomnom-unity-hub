@@ -34,7 +34,7 @@ export default function EditorVersionSelect(props: Props) {
 			: (props.className ?? "") + " ";
 	return (
 		<>
-			<button className={className} onClick={openOptions}>
+			<button className={className + " select-none"} onClick={openOptions}>
 				{props.version}
 			</button>
 			<Menu

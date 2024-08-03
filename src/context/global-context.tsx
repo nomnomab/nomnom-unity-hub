@@ -1,12 +1,17 @@
 import { invoke } from "@tauri-apps/api/tauri";
-import { createContext, PropsWithChildren, useEffect, useReducer } from "react";
+import { createContext, PropsWithChildren, useReducer } from "react";
 
 type GlobalContextType = {
 	state: GlobalState;
 	dispatch: React.Dispatch<Action>;
 };
 
-export type Tabs = "editors" | "projects" | "new_project";
+export type Tabs =
+	| "editors"
+	| "projects"
+	| "new_project"
+	| "new_template"
+	| "settings";
 
 export type Project = {
 	name: string;
@@ -26,14 +31,19 @@ export type Editor = {
 	version: string;
 	path: string;
 	modules: EditorModule[];
+} & EditorExtra;
+
+type EditorExtra = {
+	sizeMb?: number;
 };
 
 export type MinimalTemplate = {
 	path: string;
-	name: string;
 	displayName: string;
+	id: string;
 	version: string;
 	editorVersion: string;
+	isCustom?: boolean;
 };
 
 export type Template = {
@@ -69,7 +79,8 @@ export const Context = createContext<GlobalContextType>(
 type Action =
 	| { type: "change_tab"; tab: Tabs }
 	| { type: "set_editors"; editors: Editor[] }
-	| { type: "set_projects"; projects: Project[] };
+	| { type: "set_projects"; projects: Project[] }
+	| { type: "set_editor_size"; editor: Editor; sizeMb: number };
 
 const reducer = (state: GlobalState, action: Action): GlobalState => {
 	// console.log("setting state", state, action);
@@ -80,6 +91,13 @@ const reducer = (state: GlobalState, action: Action): GlobalState => {
 			return { ...state, editors: action.editors };
 		case "set_projects":
 			return { ...state, projects: action.projects };
+		case "set_editor_size":
+			return {
+				...state,
+				editors: state.editors.map((e) =>
+					e.path === action.editor.path ? { ...e, sizeMb: action.sizeMb } : e
+				),
+			};
 	}
 };
 
@@ -110,4 +128,22 @@ export default function GlobalContext(props: PropsWithChildren) {
 			{props.children}
 		</Context.Provider>
 	);
+}
+
+export function convertRustTemplateToTS(rawTemplate: any) {
+	// copy rawTemplate
+	// @ts-ignore
+	let template = { ...rawTemplate } as Template;
+	template.dependencies = {
+		internal: {},
+		custom: {},
+	};
+
+	// @ts-ignore
+	for (const [key, value] of Object.entries(rawTemplate.dependencies)) {
+		// @ts-ignore
+		template.dependencies.internal[key] = value;
+	}
+
+	return template;
 }

@@ -11,17 +11,40 @@ import {
 	Submenu,
 } from "react-contexify";
 import EllipsisVertical from "./svg/ellipsis-vertical";
+import { appWindow } from "@tauri-apps/api/window";
 
 export default function ProjectsView() {
 	const { state, dispatch } = useContext(Context);
+	const [loadingProjects, setLoadingProjects] = useState(false);
+
 	useEffect(() => {
 		state.getEditors();
 		loadProjects();
 	}, []);
 
+	useEffect(() => {
+		// @ts-ignore
+		let unlisten = undefined;
+
+		const listen = async () => {
+			unlisten = await appWindow.listen("tauri://focus", () => {
+				loadProjects();
+			});
+		};
+
+		listen();
+
+		// @ts-ignore
+		return () => unlisten && unlisten();
+	}, []);
+
 	async function loadProjects() {
+		if (loadingProjects) return;
+
+		// console.log("loading projects");
 		const results: Project[] = await invoke("get_projects");
 		dispatch({ type: "set_projects", projects: results });
+		setLoadingProjects(false);
 	}
 
 	return (
@@ -57,11 +80,11 @@ function Header() {
 
 	return (
 		<div className="flex flex-row border-b border-b-stone-700 justify-center">
-			<div className="flex flex-row w-full max-w-6xl px-12 py-8 items-center">
+			<div className="flex flex-row w-full max-w-6xl px-8 py-8 items-center">
 				<div className="text-stone-50 flex flex-row items-center">
-					<h1>Projects</h1>
+					<h1 className="select-none">Projects</h1>
 					{state.projects.length > 0 && (
-						<h4 className="text-stone-500 text-lg ml-2 leading-none">
+						<h4 className="text-stone-500 text-lg ml-2 leading-none select-none">
 							({state.projects.length})
 						</h4>
 					)}
@@ -69,7 +92,7 @@ function Header() {
 				<div className="ml-auto" />
 				<button
 					// className="rounded-md rounded-tr-none rounded-br-none bg-stone-700 px-3 py-1"
-					className="rounded-md bg-stone-700 px-3 py-1"
+					className="rounded-md bg-stone-700 px-3 py-1 select-none"
 					onClick={addExistingProject}
 				>
 					Add
@@ -78,7 +101,7 @@ function Header() {
 					v
 				</button> */}
 				<button
-					className="rounded-md text-stone-50 bg-sky-600 px-3 py-1 ml-3"
+					className="rounded-md text-stone-50 bg-sky-600 px-3 py-1 ml-3 select-none"
 					onClick={startNewProject}
 				>
 					New
@@ -182,17 +205,17 @@ function ProjectItem(props: ProjectItemProps) {
 		>
 			{/* Name */}
 			<div className="w-4/5">
-				<p className="overflow-ellipsis whitespace-nowrap overflow-x-clip text-stone-50">
+				<p className="overflow-ellipsis whitespace-nowrap overflow-x-clip text-stone-50 select-none">
 					{props.project.name}
 				</p>
-				<p className="text-sm overflow-ellipsis whitespace-nowrap overflow-x-clip">
+				<p className="text-sm overflow-ellipsis whitespace-nowrap overflow-x-clip select-none">
 					{props.project.path}
 				</p>
 			</div>
 
 			{/* Editor Version */}
 			<div className="flex items-center justify-end  ml-auto">
-				<p className="overflow-ellipsis whitespace-nowrap overflow-x-clip text-md">
+				<p className="overflow-ellipsis whitespace-nowrap overflow-x-clip text-md select-none">
 					{props.project.version}
 				</p>
 			</div>

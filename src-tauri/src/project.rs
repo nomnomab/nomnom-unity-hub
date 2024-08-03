@@ -66,7 +66,10 @@ pub async fn generate_project(app: tauri::AppHandle, data: GenerateProject) -> R
     std::fs::remove_dir_all(&output_folder.join("package")).unwrap();
 
     // remove Library folder
-    std::fs::remove_dir_all(&output_folder.join("Library")).unwrap();
+    let library_folder = output_folder.join("Library");
+    if library_folder.exists() {
+        std::fs::remove_dir_all(&library_folder).unwrap();
+    }
 
     // open manifest to edit it!
     let manifest_path = output_folder.join("Packages").join("manifest.json");
@@ -102,4 +105,72 @@ pub fn change_project_editor_version(app: tauri::AppHandle, project_path: String
     prefs.save(&app).unwrap();
 
     println!("Saved prefs");
+}
+
+#[tauri::command]
+pub fn is_valid_folder_dir(path: String, needs_empty: bool, needs_exists: bool) -> Result<(), String> {
+    let path = std::path::Path::new(&path);
+    let extension = path.extension();
+    if let Some(_) = extension {
+        return Err("The path is not a directory".to_string());
+    }
+    
+    if path.exists() {
+        // is it empty
+        if needs_empty && path.read_dir().unwrap().next().is_some() {
+            return Err("The directory is not empty".to_string());
+        }
+    } else if needs_exists {
+        return Err("The directory does not exist".to_string());
+    }
+
+    if let Some(parent) = path.parent() {
+        if !parent.exists() {
+            return Err("The parent directory does not exist".to_string());
+        }
+    } else {
+        return Err("Failed to get parent directory".to_string());
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn is_valid_project_root_dir(path: String) -> bool {
+    let path = std::path::Path::new(&path);
+    if !path.exists() {
+        return false;
+    }
+    let assets_dir = path.join("Assets");
+    assets_dir.exists()
+}
+
+#[tauri::command]
+pub fn is_valid_new_project_root_dir(path: String, name: String) -> Result<(), String> {
+    if name.is_empty() {
+        return Err("The project name cannot be empty".to_string());
+    }
+    
+    let path = std::path::Path::new(&path).join(name);
+    let extension = path.extension();
+    if let Some(_) = extension {
+        return Err("The path is not a directory".to_string());
+    }
+    
+    if path.exists() {
+        // is it empty
+        if path.read_dir().unwrap().next().is_some() {
+            return Err("The directory is not empty".to_string());
+        }
+    }
+
+    if let Some(parent) = path.parent() {
+        if !parent.exists() {
+            return Err("The parent directory does not exist".to_string());
+        }
+    } else {
+        return Err("Failed to get parent directory".to_string());
+    }
+
+    Ok(())
 }

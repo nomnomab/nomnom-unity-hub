@@ -45,7 +45,7 @@ pub fn clean_projects(app: tauri::AppHandle) {
     let mut prefs = Prefs::create(&app).unwrap();
     
     // remove any projects that don't exist
-    prefs.projects.retain(|x| fs::metadata(&x.path).is_ok());
+    prefs.projects.retain(|x| std::path::Path::new(&x.path).exists());
 
     prefs.save(&app).unwrap();
 }
@@ -63,6 +63,52 @@ pub fn remove_project(app: tauri::AppHandle, path: String) {
 #[tauri::command]
 pub fn get_prefs(app: tauri::AppHandle) -> Prefs {
     Prefs::create(&app).unwrap()
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(default, rename_all = "camelCase")]
+pub struct DummyPrefs {
+    // where new projects are created
+    pub new_project_path: Option<PathBuf>,
+    // typically C:\Program Files\Unity\Hub\Editor
+    pub hub_editors_path: Option<PathBuf>,
+    // typically C:\Users\nomno\AppData\Roaming\UnityHub\
+    pub hub_appdata_path: Option<PathBuf>,
+}
+
+impl Default for DummyPrefs {
+    fn default() -> Self {
+        Self {
+            new_project_path: None,
+            hub_editors_path: None,
+            hub_appdata_path: None
+        }
+    }
+}
+
+#[tauri::command]
+pub fn save_prefs(app: tauri::AppHandle, dummy_prefs: DummyPrefs) {
+    let mut prefs = Prefs::create(&app).unwrap();
+    let mut changed = false;
+
+    if let Some(path) = dummy_prefs.new_project_path {
+        prefs.new_project_path = Some(path);
+        changed = true;
+    }
+
+    if let Some(path) = dummy_prefs.hub_editors_path {
+        prefs.hub_editors_path = Some(path);
+        changed = true;
+    }
+
+    if let Some(path) = dummy_prefs.hub_appdata_path {
+        prefs.hub_appdata_path = Some(path);
+        changed = true;
+    }
+
+    if changed {
+        prefs.save(&app).unwrap();
+    }
 }
 
 #[tauri::command]
@@ -129,7 +175,8 @@ impl Default for Prefs {
         Self { 
             new_project_path: Some(dirs_next::document_dir().unwrap().join("Unity Projects")), 
             hub_editors_path: Some(PathBuf::from(r#"C:\Program Files\Unity\Hub\Editor"#)),
-            hub_appdata_path: Some(PathBuf::from(r#"C:\Users\nomno\AppData\Roaming\UnityHub"#)),
+            // hub_appdata_path: Some(PathBuf::from(r#"C:\Users\nomno\AppData\Roaming\UnityHub"#)),
+            hub_appdata_path: Some(dirs_next::config_dir().unwrap().join("UnityHub")),
             projects: Vec::new(),
             last_used_editor_version: Default::default()
         }

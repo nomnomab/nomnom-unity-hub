@@ -37,7 +37,7 @@ function UserHeader() {
 function Options() {
 	const { state, dispatch } = useContext(Context);
 	return (
-		<div className="px-4 gap-3 flex flex-col">
+		<div className="px-4 gap-3 flex flex-col flex-grow pb-3">
 			<OptionItem
 				title="Projects"
 				selected={state.currentTab === "projects"}
@@ -48,6 +48,24 @@ function Options() {
 				selected={state.currentTab === "editors"}
 				onClick={() => dispatch({ type: "change_tab", tab: "editors" })}
 			/>
+
+			<OptionItem
+				title="Settings"
+				selected={state.currentTab === "settings"}
+				onClick={() => dispatch({ type: "change_tab", tab: "settings" })}
+				className="mt-auto"
+			/>
+
+			<p className="text-sm text-stone-400 select-none px-3">
+				Made by <br />
+				<a
+					href="https://github.com/nomnomab"
+					target="_blank"
+					className="text-stone-300 transition-colors hover:text-stone-50 hover:underline"
+				>
+					Andrew Burke
+				</a>
+			</p>
 		</div>
 	);
 }
@@ -63,14 +81,17 @@ function OptionItem(props: OptionItemProps) {
 		return (
 			<span
 				{...props}
-				className="bg-stone-700 px-3 py-2 rounded-md text-stone-50 cursor-pointer"
+				className={`bg-stone-700 px-3 py-2 rounded-md text-stone-50 cursor-pointer select-none hover:bg-stone-600 ${props.className}`}
 			>
 				{props.title}
 			</span>
 		);
 	}
 	return (
-		<span {...props} className="px-3 py-2 rounded-md cursor-pointer">
+		<span
+			{...props}
+			className={`px-3 py-2 rounded-md cursor-pointer select-none hover:bg-stone-700 hover:text-stone-50 ${props.className}`}
+		>
 			{props.title}
 		</span>
 	);
