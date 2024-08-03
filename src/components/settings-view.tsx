@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from "react";
+import { Suspense, useContext, useEffect, useState } from "react";
 import {
 	ValidateInputContext,
 	ValidateInputWithButton,
@@ -7,6 +7,7 @@ import { invoke } from "@tauri-apps/api/tauri";
 import FolderOpen from "./svg/folder-open";
 import { open } from "@tauri-apps/api/dialog";
 import { Context, Prefs } from "../context/global-context";
+import { getVersion } from "@tauri-apps/api/app";
 
 type Props = {
 	overrideClassName?: string;
@@ -26,6 +27,12 @@ function Header() {
 		<div className="flex flex-row border-b border-b-stone-700 justify-center">
 			<div className="flex flex-row w-full max-w-6xl px-8 py-8 items-center select-none">
 				<h1 className="text-stone-50">Settings</h1>
+
+				<div className="ml-auto">
+					<Suspense>
+						<Version />
+					</Suspense>
+				</div>
 			</div>
 		</div>
 	);
@@ -241,4 +248,20 @@ function Body() {
 			</div>
 		</div>
 	);
+}
+
+function Version() {
+	const [version, setVersion] = useState("-");
+	const appVersionPromise = getVersion();
+
+	useEffect(() => {
+		const wait = async () => {
+			const version = await appVersionPromise;
+			setVersion(version);
+		};
+
+		wait();
+	}, []);
+
+	return <div className="text-md text-stone-400 select-none">v{version}</div>;
 }

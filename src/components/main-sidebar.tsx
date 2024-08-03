@@ -1,5 +1,6 @@
 import { ButtonHTMLAttributes, useContext } from "react";
 import { Context } from "../context/global-context";
+import { open } from "@tauri-apps/api/shell";
 
 export default function MainSidebar() {
 	// async function getPath() {
@@ -58,13 +59,12 @@ function Options() {
 
 			<p className="text-sm text-stone-400 select-none px-3">
 				Made by <br />
-				<a
-					href="https://github.com/nomnomab"
-					target="_blank"
-					className="text-stone-300 transition-colors hover:text-stone-50 hover:underline"
+				<span
+					className="text-stone-300 transition-colors hover:text-stone-50 hover:underline cursor-pointer"
+					onClick={() => open("https://github.com/nomnomab")}
 				>
 					Andrew Burke
-				</a>
+				</span>
 			</p>
 		</div>
 	);
