@@ -108,9 +108,21 @@ pub fn change_project_editor_version(app: tauri::AppHandle, project_path: String
 }
 
 #[tauri::command]
-pub fn is_valid_folder_dir(path: String, needs_empty: bool, needs_exists: bool) -> Result<(), String> {
+pub fn is_valid_path(path: String, needs_empty: bool, needs_exists: bool, is_folder: bool) -> Result<(), String> {
     let path = std::path::Path::new(&path);
+
+    if !is_folder {
+        if !path.exists() && needs_exists {
+            return Err("The path does not exist".to_string());
+        } else if !needs_exists {
+            return Err("The path must not exist".to_string());
+        }
+
+        return Ok(());
+    }
+    
     let extension = path.extension();
+    
     if let Some(_) = extension {
         return Err("The path is not a directory".to_string());
     }

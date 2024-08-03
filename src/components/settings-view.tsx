@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import {
 	ValidateInputContext,
 	ValidateInputWithButton,
@@ -6,20 +6,16 @@ import {
 import { invoke } from "@tauri-apps/api/tauri";
 import FolderOpen from "./svg/folder-open";
 import { open } from "@tauri-apps/api/dialog";
+import { Context, Prefs } from "../context/global-context";
 
-type Prefs = {
-	// where new projects are created
-	newProjectPath?: string;
-	// typically C:\Program Files\Unity\Hub\Editor
-	hubEditorsPath?: string;
-	// typically C:\Users\nomno\AppData\Roaming\UnityHub\
-	hubAppdataPath?: string;
+type Props = {
+	overrideClassName?: string;
+	noHeader?: boolean;
 };
-
-export default function SettingsView() {
+export default function SettingsView(props: Props) {
 	return (
-		<div className="flex flex-col w-full">
-			<Header />
+		<div className={props.overrideClassName ?? "flex flex-col w-full"}>
+			{!props.noHeader && <Header />}
 			<Body />
 		</div>
 	);
@@ -36,7 +32,8 @@ function Header() {
 }
 
 function Body() {
-	const [data, setData] = useState<Prefs>({});
+	const { state, dispatch } = useContext(Context);
+	// const [data, setData] = useState<Prefs>({});
 	const [hasError, setHasError] = useState(false);
 	const [errorStates, setErrorStates] = useState<
 		Record<string, string | undefined>
@@ -44,42 +41,56 @@ function Body() {
 
 	useEffect(() => {
 		invoke("get_prefs").then((prefs) => {
-			console.log(prefs);
 			const tmpPrefs = prefs as Prefs;
-			setData({
-				newProjectPath: tmpPrefs.newProjectPath,
-				hubEditorsPath: tmpPrefs.hubEditorsPath,
-				hubAppdataPath: tmpPrefs.hubAppdataPath,
-			} as Prefs);
+			dispatch({
+				type: "set_prefs",
+				prefs: {
+					newProjectPath: tmpPrefs.newProjectPath,
+					hubPath: tmpPrefs.hubPath,
+					hubEditorsPath: tmpPrefs.hubEditorsPath,
+					hubAppdataPath: tmpPrefs.hubAppdataPath,
+				} as Prefs,
+			});
 		});
 		checkPaths();
+		dispatch({ type: "set_has_bad_pref", hasBadPref: hasError });
 	}, []);
 
 	useEffect(() => {
 		checkPaths();
-	}, [data]);
+	}, [state.prefs]);
+
+	useEffect(() => {
+		dispatch({ type: "set_has_bad_pref", hasBadPref: hasError });
+	}, [hasError]);
 
 	function checkPaths() {
-		checkError("newProjectPath", data.newProjectPath ?? "");
-		checkError("hubEditorsPath", data.hubEditorsPath ?? "");
-		checkError("hubAppdataPath", data.hubAppdataPath ?? "");
+		checkError("newProjectPath", state.prefs.newProjectPath ?? "", true);
+		checkError("hubPath", state.prefs.hubPath ?? "", false);
+		checkError("hubEditorsPath", state.prefs.hubEditorsPath ?? "", true);
+		checkError("hubAppdataPath", state.prefs.hubAppdataPath ?? "", true);
 	}
 
 	function getErrorState(name: string): string | undefined {
 		return errorStates[name];
 	}
 
-	async function checkError(name: string, value: string): Promise<boolean> {
+	async function checkError(
+		name: string,
+		value: string,
+		isFolder: boolean
+	): Promise<boolean> {
 		if (!value || value.length === 0) {
 			setErrorStates((s) => ({ ...s, [name]: "Path cannot be empty" }));
 			return false;
 		}
 
 		try {
-			const result: boolean = await invoke("is_valid_folder_dir", {
+			const result: boolean = await invoke("is_valid_path", {
 				path: value,
 				needsEmpty: false,
 				needsExists: true,
+				isFolder,
 			});
 
 			setErrorStates((s) => ({ ...s, [name]: undefined }));
@@ -103,11 +114,12 @@ function Body() {
 
 		if (!path) return;
 
-		setData((s) => {
-			const prefs = { ...s, [key]: path as string };
-			invoke("save_prefs", { dummyPrefs: prefs });
-			return prefs;
-		});
+		const prefs = { ...state.prefs, [key]: path as string };
+		dispatch({ type: "set_prefs", prefs });
+	}
+
+	function savePrefs() {
+		dispatch({ type: "save_prefs" });
 	}
 
 	return (
@@ -117,12 +129,17 @@ function Body() {
 					<ValidateInputWithButton
 						label="New Project Path"
 						name="newProjectPath"
-						value={data.newProjectPath ?? ""}
+						value={state.prefs.newProjectPath ?? ""}
 						errorMessage={() => getErrorState("newProjectPath") ?? ""}
 						hasError={() => !!getErrorState("newProjectPath")}
 						onChange={(e) =>
-							setData((s) => ({ ...s, projectPath: e.target.value }))
+							// setData((s) => ({ ...s, projectPath: e.target.value }))
+							dispatch({
+								type: "set_prefs",
+								prefs: { ...state.prefs, newProjectPath: e.target.value },
+							})
 						}
+						onBlur={() => savePrefs()}
 						className="w-full p-2 rounded-md border rounded-tr-none rounded-br-none border-r-0 border-stone-600 bg-stone-800"
 						divProps={{
 							className: "flex-grow",
@@ -137,14 +154,46 @@ function Body() {
 					</ValidateInputWithButton>
 
 					<ValidateInputWithButton
-						label="Hub Editors Path"
+						label="Unity Hub Path"
+						name="hubPath"
+						value={state.prefs.hubPath ?? ""}
+						errorMessage={() => getErrorState("hubPath") ?? ""}
+						hasError={() => !!getErrorState("hubPath")}
+						onChange={(e) =>
+							// setData((s) => ({ ...s, hubPath: e.target.value }))
+							dispatch({
+								type: "set_prefs",
+								prefs: { ...state.prefs, hubPath: e.target.value },
+							})
+						}
+						onBlur={() => savePrefs()}
+						className="w-full p-2 rounded-md border rounded-tr-none rounded-br-none border-r-0 border-stone-600 bg-stone-800"
+						divProps={{
+							className: "flex-grow",
+						}}
+					>
+						<button
+							className="hover:text-stone-50 border-stone-600 w-[40px] flex items-center justify-center aspect-square rounded-md rounded-tl-none rounded-bl-none text-stone-50 hover:bg-stone-500 p-2 border"
+							onClick={() => selectProjectFolder("hubPath")}
+						>
+							<FolderOpen />
+						</button>
+					</ValidateInputWithButton>
+
+					<ValidateInputWithButton
+						label="Unity Hub Editors Path"
 						name="hubEditorsPath"
-						value={data.hubEditorsPath ?? ""}
+						value={state.prefs.hubEditorsPath ?? ""}
 						errorMessage={() => getErrorState("hubEditorsPath") ?? ""}
 						hasError={() => !!getErrorState("hubEditorsPath")}
 						onChange={(e) =>
-							setData((s) => ({ ...s, hubEditorsPath: e.target.value }))
+							// setData((s) => ({ ...s, hubEditorsPath: e.target.value }))
+							dispatch({
+								type: "set_prefs",
+								prefs: { ...state.prefs, hubEditorsPath: e.target.value },
+							})
 						}
+						onBlur={() => savePrefs()}
 						className="w-full p-2 rounded-md border rounded-tr-none rounded-br-none border-r-0 border-stone-600 bg-stone-800"
 						divProps={{
 							className: "flex-grow",
@@ -159,14 +208,19 @@ function Body() {
 					</ValidateInputWithButton>
 
 					<ValidateInputWithButton
-						label="Hub Appdata Path"
+						label="Unity Hub Appdata Path"
 						name="hubAppdataPath"
-						value={data.hubAppdataPath ?? ""}
+						value={state.prefs.hubAppdataPath ?? ""}
 						errorMessage={() => getErrorState("hubAppdataPath") ?? ""}
 						hasError={() => !!getErrorState("hubAppdataPath")}
 						onChange={(e) =>
-							setData((s) => ({ ...s, hubAppdataPath: e.target.value }))
+							// setData((s) => ({ ...s, hubAppdataPath: e.target.value }))
+							dispatch({
+								type: "set_prefs",
+								prefs: { ...state.prefs, hubAppdataPath: e.target.value },
+							})
 						}
+						onBlur={() => savePrefs()}
 						className="w-full p-2 rounded-md border rounded-tr-none rounded-br-none border-r-0 border-stone-600 bg-stone-800"
 						divProps={{
 							className: "flex-grow",

@@ -54,7 +54,7 @@ fn main() {
             project::change_project_editor_version,
             project::is_valid_project_root_dir,
             project::is_valid_new_project_root_dir,
-            project::is_valid_folder_dir,
+            project::is_valid_path,
             project::open_unity_hub,
             git::get_git_package_json,
         ])

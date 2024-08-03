@@ -99,6 +99,11 @@ pub fn save_prefs(app: tauri::AppHandle, dummy_prefs: DummyPrefs) {
         changed = true;
     }
 
+    if let Some(path) = dummy_prefs.hub_path {
+        prefs.hub_path = Some(path);
+        changed = true;
+    }
+
     if let Some(path) = dummy_prefs.hub_editors_path {
         prefs.hub_editors_path = Some(path);
         changed = true;

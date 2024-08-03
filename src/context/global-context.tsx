@@ -59,11 +59,24 @@ export type TemplateDependencies = {
 	custom: { [key: string]: { version: string; gitUrl?: string } };
 };
 
+export type Prefs = {
+	// where new projects are created
+	newProjectPath?: string;
+	// typically C:\Program Files\Unity Hub\Unity Hub.exe
+	hubPath?: string;
+	// typically C:\Program Files\Unity\Hub\Editor
+	hubEditorsPath?: string;
+	// typically C:\Users\nomno\AppData\Roaming\UnityHub\
+	hubAppdataPath?: string;
+};
+
 type GlobalState = {
 	currentTab: Tabs;
 	projects: Project[];
 	editors: Editor[];
 	getEditors: () => Promise<Editor[]>;
+	prefs: Prefs;
+	hasBadPref: boolean;
 };
 
 const initialState: GlobalState = {
@@ -71,6 +84,8 @@ const initialState: GlobalState = {
 	projects: [],
 	editors: [],
 	getEditors: () => Promise.resolve([]),
+	prefs: {},
+	hasBadPref: false,
 };
 export const Context = createContext<GlobalContextType>(
 	{} as GlobalContextType
@@ -80,7 +95,10 @@ type Action =
 	| { type: "change_tab"; tab: Tabs }
 	| { type: "set_editors"; editors: Editor[] }
 	| { type: "set_projects"; projects: Project[] }
-	| { type: "set_editor_size"; editor: Editor; sizeMb: number };
+	| { type: "set_editor_size"; editor: Editor; sizeMb: number }
+	| { type: "set_prefs"; prefs: Prefs }
+	| { type: "set_has_bad_pref"; hasBadPref: boolean }
+	| { type: "save_prefs" };
 
 const reducer = (state: GlobalState, action: Action): GlobalState => {
 	// console.log("setting state", state, action);
@@ -98,6 +116,17 @@ const reducer = (state: GlobalState, action: Action): GlobalState => {
 					e.path === action.editor.path ? { ...e, sizeMb: action.sizeMb } : e
 				),
 			};
+		case "set_prefs":
+			return { ...state, prefs: action.prefs };
+		case "set_has_bad_pref":
+			return { ...state, hasBadPref: action.hasBadPref };
+		case "save_prefs":
+			invoke("save_prefs", {
+				dummyPrefs: state.prefs,
+			});
+			return state;
+		default:
+			return state;
 	}
 };
 
