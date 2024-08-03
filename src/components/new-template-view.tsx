@@ -192,8 +192,10 @@ export default function NewTemplateView() {
 								className="border border-stone-700 w-96 h-40 rounded-sm m-6 flex flex-col items-center justify-center cursor-pointer hover:bg-stone-800 border-dashed"
 								onClick={openProjectPicker}
 							>
-								<p className="max-w-52 text-stone-400 text-center select-none">
-									Drag and drop a project or browse to select one
+								<p className="max-w-72 text-stone-400 text-center select-none">
+									{/* Drag and drop a project or browse to select one */}
+									Browse to select a project that will be used for the default
+									assets
 								</p>
 								<button className="mt-4 rounded-md text-stone-50 bg-stone-700 px-3 py-1 ml-3 select-none">
 									Browse
