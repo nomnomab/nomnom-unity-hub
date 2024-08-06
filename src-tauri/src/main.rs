@@ -10,10 +10,12 @@ mod editor;
 mod errors;
 mod prefs;
 mod project;
+mod io_utils;
 
 fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
+            app::cmd_show_path_in_file_manager,
             // prefs
             prefs::cmd_get_prefs,
             prefs::cmd_load_prefs,
@@ -29,7 +31,8 @@ fn main() {
             project::cmd_open_project_in_editor,
             // editors
             editor::cmd_get_editors,
-            editor::cmd_open_unity_hub
+            editor::cmd_open_unity_hub,
+            editor::cmd_estimate_editor_size,
         ])
         .setup(|app| {
             let app_handle = app.handle();

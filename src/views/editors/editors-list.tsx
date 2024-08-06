@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import useBetterState from "../../hooks/useBetterState";
 import { TauriTypes } from "../../utils/tauri-types";
 import { TauriRouter } from "../../utils/tauri-router";
@@ -7,7 +7,8 @@ import LoadingSpinner from "../../components/svg/loading-spinner";
 import EllipsisVertical from "../../components/svg/ellipsis-vertical";
 import { open } from "@tauri-apps/api/shell";
 import { Menu, Item, useContextMenu, TriggerEvent } from "react-contexify";
-import { groupBy } from "../../utils";
+import { convertBytes, groupBy } from "../../utils";
+import AsyncLazyValueComponent from "../../components/async-lazy-value-component";
 
 interface UnityEditorInstallGroup {
   version: string;
@@ -60,6 +61,44 @@ export default function EditorsList() {
       ) ?? null
     );
   }, [data.value.selectedGroup]);
+
+  const calculatingEditorSize = useBetterState(true);
+  useEffect(() => {
+    const calculateDiskSizes = async () => {
+      for (let i = 0; i < data.value.editorGroups.length; i++) {
+        const editors = data.value.editorGroups[i].editors;
+        for (let j = 0; j < editors.length; j++) {
+          const editor = editors[j];
+          if (
+            editor.diskSize !== undefined &&
+            editor.diskSize?.status === "success"
+          ) {
+            continue;
+          }
+
+          try {
+            editor.diskSize = {
+              status: "loading",
+              value: 0,
+            };
+
+            const size = await TauriRouter.estimate_editor_size(editor.version);
+            editor.diskSize = {
+              status: "success",
+              value: size,
+            };
+          } catch (e) {
+            console.error(e);
+          }
+        }
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      calculatingEditorSize.set(false);
+    };
+
+    calculateDiskSizes();
+  }, [calculatingEditorSize]);
 
   return (
     <>
@@ -145,7 +184,7 @@ function Editor({ editor }: { editor: TauriTypes.UnityEditorInstall }) {
 
     switch (id) {
       case "open":
-        // invoke("show_path_in_file_manager", { path: props.data.path });
+        TauriRouter.show_path_in_file_manager(editor.exePath);
         break;
       case "changelog":
         open(docsUrl);
@@ -177,7 +216,7 @@ function Editor({ editor }: { editor: TauriTypes.UnityEditorInstall }) {
   }, [editor]);
 
   return (
-    <div className="flex flex-col px-4 py-3 bg-stone-900 rounded-md border border-stone-600 hover:bg-stone-800">
+    <div className="flex flex-col px-4 py-3 bg-stone-900 rounded-md border border-stone-600">
       <div className="flex">
         <p className="text-stone-50">
           <span
@@ -196,14 +235,19 @@ function Editor({ editor }: { editor: TauriTypes.UnityEditorInstall }) {
         </button>
       </div>
       <p className="text-sm text-stone-500 select-none">{editor.exePath}</p>
-      <p className="text-sm text-stone-500 select-none">
-        {/* {!editor.sizeMb && <span>- MB</span>}
-        {editor.sizeMb &&
-          convertBytes(props.data.sizeMb, {
-            useBinaryUnits: true,
-            decimals: 2,
-          })} */}
-      </p>
+      <span className="text-sm text-stone-500 select-none">
+        <AsyncLazyValueComponent
+          loading={<LoadingSpinner width={18} height={18} />}
+          value={editor.diskSize}
+        >
+          {!editor.diskSize?.value && <span>- MB</span>}
+          {editor.diskSize?.value &&
+            convertBytes(editor.diskSize.value, {
+              useBinaryUnits: true,
+              decimals: 2,
+            })}
+        </AsyncLazyValueComponent>
+      </span>
 
       {/* Modules */}
       {getModuleGroups().length > 0 && (

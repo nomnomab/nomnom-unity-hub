@@ -178,7 +178,7 @@ pub fn cmd_open_project_in_editor(project_path: PathBuf, editor_version: String,
         .to_string();
 
     let args = vec!["-projectPath".to_string(), project_path_str];
-    crate::editor::open_editor(editor_version, args, &app_state)?;
+    crate::editor::open(editor_version, args, &app_state)?;
 
     Ok(())
 }

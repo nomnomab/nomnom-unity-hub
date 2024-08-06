@@ -2,6 +2,11 @@ import { invoke } from "@tauri-apps/api/tauri";
 import { TauriTypes } from "./tauri-types";
 
 export namespace TauriRouter {
+  // app
+  export async function show_path_in_file_manager(path: string): Promise<void> {
+    return invoke("cmd_show_path_in_file_manager", { path });
+  }
+
   // prefs
   export async function get_prefs(): Promise<TauriTypes.Prefs> {
     return invoke("cmd_get_prefs");
@@ -67,6 +72,12 @@ export namespace TauriRouter {
     TauriTypes.UnityEditorInstall[]
   > {
     return invoke("cmd_get_editors");
+  }
+
+  export async function estimate_editor_size(
+    editorVersion: string
+  ): Promise<number> {
+    return invoke("cmd_estimate_editor_size", { editorVersion });
   }
 
   // other

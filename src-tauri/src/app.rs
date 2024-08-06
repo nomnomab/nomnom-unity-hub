@@ -138,3 +138,10 @@ pub fn get_editors(app_state: &tauri::State<AppState>) -> anyhow::Result<Vec<edi
 //     let path = get_editors_save_path(app_handle)?;
 //     save_to_disk(path, &editors)
 // }
+
+// commands
+
+#[tauri::command]
+pub fn cmd_show_path_in_file_manager(path: String) {
+    showfile::show_path_in_file_manager(path);
+}

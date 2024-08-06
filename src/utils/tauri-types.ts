@@ -1,3 +1,5 @@
+import { LazyValue } from "../utils";
+
 export namespace TauriTypes {
   export interface Project {
     name: string;
@@ -23,6 +25,9 @@ export namespace TauriTypes {
     exePath: string;
     version: string;
     modules: UnityEditorModule[];
+
+    // extra
+    diskSize?: LazyValue<number>;
   }
 
   export interface UnityEditorModule {

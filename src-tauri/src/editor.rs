@@ -1,6 +1,6 @@
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
-use crate::{app::{self, AppState}, errors};
+use crate::{app::{self, AppState}, errors, io_utils};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -141,7 +141,7 @@ pub fn find_editor_installs(app_state: &tauri::State<AppState>) -> anyhow::Resul
     Ok(editors)
 }
 
-pub fn open_editor(editor_version: String, arguments: Vec<String>, app_state: &tauri::State<AppState>) -> anyhow::Result<(), errors::AnyError> {
+pub fn open(editor_version: String, arguments: Vec<String>, app_state: &tauri::State<AppState>) -> anyhow::Result<(), errors::AnyError> {
     let editor = app_state.editors.lock()
         .map_err(|_| errors::str_error("Failed to get editors. Is it locked?"))?
         .iter()
@@ -156,6 +156,48 @@ pub fn open_editor(editor_version: String, arguments: Vec<String>, app_state: &t
         .spawn()?;
 
     Ok(())
+}
+
+pub fn estimate_size(editor: &UnityEditorInstall, app: &tauri::AppHandle) -> anyhow::Result<u64, errors::AnyError> {
+    let tmp_json_path = io_utils::get_cache_dir(&app)
+        .join("editors")
+        .with_extension("json");
+
+    if !tmp_json_path.exists() {
+        // write a new json to disk
+        let map: HashMap<String, serde_json::Value> = HashMap::new();
+        std::fs::write(&tmp_json_path, serde_json::to_string_pretty(&map).unwrap()).unwrap();
+    }
+
+    let map = std::fs::read_to_string(&tmp_json_path)?;
+    let mut map = serde_json::from_str::<HashMap<String, serde_json::Value>>(&map)?;
+
+    let exe_path = editor.exe_path
+        .clone()
+        .to_str()
+        .ok_or(errors::str_error("Invalid editor path"))?
+        .to_string();
+
+    if map.contains_key(&exe_path) {
+        let disk_size = {
+            map.get(&exe_path)
+                .and_then(|x| x.as_u64())
+        };
+
+        if let Some(disk_size) = disk_size {
+            return Ok(disk_size);
+        }
+    }
+
+    let root_path = crate::editor::get_root_folder(&editor.exe_path)
+        .ok_or(errors::str_error("Invalid editor root path"))?;
+    let disk_size = io_utils::dir_size(root_path)
+        .unwrap_or(0u64);
+
+    map.insert(exe_path, serde_json::Value::from(disk_size));
+    std::fs::write(&tmp_json_path, serde_json::to_string_pretty(&map)?)?;
+    
+    Ok(disk_size)
 }
 
 // commands
@@ -183,4 +225,16 @@ pub fn cmd_open_unity_hub(app_state: tauri::State<AppState>) -> Result<(), error
         .spawn()?;
 
     Ok(())
+}
+
+#[tauri::command]
+pub fn cmd_estimate_editor_size(editor_version: String, app_handle: tauri::AppHandle, app_state: tauri::State<AppState>) -> Result<u64, errors::AnyError> {
+    let editors = app_state.editors.lock()
+        .map_err(|_| errors::str_error("Failed to get editors. Is it locked?"))?;
+    let editor = editors
+        .iter()
+        .find(|x| x.version == editor_version)
+        .ok_or(errors::str_error("Invalid editor version"))?;
+
+    estimate_size(editor, &app_handle)
 }
