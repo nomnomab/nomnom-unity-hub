@@ -118,7 +118,7 @@ export default function EditorsList() {
                 className={`${
                   x.version === data.value.selectedGroup
                     ? "bg-sky-600 border-stone-900 hover:bg-sky-700"
-                    : "bg-stone-700 border-stone-600 hover:bg-stone-800"
+                    : "border-stone-600 hover:bg-stone-800"
                 } px-6 py-3 text-stone-50 text-sm font-medium rounded-md border`}
                 onClick={() =>
                   data.set((s) => ({ ...s, selectedGroup: x.version }))

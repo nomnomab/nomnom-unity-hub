@@ -10,7 +10,7 @@ export namespace Buttons {
     return (
       <button
         {...props}
-        className="rounded-md text-stone-50 bg-sky-600 px-3 py-1 ml-3 select-none"
+        className="rounded-md text-stone-50 bg-sky-600 px-3 py-1 ml-3 select-none disabled:cursor-not-allowed disabled:opacity-50"
       >
         {title}
       </button>
@@ -26,7 +26,7 @@ export namespace Buttons {
     return (
       <button
         {...props}
-        className="rounded-md text-stone-50 bg-stone-700 px-3 py-1 select-none"
+        className="rounded-md text-stone-50 bg-stone-700 px-3 py-1 select-none disabled:cursor-not-allowed disabled:opacity-50"
       >
         {title}
       </button>
