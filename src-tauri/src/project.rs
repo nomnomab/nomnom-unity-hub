@@ -1,202 +1,184 @@
-use std::collections::HashMap;
+use std::{fs, path::{Path, PathBuf}};
 
-use flate2::read::GzDecoder;
-use serde::{Deserialize, Serialize};
+use crate::{app::{self, AppState}, errors, prefs};
 
-use crate::{io_util, prefs, templates::{Dependency, Template}};
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(default, rename_all = "camelCase")]
-pub struct GenerateProject {
-    template: Template,
-    output_folder: String,
-    project_name: String,
-    packages: Vec<Dependency>,
+pub struct Project {
+    pub name: String,
+    pub path: PathBuf,
+    pub version: String,
 }
 
-impl Default for GenerateProject {
+impl Default for Project {
     fn default() -> Self {
-        Self { 
-            template: Template::default(),
-            output_folder: String::new(),
-            project_name: String::new(),
-            packages: Vec::new()
+        Self {
+            name: String::new(),
+            path: PathBuf::new(),
+            version: String::new(),
         }
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(default, rename_all = "camelCase")]
-struct ManifestStub {
-    dependencies: HashMap<String, String>
-}
+// load a project at a given path
+pub fn load(path: impl AsRef<Path>) -> anyhow::Result<Project> {
+    let path = path.as_ref();
+    let file_name = path
+        .file_name()
+        .ok_or(errors::io_not_found("Invalid project path"))?;
 
-impl Default for ManifestStub {
-    fn default() -> Self {
-        Self { dependencies: HashMap::new() }
-    }
-}
+    let version_path = path
+        .join("ProjectSettings")
+        .join("ProjectVersion")
+        .with_extension("txt");
 
-#[tauri::command]
-pub async fn generate_project(app: tauri::AppHandle, data: GenerateProject) -> Result<(), String> {
-    let path = data.template.path.clone().unwrap();
-    let tar_gz = std::fs::File::open(path).unwrap();
-    let tar = GzDecoder::new(tar_gz);
-    let mut ar = tar::Archive::new(tar);
+    let version_contents = fs::read_to_string(version_path)?;
+    let version = version_contents
+        .lines()
+        .next()
+        .ok_or(errors::io_not_found("Invalid project version"))?
+        .strip_prefix("m_EditorVersion:")
+        .ok_or(errors::io_not_found("Invalid project version"))?
+        .trim()
+        .to_string();
 
-    let output_folder = std::path::Path::new(&data.output_folder);
-    if !output_folder.exists() {
-        std::fs::create_dir_all(&output_folder).unwrap();
-    }
-
-    // extract files into <root>/project_name
-    let output_folder = &output_folder.join(&data.project_name);
-    ar.unpack(output_folder).unwrap();
-
-    println!("Extracted template to {}", output_folder.display());
-
-    // <root>/project_name/package/ProjectData~ is the project folder
-    // need to pull ProjectData~ out to <root>/project_name
-    let project_data_path = &output_folder.join("package").join("ProjectData~");
-    io_util::copy_dir_all(project_data_path, output_folder).unwrap();
-
-    println!("Copied project data to {}", output_folder.display());
-
-    // remove package folder
-    std::fs::remove_dir_all(&output_folder.join("package")).unwrap();
-
-    // remove Library folder
-    let library_folder = output_folder.join("Library");
-    if library_folder.exists() {
-        std::fs::remove_dir_all(&library_folder).unwrap();
-    }
-
-    // open manifest to edit it!
-    let manifest_path = output_folder.join("Packages").join("manifest.json");
-    let manifest = ManifestStub {
-        dependencies: data.packages.iter().map(|x| (x.name.clone(), x.version.clone())).collect()
+    let project = Project {
+        name: file_name
+            .to_str()
+            .unwrap_or("BAD_PROJECT_NAME")
+            .to_string(),
+        path: PathBuf::from(path),
+        version,
     };
-    let json = serde_json::to_string_pretty(&manifest).unwrap();
-    std::fs::write(manifest_path, json).unwrap();
 
-    // make a project version json at ProjectSettings/ProjectVersion.txt
-    let project_version_path = output_folder.join("ProjectSettings").join("ProjectVersion.txt");
-    let project_version_content = format!("m_EditorVersion: {}", data.template.editor_version);
-    std::fs::write(project_version_path, project_version_content).unwrap();
-
-    // add project to list
-    prefs::add_project(app, output_folder.to_str().unwrap().to_string()).unwrap();
-
-    Ok(())
+    Ok(project)
 }
 
-#[tauri::command]
-pub fn change_project_editor_version(app: tauri::AppHandle, project_path: String, editor_version: String) {
-    // let output_folder = std::path::Path::new(&project_path);
-    // let project_version_path = output_folder.join("ProjectSettings").join("ProjectVersion.txt");
-    // let project_version_content = format!("m_EditorVersion: {}", editor_version);
-    // std::fs::write(project_version_path, project_version_content).unwrap();
-
-    // println!("Changed project editor version to {}", editor_version);
-
-    let mut prefs = prefs::get_prefs(app.clone());
-    let project = prefs.projects.iter_mut().find(|x| x.path == project_path).unwrap();
-    project.version = editor_version;
-    prefs.save(&app).unwrap();
-
-    println!("Saved prefs");
-}
-
-#[tauri::command]
-pub fn is_valid_path(path: String, needs_empty: bool, needs_exists: bool, is_folder: bool) -> Result<(), String> {
-    let path = std::path::Path::new(&path);
-
-    if !is_folder {
-        if !path.exists() && needs_exists {
-            return Err("The path does not exist".to_string());
-        } else if !needs_exists {
-            return Err("The path must not exist".to_string());
-        }
-
-        return Ok(());
-    }
-    
-    let extension = path.extension();
-    
-    if let Some(_) = extension {
-        return Err("The path is not a directory".to_string());
-    }
-    
-    if path.exists() {
-        // is it empty
-        if needs_empty && path.read_dir().unwrap().next().is_some() {
-            return Err("The directory is not empty".to_string());
-        }
-    } else if needs_exists {
-        return Err("The directory does not exist".to_string());
-    }
-
-    if let Some(parent) = path.parent() {
-        if !parent.exists() {
-            return Err("The parent directory does not exist".to_string());
-        }
-    } else {
-        return Err("Failed to get parent directory".to_string());
+pub fn has_valid_path(project: &Project) -> anyhow::Result<(), errors::AnyError> {
+    let path = project.path.clone();
+    if !(path.exists() && !path.is_dir()) {
+        return Err(errors::io_not_found("Invalid project path"));
     }
 
     Ok(())
 }
 
+pub fn remove_missing_projects(app_state: &tauri::State<AppState>) -> anyhow::Result<Vec<Project>> {
+    let mut projects = app_state.projects.lock()
+        .map_err(|_| errors::str_error("Failed to lock projects"))?;
+    let missing_projects = projects
+        .iter()
+        .filter(|x| !x.path.clone().exists())
+        .map(|x| x.clone())
+        .collect::<Vec<_>>();
+    
+    projects
+        .retain(|x| x.path.clone().exists());
+
+    Ok(missing_projects)
+}
+
+pub fn get_projects_on_page(app_state: &tauri::State<AppState>, page: usize, per_page_count: usize) -> anyhow::Result<Vec<Project>> {
+    let projects = app_state.projects.lock()
+        .map_err(|_| errors::str_error("Failed to lock projects"))?;
+    let start = page * per_page_count;
+    let mut projects = projects
+        .iter()
+        .skip(start)
+        .take(per_page_count)
+        .map(|x| x.clone())
+        .collect::<Vec<_>>();
+    projects.sort_by(|x, y| x.name.cmp(&y.name));
+    Ok(projects)
+}
+
+// commands
+
 #[tauri::command]
-pub fn is_valid_project_root_dir(path: String) -> bool {
-    let path = std::path::Path::new(&path);
-    if !path.exists() {
-        return false;
-    }
-    let assets_dir = path.join("Assets");
-    assets_dir.exists()
+pub fn cmd_get_default_project_path(app_state: tauri::State<AppState>) -> Result<String, errors::AnyError> {
+    let prefs = app::get_prefs(&app_state)?;
+    let new_project_path = prefs.new_project_path
+        .ok_or(errors::str_error("new_project_path not set"))?
+        .to_str()
+        .ok_or(errors::str_error("Invalid new_project_path"))?
+        .to_string();
+    Ok(new_project_path)
 }
 
 #[tauri::command]
-pub fn is_valid_new_project_root_dir(path: String, name: String) -> Result<(), String> {
-    if name.is_empty() {
-        return Err("The project name cannot be empty".to_string());
+pub fn cmd_remove_missing_projects(app_handle: tauri::AppHandle, app_state: tauri::State<AppState>) -> Result<Vec<Project>, errors::AnyError> {
+    let removed_projects = remove_missing_projects(&app_state)?;
+    let projects = app::get_projects(&app_state)?;
+    app::save_projects_to_disk(&projects, &app_handle)?;
+    Ok(removed_projects)
+}
+
+#[tauri::command]
+pub fn cmd_add_project(project_path: PathBuf, app_handle: tauri::AppHandle, app_state: tauri::State<AppState>) -> Result<Project, errors::AnyError> {
+    if !Path::new(&project_path).exists() {
+        return Err(errors::io_not_found("Invalid project path"));
     }
     
-    let path = std::path::Path::new(&path).join(name);
-    let extension = path.extension();
-    if let Some(_) = extension {
-        return Err("The path is not a directory".to_string());
+    let projects = app::get_projects(&app_state)?;
+    if projects.iter().any(|x| x.path == project_path) {
+        return Err(errors::str_error("Project already exists"));
     }
     
-    if path.exists() {
-        // is it empty
-        if path.read_dir().unwrap().next().is_some() {
-            return Err("The directory is not empty".to_string());
-        }
+    let project = load(project_path)?;
+    let projects = {
+        let mut projects = app_state.projects.lock()
+            .map_err(|_| errors::str_error("Failed to get projects. Is it locked?"))?;
+        projects.push(project.clone());
+        projects
+    };
+
+    app::save_projects_to_disk(&projects, &app_handle)?;
+    
+    Ok(project)
+}
+
+#[tauri::command]
+pub fn cmd_remove_project(project_path: PathBuf, app_handle: tauri::AppHandle, app_state: tauri::State<AppState>) -> Result<(), errors::AnyError> {
+    if !Path::new(&project_path).exists() {
+        return Err(errors::io_not_found("Invalid project path"));
     }
 
-    if let Some(parent) = path.parent() {
-        if !parent.exists() {
-            return Err("The parent directory does not exist".to_string());
-        }
-    } else {
-        return Err("Failed to get parent directory".to_string());
-    }
+    let projects = {
+        let mut projects = app_state.projects.lock()
+            .map_err(|_| errors::str_error("Failed to get projects. Is it locked?"))?;
+        projects.retain(|x| x.path == project_path);
+        projects
+    };
 
+    app::save_projects_to_disk(&projects, &app_handle)?;
+    
     Ok(())
 }
 
 #[tauri::command]
-pub fn open_unity_hub(app: tauri::AppHandle) {
-    let prefs = prefs::get_prefs(app.clone());
+pub fn cmd_get_projects(app_state: tauri::State<AppState>) -> Result<Vec<Project>, errors::AnyError> {
+    let projects = app::get_projects(&app_state)?;
+    Ok(projects)
+}
 
-    if let Some(unity_hub_path) = prefs.hub_path  {
-        if !unity_hub_path.exists() {
-            println!("Unity hub path does not exist");
-            return;
-        }
-        std::process::Command::new(unity_hub_path).spawn().unwrap();
-        println!("Opened unity hub");        
+#[tauri::command]
+pub fn cmd_get_projects_on_page(app_state: tauri::State<AppState>, page: usize, per_page_count: usize) -> Result<Vec<Project>, errors::AnyError> {
+    let projects = get_projects_on_page(&app_state, page, per_page_count)?;
+    Ok(projects)
+}
+
+#[tauri::command]
+pub fn cmd_open_project_in_editor(project_path: PathBuf, editor_version: String, app_handle: tauri::AppHandle, app_state: tauri::State<AppState>) -> Result<(), errors::AnyError> {
+    if !project_path.exists() {
+        return Err(errors::io_not_found("Invalid project path"));
     }
+
+    let project_path_str = project_path.to_str()
+        .ok_or(errors::str_error("Invalid project path"))?
+        .to_string();
+
+    let args = vec!["-projectPath".to_string(), project_path_str];
+    crate::editor::open_editor(editor_version, args, &app_state)?;
+
+    Ok(())
 }

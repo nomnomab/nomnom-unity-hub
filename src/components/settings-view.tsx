@@ -116,7 +116,7 @@ function Body() {
 			directory: true,
 			multiple: false,
 			// @ts-ignore
-			defaultPath: data[key],
+			defaultPath: state.prefs[key],
 		});
 
 		if (!path) return;

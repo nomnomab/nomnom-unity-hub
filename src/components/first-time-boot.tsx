@@ -6,13 +6,23 @@ import SettingsView from "./settings-view";
 import { Context } from "../context/global-context";
 
 export default function FirstTimeBoot(props: PropsWithChildren) {
+	const [checkingBoot, setCheckingBoot] = useState(true);
 	const [firstBoot, setFirstBoot] = useState(false);
 	const [stage, setStage] = useState<"intro" | "paths">("intro");
 
 	useEffect(() => {
-		invoke("is_first_boot").then((x) => setFirstBoot(x as boolean));
-		// setFirstBoot(true);
+		invoke("is_first_boot").then((x) => {
+			setCheckingBoot(false);
+			setFirstBoot(x as boolean);
+		}).catch(err => {
+			setCheckingBoot(false);
+			console.error(err);
+		});
 	}, []);
+
+	if (checkingBoot) {
+		return null;
+	}
 
 	if (!firstBoot) {
 		return props.children;

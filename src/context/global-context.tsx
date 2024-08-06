@@ -1,178 +1,53 @@
-import { invoke } from "@tauri-apps/api/tauri";
 import { createContext, PropsWithChildren, useReducer } from "react";
 
-type GlobalContextType = {
-	state: GlobalState;
-	dispatch: React.Dispatch<Action>;
-};
+export namespace GlobalContext {
+  type Type = {
+    state: State;
+    dispatch: React.Dispatch<Action>;
+  };
 
-export type Tabs =
-	| "editors"
-	| "projects"
-	| "new_project"
-	| "new_template"
-	| "settings";
+  export type TabName =
+    | "editors"
+    | "projects"
+    | "new_project"
+    | "new_template"
+    | "settings";
 
-export type Project = {
-	name: string;
-	path: string;
-	version: string;
-};
+  type State = {
+    currentTab: TabName;
+  };
 
-export type EditorModule = {
-	name: string;
-	id: string;
-	description: string;
-	category: string;
-	visible: boolean;
-	selected: boolean;
-};
-export type Editor = {
-	version: string;
-	path: string;
-	modules: EditorModule[];
-} & EditorExtra;
+  const initialState: State = {
+    currentTab: "projects",
+  };
 
-type EditorExtra = {
-	sizeMb?: number;
-};
+  export const Context = createContext<Type>({
+    state: initialState,
+    dispatch: () => {},
+  } as Type);
 
-export type MinimalTemplate = {
-	path: string;
-	displayName: string;
-	id: string;
-	version: string;
-	editorVersion: string;
-	isCustom?: boolean;
-};
+  type Action = { type: "change_tab"; tab: TabName };
 
-export type Template = {
-	name: string;
-	displayName: string;
-	version: string;
-	description: string;
-	dependencies: TemplateDependencies;
-};
+  const reducer = (state: State, action: Action): State => {
+    switch (action.type) {
+      case "change_tab":
+        return { ...state, currentTab: action.tab };
+      default:
+        return state;
+    }
+  };
 
-export type TemplateDependencies = {
-	internal: { [key: string]: string };
-	custom: { [key: string]: { version: string; gitUrl?: string } };
-};
+  export function User(props: PropsWithChildren) {
+    const [state, dispatch] = useReducer(reducer, {
+      ...initialState,
+    });
 
-export type Prefs = {
-	// where new projects are created
-	newProjectPath?: string;
-	// typically C:\Program Files\Unity Hub\Unity Hub.exe
-	hubPath?: string;
-	// typically C:\Program Files\Unity\Hub\Editor
-	hubEditorsPath?: string;
-	// typically C:\Users\nomno\AppData\Roaming\UnityHub\
-	hubAppdataPath?: string;
-};
-
-type GlobalState = {
-	currentTab: Tabs;
-	projects: Project[];
-	editors: Editor[];
-	getEditors: () => Promise<Editor[]>;
-	prefs: Prefs;
-	hasBadPref: boolean;
-};
-
-const initialState: GlobalState = {
-	currentTab: "projects",
-	projects: [],
-	editors: [],
-	getEditors: () => Promise.resolve([]),
-	prefs: {},
-	hasBadPref: false,
-};
-export const Context = createContext<GlobalContextType>(
-	{} as GlobalContextType
-);
-
-type Action =
-	| { type: "change_tab"; tab: Tabs }
-	| { type: "set_editors"; editors: Editor[] }
-	| { type: "set_projects"; projects: Project[] }
-	| { type: "set_editor_size"; editor: Editor; sizeMb: number }
-	| { type: "set_prefs"; prefs: Prefs }
-	| { type: "set_has_bad_pref"; hasBadPref: boolean }
-	| { type: "save_prefs" };
-
-const reducer = (state: GlobalState, action: Action): GlobalState => {
-	// console.log("setting state", state, action);
-	switch (action.type) {
-		case "change_tab":
-			return { ...state, currentTab: action.tab };
-		case "set_editors":
-			return { ...state, editors: action.editors };
-		case "set_projects":
-			return { ...state, projects: action.projects };
-		case "set_editor_size":
-			return {
-				...state,
-				editors: state.editors.map((e) =>
-					e.path === action.editor.path ? { ...e, sizeMb: action.sizeMb } : e
-				),
-			};
-		case "set_prefs":
-			return { ...state, prefs: action.prefs };
-		case "set_has_bad_pref":
-			return { ...state, hasBadPref: action.hasBadPref };
-		case "save_prefs":
-			invoke("save_prefs", {
-				dummyPrefs: state.prefs,
-			});
-			return state;
-		default:
-			return state;
-	}
-};
-
-export default function GlobalContext(props: PropsWithChildren) {
-	const [state, dispatch] = useReducer(reducer, {
-		...initialState,
-		getEditors,
-	});
-
-	async function getEditors(): Promise<Editor[]> {
-		if (state.editors.length === 0) {
-			const results: Editor[] = await invoke("get_editor_installs");
-			dispatch({ type: "set_editors", editors: results });
-			return results;
-		}
-
-		return state.editors;
-	}
-
-	// useEffect(() => {
-	// 	loadDefaults();
-	// }, []);
-
-	// async function loadDefaults() {}
-
-	return (
-		<Context.Provider value={{ state, dispatch }}>
-			{props.children}
-		</Context.Provider>
-	);
+    return (
+      <Context.Provider value={{ state, dispatch }}>
+        {props.children}
+      </Context.Provider>
+    );
+  }
 }
 
-export function convertRustTemplateToTS(rawTemplate: any) {
-	// copy rawTemplate
-	// @ts-ignore
-	let template = { ...rawTemplate } as Template;
-	template.dependencies = {
-		internal: {},
-		custom: {},
-	};
-
-	// @ts-ignore
-	for (const [key, value] of Object.entries(rawTemplate.dependencies)) {
-		// @ts-ignore
-		template.dependencies.internal[key] = value;
-	}
-
-	return template;
-}
+export {};

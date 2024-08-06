@@ -16,7 +16,8 @@
     "react-contexify": "^6.0.0",
     "react-dom": "^18.2.0",
     "react-select": "^5.8.0",
-    "reactjs-popup": "^2.0.6"
+    "reactjs-popup": "^2.0.6",
+    "tauri-plugin-sql-api": "github:tauri-apps/tauri-plugin-sql#v1"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^1",
