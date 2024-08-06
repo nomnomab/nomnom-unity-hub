@@ -6,6 +6,7 @@ import { useContext } from "react";
 import MainSidebar from "./components/main-sidebar";
 import ProjectsView from "./views/projects/projects-view";
 import { GlobalContext } from "./context/global-context";
+import EditorsView from "./views/editors/editors-view";
 
 function App() {
   const globalContext = useContext(GlobalContext.Context);
@@ -33,6 +34,7 @@ function App() {
       <MainSidebar />
       <div className="flex flex-grow h-screen overflow-hidden">
         {globalContext.state.currentTab === "projects" && <ProjectsView />}
+        {globalContext.state.currentTab === "editors" && <EditorsView />}
       </div>
     </div>
     // <FirstTimeBoot>

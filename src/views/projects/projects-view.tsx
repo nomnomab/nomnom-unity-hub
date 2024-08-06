@@ -1,9 +1,9 @@
-import { Suspense, useState } from "react";
 import SectionView from "../../components/section-view";
 import ProjectsHeader from "./projects-header";
 import ProjectList from "./projects-list";
 import { TauriTypes } from "../../utils/tauri-types";
-import { toUseState } from "../../utils";
+import ViewBody from "../../components/view-body";
+import useBetterState from "../../hooks/useBetterState";
 
 export type ProjectViewData = {
   projects: TauriTypes.Project[];
@@ -11,13 +11,16 @@ export type ProjectViewData = {
 };
 
 export default function ProjectsView() {
-  const projects = useState<ProjectViewData>({ projects: [], currentPage: 0 });
+  const projects = useBetterState<ProjectViewData>({
+    projects: [],
+    currentPage: 0,
+  });
   return (
     <SectionView>
-      <ProjectsHeader projectData={toUseState(projects)} />
-      <Suspense fallback={<div>Loading...</div>}>
-        <ProjectList projectData={toUseState(projects)} />
-      </Suspense>
+      <ProjectsHeader projectData={projects} />
+      <ViewBody>
+        <ProjectList projectData={projects} />
+      </ViewBody>
     </SectionView>
   );
 }

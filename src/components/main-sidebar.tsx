@@ -63,7 +63,8 @@ function OptionItem(props: OptionItemProps) {
     return (
       <span
         {...props}
-        className={`bg-stone-700 px-3 py-2 rounded-md text-stone-50 cursor-pointer select-none hover:bg-stone-600 ${props.className}`}
+        className={`bg-stone-600 px-3 py-2 rounded-md text-stone-50 cursor-pointer select-none hover:bg-stone-700 ${props.className}`}
+        // className={`bg-sky-600 px-3 py-2 rounded-md text-stone-50 cursor-pointer select-none hover:bg-sky-700 ${props.className}`}
       >
         {props.title}
       </span>

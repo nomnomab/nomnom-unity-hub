@@ -28,7 +28,8 @@ fn main() {
             project::cmd_get_projects_on_page,
             project::cmd_open_project_in_editor,
             // editors
-            editor::cmd_get_editors
+            editor::cmd_get_editors,
+            editor::cmd_open_unity_hub
         ])
         .setup(|app| {
             let app_handle = app.handle();

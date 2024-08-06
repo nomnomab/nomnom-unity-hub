@@ -124,11 +124,11 @@ pub fn find_editor_installs(app_state: &tauri::State<AppState>) -> anyhow::Resul
 
         let nums_a = split_a
             .iter()
-            .map(|s| s.parse::<u32>().unwrap())
+            .map(|s| s.parse::<u32>().unwrap_or(0))
             .collect::<Vec<_>>();
         let nums_b = split_b
             .iter()
-            .map(|s| s.parse::<u32>().unwrap())
+            .map(|s| s.parse::<u32>().unwrap_or(0))
             .collect::<Vec<_>>();
 
         (nums_a[0].cmp(&nums_b[0]))
@@ -153,8 +153,7 @@ pub fn open_editor(editor_version: String, arguments: Vec<String>, app_state: &t
 
     std::process::Command::new(&exe_path)
         .args(arguments)
-        .spawn()
-        .unwrap();
+        .spawn()?;
 
     Ok(())
 }
@@ -168,4 +167,20 @@ pub fn cmd_get_editors(app_state: tauri::State<AppState>) -> Result<Vec<UnityEdi
     let editors = find_editor_installs(&app_state)?;
     *stored_editors = editors.clone();
     Ok(editors)
+}
+
+#[tauri::command]
+pub fn cmd_open_unity_hub(app_state: tauri::State<AppState>) -> Result<(), errors::AnyError> {
+    let prefs = app::get_prefs(&app_state)?;
+    let unity_hub_path = prefs.hub_path
+        .ok_or(errors::str_error("unity_hub_path not set"))?;
+
+    if !unity_hub_path.exists() {
+        return Err(errors::io_not_found("Invalid unity_hub_path"));
+    }
+
+    std::process::Command::new(&unity_hub_path)
+        .spawn()?;
+
+    Ok(())
 }

@@ -6,7 +6,6 @@ import { UseState } from "../../utils";
 import EllipsisVertical from "../../components/svg/ellipsis-vertical";
 import { Item, Menu, Separator } from "react-contexify";
 import { ProjectViewData } from "./projects-view";
-import EllipsisHorizontal from "../../components/svg/ellipsis-horizontal";
 import LoadingSpinner from "../../components/svg/loading-spinner";
 
 export default function ProjectList({
@@ -15,9 +14,9 @@ export default function ProjectList({
   projectData: UseState<ProjectViewData>;
 }) {
   return (
-    <div className="w-full max-w-6xl self-center overflow-hidden h-full">
+    <>
       <Pagination projectData={projectData} />
-    </div>
+    </>
   );
 }
 
@@ -35,11 +34,15 @@ function Pagination({
 
   // load all the projects from a given page
   const loadProjectsOnPage = useCallback(async () => {
+    // await new Promise((resolve) => setTimeout(resolve, 1000));
     const projects = await TauriRouter.get_projects_on_page(
       projectData.value.currentPage,
       perPage
     );
-    projectData.set((s) => ({ ...s, projects: projects }));
+    projectData.set((s) => ({
+      ...s,
+      projects,
+    }));
   }, [projectData.value.currentPage]);
 
   function changePage(page: number) {
@@ -79,23 +82,25 @@ function Pagination({
   }, [pageCount, projectData.value.currentPage]);
 
   return (
-    <>
+    <AsyncComponent
+      loading={
+        <div className="w-full h-full flex items-center justify-center animate-pulse transition-all">
+          <LoadingSpinner />
+        </div>
+      }
+      callback={loadProjectsOnPage}
+    >
       {/* Contents */}
       <div
-        className="px-6 py-4 overflow-y-auto"
+        className="px-6 py-4 overflow-y-auto relative"
         style={{
           height: pageCount > 0 ? "calc(100% - 54px)" : undefined,
         }}
       >
         <div className="flex flex-col gap-4">
-          <AsyncComponent
-            loading={<div>Loading...</div>}
-            callback={loadProjectsOnPage}
-          >
-            {projectData.value.projects.map((x) => (
-              <Project key={x.path} project={x} />
-            ))}
-          </AsyncComponent>
+          {projectData.value.projects.map((x) => (
+            <Project key={x.path} project={x} />
+          ))}
         </div>
       </div>
 
@@ -135,7 +140,7 @@ function Pagination({
             )}
         </div>
       )}
-    </>
+    </AsyncComponent>
   );
 }
 
