@@ -8,9 +8,11 @@ use tauri::Manager;
 mod app;
 mod editor;
 mod errors;
+mod package;
 mod prefs;
 mod project;
 mod io_utils;
+mod template;
 
 fn main() {
     tauri::Builder::default()
@@ -33,6 +35,11 @@ fn main() {
             editor::cmd_get_editors,
             editor::cmd_open_unity_hub,
             editor::cmd_estimate_editor_size,
+            // packages
+            package::cmd_get_default_editor_packages,
+            // templates
+            template::cmd_get_surface_templates,
+            template::cmd_get_template_information,
         ])
         .setup(|app| {
             let app_handle = app.handle();

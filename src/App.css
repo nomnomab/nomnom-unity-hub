@@ -180,12 +180,16 @@ html {
 }
 
 ::-webkit-scrollbar-track {
+	/* background-color: rgb(34, 34, 34); */
+	/* border: 1px solid rgb(34, 34, 34);
+	border-top-width: 0;
+	border-bottom-width: 0; */
 	background-color: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
 	background-color: #756a67;
-	border-radius: 20px;
+	border-radius: 8px;
 	border: 6px solid transparent;
 	background-clip: content-box;
 }

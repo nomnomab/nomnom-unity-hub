@@ -38,7 +38,7 @@ export default function BasicInfoView({
   return (
     <>
       <ValidateInputContext onErrorChanged={hasFieldError.set}>
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2 overflow-y-auto">
           <ValidateInput
             label="Project Name"
             name="projectName"

@@ -47,3 +47,9 @@ pub fn dir_size(path: impl Into<std::path::PathBuf>) -> std::io::Result<u64> {
 
     dir_size(std::fs::read_dir(path.into())?)
 }
+
+pub fn file_size(path: impl Into<std::path::PathBuf>) -> std::io::Result<u64> {
+    let size = std::fs::metadata(path.into())?
+        .len();
+    Ok(size)
+}

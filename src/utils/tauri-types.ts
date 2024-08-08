@@ -43,6 +43,55 @@ export namespace TauriTypes {
     items: T[];
     index: number;
   }
+
+  export interface SurfaceTemplate {
+    name: string;
+    version: string;
+    path: string;
+  }
+
+  export interface TgzPackageJson {
+    name?: string;
+    displayName?: string;
+    version?: string;
+    type?: string;
+    host?: string;
+    unity: string;
+    description?: string;
+    dependencies?: any; // Equivalent to HashMap<String, String> in Rust
+    upm?: UPM;
+    upmCi?: UpmCi;
+    repository?: Repository;
+  }
+
+  export interface UPM {
+    changelog?: string;
+  }
+
+  export interface UpmCi {
+    footprint?: string;
+  }
+
+  export interface Repository {
+    url?: string;
+    type?: string;
+    revision?: string;
+  }
+
+  export interface TgzPackageJsonRecord {
+    tgzPackage: TgzPackageJson;
+    surfaceTemplate: SurfaceTemplate;
+    pipelines: UnityPipeline[];
+    diskSizeBytes: number;
+  }
+
+  export enum UnityPipeline {
+    Unknown,
+    BuiltIn,
+    URP,
+    HDRP,
+    Custom,
+  }
 }
 
 export {};

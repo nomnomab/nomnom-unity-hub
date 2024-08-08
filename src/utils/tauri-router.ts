@@ -80,6 +80,33 @@ export namespace TauriRouter {
     return invoke("cmd_estimate_editor_size", { editorVersion });
   }
 
+  // package
+
+  export async function get_default_editor_packages(
+    editorVersion: string
+  ): Promise<
+    {
+      name: string;
+      version: string;
+    }[]
+  > {
+    return invoke("cmd_get_default_editor_packages", { editorVersion });
+  }
+
+  // template
+
+  export async function get_surface_templates(
+    editorVersion: string
+  ): Promise<TauriTypes.SurfaceTemplate[]> {
+    return invoke("cmd_get_surface_templates", { editorVersion });
+  }
+
+  export async function get_template_information(
+    surfaceTemplate: TauriTypes.SurfaceTemplate
+  ): Promise<TauriTypes.TgzPackageJsonRecord> {
+    return invoke("cmd_get_template_information", { surfaceTemplate });
+  }
+
   // other
   export async function open_unity_hub(): Promise<void> {
     return invoke("cmd_open_unity_hub");
