@@ -280,14 +280,14 @@ fn detect_unity_pipeline(tgz_package: &TgzPackageJson) -> Vec<UnityPipeline> {
 // commands
 
 #[tauri::command]
-pub fn cmd_get_surface_templates(editor_version: String, app_state: tauri::State<AppState>) -> Result<Vec<SurfaceTemplate>, errors::AnyError> {
+pub async fn cmd_get_surface_templates(editor_version: String, app_state: tauri::State<'_, AppState>) -> Result<Vec<SurfaceTemplate>, errors::AnyError> {
   let mut templates = get_core_templates(editor_version.clone(), &app_state)?;
   templates.extend(get_user_templates(editor_version.clone(), &app_state)?);
   Ok(templates)
 }
 
 #[tauri::command]
-pub fn cmd_get_template_information(app_handle: tauri::AppHandle, surface_template: SurfaceTemplate) -> Result<TgzPackageJsonRecord, errors::AnyError> {
+pub async fn cmd_get_template_information(app_handle: tauri::AppHandle, surface_template: SurfaceTemplate) -> Result<TgzPackageJsonRecord, errors::AnyError> {
   let template = extract_template_information(&app_handle, &surface_template)?;
   Ok(template)
 }

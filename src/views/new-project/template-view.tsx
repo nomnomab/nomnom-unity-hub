@@ -311,12 +311,18 @@ function TemplateInfo({
             value._template.name}
         </p>
         <p className="leading-6">
-          {tgzJson.value?.value?.tgzPackage.description ?? "No description"}
+          {tgzJson.value?.status === "loading"
+            ? "Loading..."
+            : tgzJson.value?.value?.tgzPackage.description ?? "No description"}
         </p>
       </div>
       <div className="flex flex-col gap-3 pb-2">
         <AsyncLazyValueComponent
-          loading={<LoadingSpinner />}
+          loading={
+            <div className="px-4">
+              <LoadingSpinner />
+            </div>
+          }
           value={tgzJson.value}
         >
           <TabView
