@@ -15,15 +15,28 @@ const cannotExclude = ["package.json/", "package.json.meta/"];
 
 export default function FilesView() {
   const newProjectContext = useContext(NewProjectContext.Context);
+  const filesInfo = useMemo(() => {
+    return newProjectContext.state.filesInfo;
+  }, [newProjectContext.state.filesInfo]);
   const files = useBetterState<LazyValue<TauriTypes.FileDir>>({
     status: "loading",
     value: null,
   });
-
-  const openFolders = useBetterState<string[]>([]);
-  const selectedFiles = useBetterState<string[]>([]);
+  const isNewFile = useBetterState(false);
   const noDeselectFiles = useBetterState<string[]>([]);
+
+  useEffect(() => {
+    newProjectContext.dispatch({
+      type: "set_files_no_deselect_files",
+      files: noDeselectFiles.value,
+    });
+  }, [noDeselectFiles.value]);
+
   const fileCount = useMemo(() => {
+    if (files.value.status !== "success") {
+      return 0;
+    }
+
     let count =
       (newProjectContext.state.initialTemplateInfo.selectedTemplate && 1) || 0;
     function getCount(data: TauriTypes.FileDir | null) {
@@ -37,7 +50,7 @@ export default function FilesView() {
         });
       }
     }
-    getCount(files.value?.value);
+    getCount(filesInfo.root);
 
     let arr: string[] = [];
     function getDeselectFiles(data: TauriTypes.FileDir | null, prefix: string) {
@@ -49,20 +62,23 @@ export default function FilesView() {
           const name = child.name;
           const path = prefix + name + "/";
           if (cannotExclude.includes(path)) {
-            console.log("cannot deselect", path, " for", child.id);
             arr.push(child.id);
           }
           getDeselectFiles(child, path);
         });
       }
     }
-    getDeselectFiles(files.value?.value, "");
+    getDeselectFiles(filesInfo.root, "");
     noDeselectFiles.set(arr);
 
     return count;
-  }, [files.value]);
+  }, [files.value, filesInfo.root]);
 
-  function getAllIds(data: TauriTypes.FileDir) {
+  function getAllIds(data: TauriTypes.FileDir | null) {
+    if (!data) {
+      return [];
+    }
+
     const ids = [data.id];
     if (data.children) {
       data.children.forEach((child) => {
@@ -83,19 +99,36 @@ export default function FilesView() {
             children: [],
           } as TauriTypes.FileDir,
         });
+        isNewFile.set(false);
         return;
       }
 
-      files.set({ status: "loading", value: null });
-      const newFiles = await TauriRouter.get_template_file_paths(
-        newProjectContext.state.initialTemplateInfo.selectedTemplate!
-      );
-
-      files.set({ status: "success", value: newFiles });
-      selectedFiles.set([...getAllIds(newFiles)]);
+      if (!filesInfo.root) {
+        isNewFile.set(true);
+        files.set({ status: "loading", value: null });
+        const newFiles = await TauriRouter.get_template_file_paths(
+          newProjectContext.state.initialTemplateInfo.selectedTemplate!
+        );
+        files.set({ status: "success", value: newFiles });
+        newProjectContext.dispatch({
+          type: "set_files_root",
+          root: newFiles,
+        });
+      } else {
+        isNewFile.set(false);
+        files.set({ status: "success", value: filesInfo.root });
+      }
     };
     load();
   }, []);
+
+  useEffect(() => {
+    if (!isNewFile.value) return;
+    newProjectContext.dispatch({
+      type: "set_files_selected_files",
+      files: [...getAllIds(filesInfo.root)],
+    });
+  }, [isNewFile.value, filesInfo.root]);
 
   return (
     <div className="flex flex-col h-full py-4 overflow-hidden">
@@ -124,21 +157,29 @@ export default function FilesView() {
           <>
             <div>
               <p className="pt-4">
-                {selectedFiles.value.length.toLocaleString()}/
+                {filesInfo.selectedFiles.length.toLocaleString()}/
                 {fileCount.toLocaleString()} selected
               </p>
 
               <Buttons.DefaultButton
                 title="Select All"
                 onClick={() => {
-                  selectedFiles.set([...getAllIds(files.value.value!)]);
+                  newProjectContext.dispatch({
+                    type: "set_files_selected_files",
+                    files: [...getAllIds(files.value.value!)],
+                  });
+                  // selectedFiles.set([...getAllIds(files.value.value!)]);
                 }}
               />
 
               <Buttons.DefaultButton
                 title="Deselect All"
                 onClick={() => {
-                  selectedFiles.set([]);
+                  newProjectContext.dispatch({
+                    type: "set_files_selected_files",
+                    files: [],
+                  });
+                  // selectedFiles.set([]);
                 }}
               />
             </div>
@@ -147,14 +188,7 @@ export default function FilesView() {
               {/* Start inside of /package/ */}
               {files.value.value &&
                 files.value.value?.children?.map((child) => (
-                  <Tree
-                    key={child.id}
-                    data={child}
-                    indent={0}
-                    openFolders={openFolders}
-                    selectedFiles={selectedFiles}
-                    noDeselectFiles={noDeselectFiles}
-                  />
+                  <Tree key={child.id} data={child} indent={0} />
                 ))}
             </div>
           </>
@@ -165,9 +199,9 @@ export default function FilesView() {
 }
 
 type SharedProps = {
-  openFolders: UseState<string[]>;
-  selectedFiles: UseState<string[]>;
-  noDeselectFiles: UseState<string[]>;
+  // openFolders: UseState<string[]>;
+  // selectedFiles: UseState<string[]>;
+  // noDeselectFiles: UseState<string[]>;
 };
 
 type TreeProps = {
@@ -177,21 +211,9 @@ type TreeProps = {
 
 function Tree({ data, indent, ...props }: TreeProps) {
   return isFile(data) ? (
-    <File
-      data={data}
-      indent={indent}
-      openFolders={props.openFolders}
-      selectedFiles={props.selectedFiles}
-      noDeselectFiles={props.noDeselectFiles}
-    />
+    <File data={data} indent={indent} />
   ) : (
-    <Folder
-      data={data}
-      indent={indent}
-      openFolders={props.openFolders}
-      selectedFiles={props.selectedFiles}
-      noDeselectFiles={props.noDeselectFiles}
-    />
+    <Folder data={data} indent={indent} />
   );
 }
 
@@ -200,8 +222,13 @@ type FolderProps = {
   indent: number;
 } & SharedProps;
 function Folder({ data, indent, ...props }: FolderProps) {
+  const newProjectContext = useContext(NewProjectContext.Context);
+  const filesInfo = useMemo(() => {
+    return newProjectContext.state.filesInfo;
+  }, [newProjectContext.state.filesInfo]);
+
   const childrenNodes = useMemo(() => {
-    if (!props.openFolders.value?.includes(data.id)) {
+    if (!filesInfo.openFolders.includes(data.id)) {
       return null;
     }
 
@@ -210,14 +237,7 @@ function Folder({ data, indent, ...props }: FolderProps) {
         {data.children &&
           data.children.length > 0 &&
           data.children?.map((child) => (
-            <Tree
-              key={child.id}
-              data={child}
-              indent={indent + 1}
-              openFolders={props.openFolders}
-              selectedFiles={props.selectedFiles}
-              noDeselectFiles={props.noDeselectFiles}
-            />
+            <Tree key={child.id} data={child} indent={indent + 1} />
           ))}
 
         {data.children?.length === 0 && (
@@ -230,39 +250,45 @@ function Folder({ data, indent, ...props }: FolderProps) {
         )}
       </>
     );
-  }, [props.openFolders]);
+  }, [filesInfo]);
 
   const isOpen = useMemo(() => {
-    return props.openFolders.value?.includes(data.id);
-  }, [props.openFolders, data.id]);
+    return filesInfo.openFolders.includes(data.id);
+  }, [filesInfo.openFolders, data.id]);
 
   const isSelected = useMemo(() => {
-    return props.selectedFiles.value?.includes(data.id);
-  }, [props.selectedFiles, data.id]);
+    return filesInfo.selectedFiles.includes(data.id);
+  }, [filesInfo.selectedFiles, data.id]);
 
   const canDeselect = useMemo(() => {
-    return !props.noDeselectFiles.value.includes(data.id);
-  }, [props.noDeselectFiles, data.id]);
+    return !filesInfo.noDeselectFiles.includes(data.id);
+  }, [filesInfo.noDeselectFiles, data.id]);
 
   function toggleFolder() {
     if (isOpen) {
-      props.openFolders.set(
-        props.openFolders.value?.filter((x) => x !== data.id)
-      );
+      newProjectContext.dispatch({
+        type: "set_files_open_folders",
+        folders: filesInfo.openFolders.filter((x) => x !== data.id),
+      });
     } else {
-      props.openFolders.set([...(props.openFolders.value ?? []), data.id]);
+      newProjectContext.dispatch({
+        type: "set_files_open_folders",
+        folders: [...(filesInfo.openFolders ?? []), data.id],
+      });
     }
   }
 
   function toggleSelection() {
+    let newFiles = filesInfo.selectedFiles;
+
     if (isSelected) {
-      props.selectedFiles.set((s) => s?.filter((x) => x !== data.id));
+      newFiles = newFiles.filter((x) => x !== data.id);
 
       // recursively unselect all children
       function disableChildren(dir: TauriTypes.FileDir) {
         if (dir.children) {
           dir.children.forEach((child) => {
-            props.selectedFiles.set((s) => s?.filter((x) => x !== child.id));
+            newFiles = newFiles.filter((x) => x !== child.id);
             disableChildren(child);
           });
         }
@@ -270,7 +296,7 @@ function Folder({ data, indent, ...props }: FolderProps) {
 
       disableChildren(data);
     } else {
-      props.selectedFiles.set([...(props.selectedFiles.value ?? []), data.id]);
+      newFiles = [...(filesInfo.selectedFiles ?? []), data.id];
 
       let ids: string[] = [];
       function enableChildren(dir: TauriTypes.FileDir, ids: string[]) {
@@ -283,11 +309,17 @@ function Folder({ data, indent, ...props }: FolderProps) {
       }
 
       enableChildren(data, ids);
-      props.selectedFiles.set((s) => {
-        ids = ids.filter((id) => !s?.includes(id));
-        return s?.concat(ids);
-      });
+      const selectedFiles = filesInfo.selectedFiles;
+
+      newFiles = newFiles.concat(
+        ids.filter((id) => !selectedFiles.includes(id))
+      );
     }
+
+    newProjectContext.dispatch({
+      type: "set_files_selected_files",
+      files: newFiles,
+    });
   }
 
   return (
@@ -328,23 +360,32 @@ type FileProps = {
   indent: number;
 } & SharedProps;
 function File({ data, indent, ...props }: FileProps) {
+  const newProjectContext = useContext(NewProjectContext.Context);
+  const filesInfo = useMemo(() => {
+    return newProjectContext.state.filesInfo;
+  }, [newProjectContext.state.filesInfo]);
+
   const isSelected = useMemo(() => {
-    return props.selectedFiles.value?.includes(data.id);
-  }, [props.selectedFiles, data.id]);
+    return filesInfo.selectedFiles.includes(data.id);
+  }, [filesInfo.selectedFiles, data.id]);
 
   function toggleSelection() {
     if (isSelected) {
-      props.selectedFiles.set(
-        props.selectedFiles.value?.filter((x) => x !== data.id)
-      );
+      newProjectContext.dispatch({
+        type: "set_files_selected_files",
+        files: filesInfo.selectedFiles.filter((x) => x !== data.id),
+      });
     } else {
-      props.selectedFiles.set([...(props.selectedFiles.value ?? []), data.id]);
+      newProjectContext.dispatch({
+        type: "set_files_selected_files",
+        files: [...(filesInfo.selectedFiles ?? []), data.id],
+      });
     }
   }
 
   const canDeselect = useMemo(() => {
-    return !props.noDeselectFiles.value.includes(data.id);
-  }, [props.noDeselectFiles, data.id]);
+    return !filesInfo.noDeselectFiles.includes(data.id);
+  }, [filesInfo.noDeselectFiles, data.id]);
 
   return (
     <div

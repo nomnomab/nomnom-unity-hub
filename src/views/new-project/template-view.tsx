@@ -366,6 +366,10 @@ function TemplateInfo({
         type: "set_packages",
         packages: Object.keys(json.tgzPackage.dependencies ?? {}) ?? [],
       });
+
+      newProjectContext.dispatch({
+        type: "reset_files",
+      });
     };
 
     load();

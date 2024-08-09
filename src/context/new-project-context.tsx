@@ -48,6 +48,7 @@ export namespace NewProjectContext {
     tab: TabName;
     initialTemplateInfo: InitialTemplateInfo;
     packageInfo: PackageInfo;
+    filesInfo: FilesInfo;
     basicInfo: BasicInfo;
   }
 
@@ -65,6 +66,13 @@ export namespace NewProjectContext {
     selectedPackages: string[];
   }
 
+  interface FilesInfo {
+    root: TauriTypes.FileDir | null;
+    openFolders: string[];
+    selectedFiles: string[];
+    noDeselectFiles: string[];
+  }
+
   const initialState = {
     tab: "template" as TabName,
     initialTemplateInfo: {
@@ -73,6 +81,12 @@ export namespace NewProjectContext {
     },
     packageInfo: {
       selectedPackages: [],
+    },
+    filesInfo: {
+      root: null,
+      openFolders: [],
+      selectedFiles: [],
+      noDeselectFiles: [],
     },
     basicInfo: {
       name: "New Project",
@@ -98,7 +112,12 @@ export namespace NewProjectContext {
     | {
         type: "set_packages";
         packages: string[];
-      };
+      }
+    | { type: "set_files_root"; root: TauriTypes.FileDir }
+    | { type: "set_files_open_folders"; folders: string[] }
+    | { type: "set_files_selected_files"; files: string[] }
+    | { type: "set_files_no_deselect_files"; files: string[] }
+    | { type: "reset_files" };
 
   const reducer = (state: State, action: Action): State => {
     switch (action.type) {
@@ -126,6 +145,49 @@ export namespace NewProjectContext {
           packageInfo: {
             ...state.packageInfo,
             selectedPackages: action.packages,
+          },
+        };
+      case "set_files_root":
+        return {
+          ...state,
+          filesInfo: {
+            ...state.filesInfo,
+            root: action.root,
+          },
+        };
+      case "set_files_open_folders":
+        return {
+          ...state,
+          filesInfo: {
+            ...state.filesInfo,
+            openFolders: action.folders,
+          },
+        };
+      case "set_files_selected_files":
+        return {
+          ...state,
+          filesInfo: {
+            ...state.filesInfo,
+            selectedFiles: action.files,
+          },
+        };
+      case "set_files_no_deselect_files":
+        return {
+          ...state,
+          filesInfo: {
+            ...state.filesInfo,
+            noDeselectFiles: action.files,
+          },
+        };
+      case "reset_files":
+        return {
+          ...state,
+          filesInfo: {
+            ...state.filesInfo,
+            root: null,
+            openFolders: [],
+            selectedFiles: [],
+            noDeselectFiles: [],
           },
         };
       default:
