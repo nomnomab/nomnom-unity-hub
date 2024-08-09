@@ -310,13 +310,44 @@ fn extract_file_paths(app: &tauri::AppHandle, surface_template: &SurfaceTemplate
     .filter_map(|x| x.ok());
 
   let mut file_paths = Vec::new();
-  for mut entry in valid_entries.into_iter() {
+  let library_part = std::path::Path::new("Library");
+  let project_data_part = std::path::Path::new("ProjectData~");
+  for entry in valid_entries.into_iter() {
     let path = entry
       .path()
       .map_err(|_| errors::str_error("Invalid template tgz"))?
       .to_path_buf();
-    file_paths.push(path);
+
+    let skip = {
+      let mut skip = false;
+      for (i, part) in path.iter().enumerate() {
+        if part == &project_data_part {
+          let next_part = path.iter().nth(i + 1);
+          if let Some(next_part) = next_part {
+            if next_part == &library_part {
+              skip = true;
+              break;
+            }
+          }
+        }
+      }
+
+      skip
+    };
+
+    if !skip {
+      file_paths.push(path);
+    }
   }
+
+  // file_paths.sort_by(|a, b| {
+  //   let a_extension = a.extension();
+  //   let b_extension = b.extension();
+
+  //   if a_extension.is_some() && b_extension.is_none() { std::cmp::Ordering::Equal }
+  //   else if a_extension.is_none() && b_extension.is_some() { std::cmp::Ordering::Greater }
+  //   else { a.file_name().cmp(&b.file_name()) }
+  // });
 
   // turn file paths into a file tree
   let mut dir = io_utils::dir("package");

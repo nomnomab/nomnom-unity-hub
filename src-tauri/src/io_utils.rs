@@ -107,11 +107,19 @@ impl FileDir {
     pub fn sort(&mut self) {
         // sort folders first
         self.children
-            .sort_by(|a, b| std::path::Path::new(&a.name)
-                .extension()
-                .cmp(&std::path::Path::new(&b.name)
-                .extension())
-                .then(a.name.cmp(&b.name)));
+            .sort_by(|a, b| {
+                let a_path = std::path::PathBuf::from(&a.name);
+                let b_path = std::path::PathBuf::from(&b.name);
+
+                let a_extension = a_path.extension();
+                let b_extension = b_path.extension();
+
+                if a_extension.is_some() && b_extension.is_none() { std::cmp::Ordering::Greater }
+                else if a_extension.is_none() && b_extension.is_some() { std::cmp::Ordering::Less }
+                else { a_path.file_name().unwrap().to_ascii_lowercase().cmp(&b_path.file_name().unwrap().to_ascii_lowercase()) }
+            });
+        // self.children
+        //     .sort_by(|a, b| a.name.cmp(&b.name));
         for c in self.children.iter_mut() {
             c.sort();
         }

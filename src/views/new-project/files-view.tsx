@@ -11,6 +11,8 @@ import ChevronUp from "../../components/svg/chevron-up";
 import Checkmark from "../../components/svg/checkmark";
 import { Buttons } from "../../components/parts/buttons";
 
+const cannotExclude = ["package.json/", "package.json.meta/"];
+
 export default function FilesView() {
   const newProjectContext = useContext(NewProjectContext.Context);
   const files = useBetterState<LazyValue<TauriTypes.FileDir>>({
@@ -20,8 +22,10 @@ export default function FilesView() {
 
   const openFolders = useBetterState<string[]>([]);
   const selectedFiles = useBetterState<string[]>([]);
+  const noDeselectFiles = useBetterState<string[]>([]);
   const fileCount = useMemo(() => {
-    let count = 1;
+    let count =
+      (newProjectContext.state.initialTemplateInfo.selectedTemplate && 1) || 0;
     function getCount(data: TauriTypes.FileDir | null) {
       if (!data) {
         return;
@@ -34,6 +38,27 @@ export default function FilesView() {
       }
     }
     getCount(files.value?.value);
+
+    let arr: string[] = [];
+    function getDeselectFiles(data: TauriTypes.FileDir | null, prefix: string) {
+      if (!data) {
+        return;
+      }
+      if (data.children) {
+        data.children.forEach((child) => {
+          const name = child.name;
+          const path = prefix + name + "/";
+          if (cannotExclude.includes(path)) {
+            console.log("cannot deselect", path, " for", child.id);
+            arr.push(child.id);
+          }
+          getDeselectFiles(child, path);
+        });
+      }
+    }
+    getDeselectFiles(files.value?.value, "");
+    noDeselectFiles.set(arr);
+
     return count;
   }, [files.value]);
 
@@ -41,9 +66,6 @@ export default function FilesView() {
     const ids = [data.id];
     if (data.children) {
       data.children.forEach((child) => {
-        if (child.name === "Library" && data.name === "ProjectData~") {
-          return;
-        }
         ids.push(...getAllIds(child));
       });
     }
@@ -78,40 +100,65 @@ export default function FilesView() {
   return (
     <div className="flex flex-col h-full py-4 overflow-hidden">
       {/* Browse */}
-      <div className="flex justify-center">
-        <div className="border border-stone-600 border-dashed px-8 py-4 flex flex-col gap-4 items-center cursor-pointer hover:bg-stone-800">
-          <div className="text-center ">
+      <div className="flex justify-center border-b border-stone-700 pb-4">
+        <div
+          className="border border-stone-600 border-dashed px-8 py-4 flex flex-col gap-4 items-center cursor-pointer hover:bg-stone-800"
+          tabIndex={0}
+        >
+          <div className="text-center select-none">
             Click here to select a new project to
             <br /> work off of instead.
           </div>
-          <Buttons.ActionButton title="Browse" />
+          <div className="rounded-md text-stone-50 bg-sky-600 px-3 py-1 select-none">
+            Browse
+          </div>
         </div>
       </div>
 
       {/* File tree */}
       <AsyncLazyValueComponent loading={<LoadingSpinner />} value={files.value}>
-        <p className="pt-4">
-          {selectedFiles.value.length.toLocaleString()}/
-          {fileCount.toLocaleString()} selected
-        </p>
-        <div className="tree-root flex flex-col overflow-y-auto">
-          {files.value.value &&
-            // <Tree
-            //   data={files.value.value}
-            //   indent={-1}
-            //   openFolders={openFolders}
-            //   selectedFiles={selectedFiles}
-            // />
-            files.value.value?.children?.map((child) => (
-              <Tree
-                key={child.id}
-                data={child}
-                indent={0}
-                openFolders={openFolders}
-                selectedFiles={selectedFiles}
+        {(files.value.value?.children?.length ?? 0) === 0 && (
+          <p className="pt-4 select-none">No files</p>
+        )}
+        {(files.value.value?.children?.length ?? 0) > 0 && (
+          <>
+            <div>
+              <p className="pt-4">
+                {selectedFiles.value.length.toLocaleString()}/
+                {fileCount.toLocaleString()} selected
+              </p>
+
+              <Buttons.DefaultButton
+                title="Select All"
+                onClick={() => {
+                  selectedFiles.set([...getAllIds(files.value.value!)]);
+                }}
               />
-            ))}
-        </div>
+
+              <Buttons.DefaultButton
+                title="Deselect All"
+                onClick={() => {
+                  selectedFiles.set([]);
+                }}
+              />
+            </div>
+
+            <div className="tree-root flex flex-col overflow-y-auto">
+              {/* Start inside of /package/ */}
+              {files.value.value &&
+                files.value.value?.children?.map((child) => (
+                  <Tree
+                    key={child.id}
+                    data={child}
+                    indent={0}
+                    openFolders={openFolders}
+                    selectedFiles={selectedFiles}
+                    noDeselectFiles={noDeselectFiles}
+                  />
+                ))}
+            </div>
+          </>
+        )}
       </AsyncLazyValueComponent>
     </div>
   );
@@ -120,6 +167,7 @@ export default function FilesView() {
 type SharedProps = {
   openFolders: UseState<string[]>;
   selectedFiles: UseState<string[]>;
+  noDeselectFiles: UseState<string[]>;
 };
 
 type TreeProps = {
@@ -134,6 +182,7 @@ function Tree({ data, indent, ...props }: TreeProps) {
       indent={indent}
       openFolders={props.openFolders}
       selectedFiles={props.selectedFiles}
+      noDeselectFiles={props.noDeselectFiles}
     />
   ) : (
     <Folder
@@ -141,6 +190,7 @@ function Tree({ data, indent, ...props }: TreeProps) {
       indent={indent}
       openFolders={props.openFolders}
       selectedFiles={props.selectedFiles}
+      noDeselectFiles={props.noDeselectFiles}
     />
   );
 }
@@ -166,6 +216,7 @@ function Folder({ data, indent, ...props }: FolderProps) {
               indent={indent + 1}
               openFolders={props.openFolders}
               selectedFiles={props.selectedFiles}
+              noDeselectFiles={props.noDeselectFiles}
             />
           ))}
 
@@ -188,6 +239,10 @@ function Folder({ data, indent, ...props }: FolderProps) {
   const isSelected = useMemo(() => {
     return props.selectedFiles.value?.includes(data.id);
   }, [props.selectedFiles, data.id]);
+
+  const canDeselect = useMemo(() => {
+    return !props.noDeselectFiles.value.includes(data.id);
+  }, [props.noDeselectFiles, data.id]);
 
   function toggleFolder() {
     if (isOpen) {
@@ -242,17 +297,24 @@ function Folder({ data, indent, ...props }: FolderProps) {
           isSelected && "selected"
         }`}
       >
-        <CheckBox selected={isSelected} onClick={toggleSelection} />
+        {canDeselect && (
+          <CheckBox selected={isSelected} onClick={toggleSelection} />
+        )}
         <button
           style={{
-            paddingLeft: indent !== 0 ? `calc(${indent * 20}px)` : undefined,
+            paddingLeft:
+              indent !== 0
+                ? `calc(${indent * 20 + (!canDeselect ? 30 : 0)}px)`
+                : undefined,
           }}
           className="flex items-center px-2 py-1 w-full"
           onClick={toggleFolder}
         >
           {!isOpen && <ChevronUp width={20} height={20} />}
           {isOpen && <ChevronDown width={20} height={20} />}
-          <p className="text-left pl-1 font-bold">{data.name}</p>
+          <p className="text-left pl-1 font-bold">
+            {data.name} [{data.id}]
+          </p>
         </button>
       </div>
 
@@ -280,15 +342,21 @@ function File({ data, indent, ...props }: FileProps) {
     }
   }
 
+  const canDeselect = useMemo(() => {
+    return !props.noDeselectFiles.value.includes(data.id);
+  }, [props.noDeselectFiles, data.id]);
+
   return (
     <div
       className={`tree-item tree-item flex items-center w-full ${
         isSelected && "selected"
       }`}
     >
-      <CheckBox selected={isSelected} onClick={toggleSelection} />
+      {canDeselect && (
+        <CheckBox selected={isSelected} onClick={toggleSelection} />
+      )}
       <button
-        style={{ paddingLeft: `${indent * 20}px` }}
+        style={{ paddingLeft: `${indent * 20 + (!canDeselect ? 30 : 0)}px` }}
         className="tree-item px-2 py-1 w-full"
       >
         <p

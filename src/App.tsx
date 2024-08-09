@@ -1,7 +1,6 @@
 import "./App.css";
 import "react-contexify/ReactContexify.css";
 import "./ContextMenu.css";
-import "react-folder-tree/dist/style.css";
 
 // import "reactjs-popup/dist/index.css";
 import { useContext } from "react";

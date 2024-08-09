@@ -10,6 +10,8 @@ import TabView from "../../components/tab-view";
 import { Buttons } from "../../components/parts/buttons";
 import PackagePlus from "../../components/svg/package-plus";
 import { NewProjectContext } from "../../context/new-project-context";
+import EllipsisVertical from "../../components/svg/ellipsis-vertical";
+import { Item, Menu, useContextMenu } from "react-contexify";
 
 const categories = ["All", "Core", "Sample", "Learning", "Custom"];
 const defaultUnityPackages = [
@@ -376,15 +378,36 @@ function TemplateInfo({
 
   const selectedTab = useBetterState<string | number>(tabs[0].id);
 
+  const { show, hideAll } = useContextMenu({});
+  function pressMenuItem({ id, event, _ }: any) {
+    event.stopPropagation();
+
+    switch (id) {
+      case "open":
+        TauriRouter.show_path_in_file_manager(value._template.path);
+        break;
+    }
+
+    hideAll();
+  }
+
   return (
     <div className="flex flex-col w-96 gap-4 pt-4 border-l border-l-stone-700 overflow-y-auto flex-shrink-0">
       {/* <div className="border-b border-b-stone-700 px-4 pb-4"> */}
       <div className="px-4">
-        <p className="text-stone-50">
-          {value.name ??
-            tgzJson.value?.value?.tgzPackage?.name ??
-            value._template.name}
-        </p>
+        <div className="flex">
+          <p className="text-stone-50">
+            {value.name ??
+              tgzJson.value?.value?.tgzPackage?.name ??
+              value._template.name}
+          </p>
+          <button
+            className="ml-auto p-1 rounded-md hover:bg-stone-700"
+            onClick={(e) => show({ id: "template", event: e })}
+          >
+            <EllipsisVertical width={20} height={20} />
+          </button>
+        </div>
         <p className="leading-6">
           {tgzJson.value?.status === "loading"
             ? "Loading..."
@@ -471,6 +494,12 @@ function TemplateInfo({
           </div>
         </AsyncLazyValueComponent>
       </div>
+
+      <Menu id="template" theme="dark_custom">
+        <Item id="open" onClick={pressMenuItem}>
+          Open in Explorer
+        </Item>
+      </Menu>
     </div>
   );
 }
