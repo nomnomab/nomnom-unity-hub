@@ -1,5 +1,6 @@
 import { createContext, useReducer } from "react";
 import { TauriTypes } from "../utils/tauri-types";
+import { LazyVoid } from "../utils";
 
 export namespace NewProjectContext {
   interface Type {
@@ -50,6 +51,7 @@ export namespace NewProjectContext {
     packageInfo: PackageInfo;
     filesInfo: FilesInfo;
     basicInfo: BasicInfo;
+    error: LazyVoid;
   }
 
   interface BasicInfo {
@@ -75,6 +77,9 @@ export namespace NewProjectContext {
 
   const initialState = {
     tab: "template" as TabName,
+    error: {
+      status: "idle",
+    } as LazyVoid,
     initialTemplateInfo: {
       selectedTemplate: undefined,
       editorVersion: {} as TauriTypes.UnityEditorInstall,
@@ -102,6 +107,11 @@ export namespace NewProjectContext {
   type Action =
     | { type: "change_tab"; tab: TabName }
     | {
+        type: "set_has_error";
+        hasError: boolean;
+        message?: Error | null;
+      }
+    | {
         type: "set_editor_version";
         editor: TauriTypes.UnityEditorInstall;
       }
@@ -122,7 +132,21 @@ export namespace NewProjectContext {
   const reducer = (state: State, action: Action): State => {
     switch (action.type) {
       case "change_tab":
-        return { ...state, tab: action.tab };
+        return {
+          ...state,
+          tab: action.tab,
+          error: {
+            status: "idle",
+          },
+        };
+      case "set_has_error":
+        return {
+          ...state,
+          error: {
+            status: action.hasError ? "error" : "idle",
+            error: action.message,
+          },
+        };
       case "set_editor_version":
         return {
           ...state,

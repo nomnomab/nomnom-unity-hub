@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useContext, useEffect, useMemo } from "react";
 import FolderOpen from "../../components/svg/folder-open";
 import {
   ValidateInputContext,
@@ -9,6 +9,7 @@ import { UseState } from "../../utils";
 import { TauriRouter } from "../../utils/tauri-router";
 import { NewProjectData } from "./new-project-body";
 import { open } from "@tauri-apps/api/dialog";
+import { NewProjectContext } from "../../context/new-project-context";
 
 export default function BasicInfoView({
   hasFieldError,
@@ -89,6 +90,60 @@ export default function BasicInfoView({
           {/* <div className="h-[5000px]"></div> */}
         </div>
       </ValidateInputContext>
+
+      <Overview />
     </>
+  );
+}
+
+function Overview() {
+  const newProjectContext = useContext(NewProjectContext.Context);
+  const initialTemplateInfo = useMemo(() => {
+    return newProjectContext.state.initialTemplateInfo;
+  }, [newProjectContext.state.initialTemplateInfo]);
+  const packageInfo = useMemo(() => {
+    return newProjectContext.state.packageInfo;
+  }, [newProjectContext.state.packageInfo]);
+  const filesInfo = useMemo(() => {
+    return newProjectContext.state.filesInfo;
+  }, [newProjectContext.state.filesInfo]);
+
+  return (
+    <div className="mt-8 select-none border-t border-t-stone-700">
+      <p className="text-xl pb-1 pt-4">Overview</p>
+
+      <p className="text-stone-400 flex w-full">
+        Editor version
+        <span className="ml-auto">
+          {initialTemplateInfo.editorVersion.version}
+        </span>
+      </p>
+
+      <p className="text-stone-400 flex w-full">
+        Selected template
+        <span className="ml-auto">
+          {initialTemplateInfo.selectedTemplate?.name ?? "N/A"}
+          {" @ "}
+          <span>{initialTemplateInfo.selectedTemplate?.version ?? "N/A"}</span>
+        </span>
+      </p>
+
+      <p className="text-stone-400 flex w-full">
+        Packages
+        <span className="ml-auto">{packageInfo.selectedPackages.length}</span>
+      </p>
+      <div className="max-h-64 overflow-y-auto">
+        {packageInfo.selectedPackages.map((p) => (
+          <p key={p} className="text-stone-400 w-full pl-4">
+            - {p}
+          </p>
+        ))}
+      </div>
+
+      <p className="text-stone-400 flex w-full">
+        Files
+        <span className="ml-auto">{filesInfo.selectedFiles.length}</span>
+      </p>
+    </div>
   );
 }

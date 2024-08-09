@@ -90,6 +90,10 @@ export default function FilesView() {
 
   useEffect(() => {
     const load = async () => {
+      newProjectContext.dispatch({
+        type: "set_has_error",
+        hasError: true,
+      });
       if (!newProjectContext.state.initialTemplateInfo.selectedTemplate) {
         files.set({
           status: "success",
@@ -100,6 +104,10 @@ export default function FilesView() {
           } as TauriTypes.FileDir,
         });
         isNewFile.set(false);
+        newProjectContext.dispatch({
+          type: "set_has_error",
+          hasError: false,
+        });
         return;
       }
 
@@ -118,6 +126,11 @@ export default function FilesView() {
         isNewFile.set(false);
         files.set({ status: "success", value: filesInfo.root });
       }
+
+      newProjectContext.dispatch({
+        type: "set_has_error",
+        hasError: false,
+      });
     };
     load();
   }, []);

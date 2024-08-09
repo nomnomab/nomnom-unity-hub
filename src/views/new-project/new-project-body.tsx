@@ -83,11 +83,26 @@ export default function NewProjectBody() {
           onClick={gotoPreviousTab}
         />
 
-        <Buttons.ActionButton
-          title={onLastTab ? "Create" : "Next"}
-          disabled={hasFieldError.value}
-          onClick={gotoNextTab}
-        />
+        <div className="flex gap-1">
+          {onLastTab && (
+            <Buttons.DefaultButton
+              title="Save As Template"
+              disabled={
+                hasFieldError.value ||
+                newProjectContext.state.error.status === "error"
+              }
+            />
+          )}
+
+          <Buttons.ActionButton
+            title={onLastTab ? "Create Project" : "Next"}
+            disabled={
+              hasFieldError.value ||
+              newProjectContext.state.error.status === "error"
+            }
+            onClick={gotoNextTab}
+          />
+        </div>
       </div>
     </div>
   );
