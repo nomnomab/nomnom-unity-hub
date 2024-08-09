@@ -127,7 +127,9 @@ export namespace NewProjectContext {
     | { type: "set_files_open_folders"; folders: string[] }
     | { type: "set_files_selected_files"; files: string[] }
     | { type: "set_files_no_deselect_files"; files: string[] }
-    | { type: "reset_files" };
+    | { type: "reset_files" }
+    | { type: "set_basic_info_name"; name: string }
+    | { type: "set_basic_info_path"; path: string };
 
   const reducer = (state: State, action: Action): State => {
     switch (action.type) {
@@ -212,6 +214,22 @@ export namespace NewProjectContext {
             openFolders: [],
             selectedFiles: [],
             noDeselectFiles: [],
+          },
+        };
+      case "set_basic_info_name":
+        return {
+          ...state,
+          basicInfo: {
+            ...state.basicInfo,
+            name: action.name,
+          },
+        };
+      case "set_basic_info_path":
+        return {
+          ...state,
+          basicInfo: {
+            ...state.basicInfo,
+            path: action.path,
           },
         };
       default:

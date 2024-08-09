@@ -7,6 +7,10 @@ import { useContext } from "react";
 import { GlobalContext } from "../../context/global-context";
 import { NewProjectContext } from "../../context/new-project-context";
 import FilesView from "./files-view";
+import { TauriRouter } from "../../utils/tauri-router";
+import { TauriTypes } from "../../utils/tauri-types";
+import Popup from "reactjs-popup";
+import LoadingSpinner from "../../components/svg/loading-spinner";
 
 export type NewProjectData = {
   projectName: string;
@@ -22,12 +26,8 @@ export type NewProjectData = {
 export default function NewProjectBody() {
   const globalContext = useContext(GlobalContext.Context);
   const newProjectContext = useContext(NewProjectContext.Context);
-
   const hasFieldError = useBetterState(false);
-  const data = useBetterState({
-    projectName: "New Project",
-    projectPath: "",
-  });
+  const isLoading = useBetterState(false);
 
   function gotoPreviousTab() {
     const selectedTab = newProjectContext.state.tab;
@@ -41,19 +41,103 @@ export default function NewProjectBody() {
     }
   }
 
-  function gotoNextTab() {
+  async function gotoNextTab() {
     const selectedTab = newProjectContext.state.tab;
     if (!NewProjectContext.onLastTab(selectedTab)) {
       newProjectContext.dispatch({
         type: "change_tab",
         tab: NewProjectContext.getNextTab(selectedTab)!,
       });
+    } else {
+      // create project
+      const basicInfo = newProjectContext.state.basicInfo;
+      const template = newProjectContext.state.initialTemplateInfo;
+      const pack = newProjectContext.state.packageInfo;
+      const files = newProjectContext.state.filesInfo;
+
+      const packages = await TauriRouter.get_default_editor_packages(
+        template.editorVersion.version
+      );
+
+      let paths: string[] = [];
+      let rootMap = new Map<string, number>();
+
+      function fileDirToPaths(fileDir: TauriTypes.FileDir, path: string) {
+        if (path !== "" && !files.selectedFiles.includes(fileDir.id)) {
+          return;
+        }
+
+        const isRoot = path === "";
+        path += fileDir.name;
+
+        if (!isRoot) {
+          paths.push(path);
+
+          const components = path.split("/");
+          let part = "";
+          components.forEach((component) => {
+            part += (part !== "" ? "/" : "") + component;
+            if (rootMap.has(part)) {
+              rootMap.set(part, rootMap.get(part)! + 1);
+            } else {
+              rootMap.set(part, 1);
+            }
+          });
+        }
+
+        if (fileDir.children) {
+          for (const child of fileDir.children) {
+            fileDirToPaths(child, path + "/");
+          }
+        }
+      }
+
+      if (files.root) fileDirToPaths(files.root, "");
+
+      const trimmedPaths = paths.filter((path) => rootMap.get(path) === 1);
+      const templateInfo: TauriTypes.TemplateInfoForGeneration = {
+        template: template.selectedTemplate,
+        editorVersion: template.editorVersion,
+        packages: packages.filter((x) =>
+          pack.selectedPackages.includes(x.name)
+        ),
+        selectedFiles: trimmedPaths,
+      };
+      const projectInfo: TauriTypes.ProjectInfoForGeneration = {
+        name: basicInfo.name,
+        path: basicInfo.path,
+      };
+
+      isLoading.set(true);
+      try {
+        const output = await TauriRouter.generate_project(
+          projectInfo,
+          templateInfo
+        );
+        isLoading.set(false);
+
+        console.log(output);
+
+        await TauriRouter.add_project(output);
+        globalContext.dispatch({ type: "change_tab", tab: "projects" });
+      } catch (e) {
+        console.error(e);
+        isLoading.set(false);
+      }
     }
   }
 
   const selectedTab = newProjectContext.state.tab;
   const onFirstTab = NewProjectContext.onFirstTab(selectedTab);
   const onLastTab = NewProjectContext.onLastTab(selectedTab);
+
+  // if (isLoading.value) {
+  //   <div className="flex flex-col h-full justify-end">
+  //     <div className="flex flex-row justify-between p-4 border-t border-t-stone-700 relative">
+  //       <LoadingSpinner />
+  //     </div>
+  //   </div>;
+  // }
 
   return (
     <div className="flex flex-col h-full">
@@ -65,7 +149,7 @@ export default function NewProjectBody() {
         {selectedTab === "package" && <PackageView />}
         {selectedTab === "files" && <FilesView />}
         {selectedTab === "info" && (
-          <BasicInfoView data={data} hasFieldError={hasFieldError} />
+          <BasicInfoView hasFieldError={hasFieldError} />
         )}
       </div>
       <div className="flex flex-row justify-between p-4 border-t border-t-stone-700 relative">
@@ -88,6 +172,7 @@ export default function NewProjectBody() {
             <Buttons.DefaultButton
               title="Save As Template"
               disabled={
+                true ||
                 hasFieldError.value ||
                 newProjectContext.state.error.status === "error"
               }
@@ -104,6 +189,23 @@ export default function NewProjectBody() {
           />
         </div>
       </div>
+
+      <Popup
+        open={isLoading.value}
+        position="center center"
+        modal
+        closeOnDocumentClick={false}
+      >
+        <div className="bg-[#000000aa] fixed left-0 right-0 top-0 bottom-0 w-full h-full flex items-center justify-center">
+          <div className="bg-stone-900 border border-stone-600 outline-none w-full max-w-xl px-4 py-8 flex flex-col items-center">
+            <p>Creating your project...</p>
+            <p className="text-sm text-stone-400 pb-4">
+              This might take a little bit
+            </p>
+            <LoadingSpinner />
+          </div>
+        </div>
+      </Popup>
     </div>
   );
 }

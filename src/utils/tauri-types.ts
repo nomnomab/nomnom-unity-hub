@@ -132,6 +132,23 @@ export namespace TauriTypes {
 
     return fileDir;
   }
+
+  export interface TemplateInfoForGeneration {
+    template?: SurfaceTemplate;
+    editorVersion: UnityEditorInstall;
+    packages: MinimalPackage[];
+    selectedFiles: string[]; // PathBuf is usually represented as a string in TS
+  }
+
+  export interface ProjectInfoForGeneration {
+    name: string;
+    path: string; // PathBuf is usually represented as a string in TS
+  }
+
+  export interface NewTemplateInfo {
+    template: TemplateInfoForGeneration;
+    name: string;
+  }
 }
 
 export {};

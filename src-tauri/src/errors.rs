@@ -2,6 +2,9 @@ use std::io;
 
 #[derive(thiserror::Error, Debug)]
 pub enum AnyError {
+    // #[error(transparent)]
+    // Core(#[from] std::error::Error),
+    
     #[error(transparent)]
     Io(#[from] std::io::Error),
 

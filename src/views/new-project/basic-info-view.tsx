@@ -13,27 +13,38 @@ import { NewProjectContext } from "../../context/new-project-context";
 
 export default function BasicInfoView({
   hasFieldError,
-  data,
 }: {
   hasFieldError: UseState<boolean>;
-  data: UseState<NewProjectData>;
 }) {
+  const newProjectContext = useContext(NewProjectContext.Context);
+  const basicInfo = useMemo(() => {
+    return newProjectContext.state.basicInfo;
+  }, [newProjectContext.state.basicInfo]);
+
   useEffect(() => {
     TauriRouter.get_default_project_path().then((path) => {
-      data.set((s) => ({ ...s, projectPath: path as string }));
+      newProjectContext.dispatch({
+        type: "set_basic_info_path",
+        path: path as string,
+      });
     });
   }, []);
+
+  useEffect(() => {});
 
   async function selectProjectFolder() {
     const path = await open({
       directory: true,
       multiple: false,
-      defaultPath: data.value.projectPath,
+      defaultPath: basicInfo.path,
     });
 
     if (!path) return;
 
-    data.set((s) => ({ ...s, projectPath: path as string }));
+    newProjectContext.dispatch({
+      type: "set_basic_info_path",
+      path: path as string,
+    });
   }
 
   return (
@@ -43,14 +54,15 @@ export default function BasicInfoView({
           <ValidateInput
             label="Project Name"
             name="projectName"
-            value={data.value.projectName}
+            value={basicInfo.name}
             errorMessage={() => "Project name cannot be empty"}
-            hasError={() =>
-              !data.value.projectName || data.value.projectName.length === 0
-            }
+            hasError={() => !basicInfo.name || basicInfo.name.length === 0}
             onChange={(e) => {
               console.log(e.target.value);
-              data.set((s) => ({ ...s, projectName: e.target.value }));
+              newProjectContext.dispatch({
+                type: "set_basic_info_name",
+                name: e.target.value,
+              });
             }}
             className="w-full p-2 rounded-md border border-stone-600 bg-stone-800"
           />
@@ -58,22 +70,20 @@ export default function BasicInfoView({
           <ValidateInputWithButton
             label="Project Path"
             name="projectPath"
-            value={data.value.projectPath}
+            value={basicInfo.path}
             errorMessage={() => {
-              if (
-                !data.value.projectPath ||
-                data.value.projectPath.length === 0
-              ) {
+              if (!basicInfo.path || basicInfo.path.length === 0) {
                 return "Project path cannot be empty";
               }
 
               return "error";
             }}
-            hasError={() =>
-              !data.value.projectPath || data.value.projectPath.length === 0
-            }
+            hasError={() => !basicInfo.path || basicInfo.path.length === 0}
             onChange={(e) =>
-              data.set((s) => ({ ...s, projectPath: e.target.value }))
+              newProjectContext.dispatch({
+                type: "set_basic_info_path",
+                path: e.target.value,
+              })
             }
             className="w-full p-2 rounded-md border rounded-tr-none rounded-br-none border-r-0 border-stone-600 bg-stone-800"
             divProps={{

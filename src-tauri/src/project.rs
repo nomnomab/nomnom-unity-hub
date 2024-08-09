@@ -88,7 +88,7 @@ pub fn get_projects_on_page(app_state: &tauri::State<AppState>, page: usize, per
         .take(per_page_count)
         .map(|x| x.clone())
         .collect::<Vec<_>>();
-    projects.sort_by(|x, y| x.name.cmp(&y.name));
+    // projects.sort_by(|x, y| x.name.cmp(&y.name));
     Ok(projects)
 }
 
@@ -128,7 +128,7 @@ pub fn cmd_add_project(project_path: PathBuf, app_handle: tauri::AppHandle, app_
     let projects = {
         let mut projects = app_state.projects.lock()
             .map_err(|_| errors::str_error("Failed to get projects. Is it locked?"))?;
-        projects.push(project.clone());
+        projects.insert(0, project.clone());
         projects
     };
 
@@ -146,7 +146,7 @@ pub fn cmd_remove_project(project_path: PathBuf, app_handle: tauri::AppHandle, a
     let projects = {
         let mut projects = app_state.projects.lock()
             .map_err(|_| errors::str_error("Failed to get projects. Is it locked?"))?;
-        projects.retain(|x| x.path == project_path);
+        projects.retain(|x| x.path != project_path);
         projects
     };
 

@@ -117,7 +117,10 @@ export default function FilesView() {
         const newFiles = await TauriRouter.get_template_file_paths(
           newProjectContext.state.initialTemplateInfo.selectedTemplate!
         );
-        files.set({ status: "success", value: newFiles });
+        const projectData = newFiles.children?.find(
+          (x) => x.name === "ProjectData~"
+        );
+        files.set({ status: "success", value: projectData ?? newFiles });
         newProjectContext.dispatch({
           type: "set_files_root",
           root: newFiles,
@@ -142,6 +145,8 @@ export default function FilesView() {
       files: [...getAllIds(filesInfo.root)],
     });
   }, [isNewFile.value, filesInfo.root]);
+
+  console.log(files.value?.value?.children);
 
   return (
     <div className="flex flex-col h-full py-4 overflow-hidden">
@@ -210,6 +215,14 @@ export default function FilesView() {
                 files.value.value?.children?.map((child) => (
                   <Tree key={child.id} data={child} indent={0} />
                 ))}
+              {/* {files.value.value &&
+                files.value.value.children
+                  ?.filter((child) => {
+                    child.name.trim() === "ProjectData~";
+                  })
+                  ?.map((child) => (
+                    <Tree key={child.id} data={child} indent={0} />
+                  ))} */}
             </div>
           </>
         )}

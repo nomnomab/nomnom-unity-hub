@@ -14,6 +14,7 @@ mod prefs;
 mod project;
 mod io_utils;
 mod template;
+mod generate;
 
 fn main() {
     tauri::Builder::default()
@@ -46,6 +47,8 @@ fn main() {
             template::cmd_get_surface_templates,
             template::cmd_get_template_information,
             template::cmd_get_template_file_paths,
+            // generate
+            generate::cmd_generate_project
         ])
         .setup(|app| {
             let app_handle = app.handle();

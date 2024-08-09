@@ -4,9 +4,16 @@ import { TauriTypes } from "../../utils/tauri-types";
 import { TauriRouter } from "../../utils/tauri-router";
 import { UseState } from "../../utils";
 import EllipsisVertical from "../../components/svg/ellipsis-vertical";
-import { Item, Menu, Separator } from "react-contexify";
+import {
+  Item,
+  Menu,
+  Separator,
+  TriggerEvent,
+  useContextMenu,
+} from "react-contexify";
 import { ProjectViewData } from "./projects-view";
 import LoadingSpinner from "../../components/svg/loading-spinner";
+import useBetterState from "../../hooks/useBetterState";
 
 export default function ProjectList({
   projectData,
@@ -31,19 +38,24 @@ function Pagination({
   const pageCount = useMemo(() => {
     return Math.floor(projectData.value.projects.length / perPage);
   }, [projectData.value]);
+  const reloadPage = useBetterState(false);
 
   // load all the projects from a given page
   const loadProjectsOnPage = useCallback(async () => {
+    if (reloadPage.value) {
+      reloadPage.set(false);
+      return;
+    }
     // await new Promise((resolve) => setTimeout(resolve, 1000));
     const projects = await TauriRouter.get_projects_on_page(
       projectData.value.currentPage,
       perPage
-    );
+    ).then((x) => x.reverse());
     projectData.set((s) => ({
       ...s,
       projects,
     }));
-  }, [projectData.value.currentPage]);
+  }, [projectData.value.currentPage, reloadPage.value]);
 
   function changePage(page: number) {
     projectData.set((s) => ({ ...s, currentPage: page }));
@@ -98,8 +110,15 @@ function Pagination({
         }}
       >
         <div className="flex flex-col gap-4">
+          {projectData.value.projects.length === 0 && (
+            <p className="select-none p-2">No projects to show</p>
+          )}
           {projectData.value.projects.map((x) => (
-            <Project key={x.path} project={x} />
+            <Project
+              key={x.path}
+              project={x}
+              reloadPage={() => reloadPage.set(true)}
+            />
           ))}
         </div>
       </div>
@@ -167,8 +186,15 @@ function PageButton({
   );
 }
 
-function Project({ project }: { project: TauriTypes.Project }) {
+function Project({
+  project,
+  ...props
+}: {
+  project: TauriTypes.Project;
+  reloadPage: () => void;
+}) {
   const [isOpening, setIsOpening] = useState(false);
+  const { show, hideAll } = useContextMenu({});
 
   async function openProject() {
     if (isOpening) return;
@@ -177,6 +203,29 @@ function Project({ project }: { project: TauriTypes.Project }) {
     await TauriRouter.open_project_in_editor(project.path, project.version);
     await new Promise((resolve) => setTimeout(resolve, 4000));
     setIsOpening(false);
+  }
+
+  function openOptions(event: TriggerEvent) {
+    event.stopPropagation();
+    show({
+      id: "project-" + project.path,
+      event,
+      props: {},
+    });
+  }
+
+  function handleItemClick({ id, event, _ }: any) {
+    event.stopPropagation();
+    hideAll();
+    switch (id) {
+      case "open":
+        TauriRouter.show_path_in_file_manager(project.path);
+        break;
+      case "remove":
+        TauriRouter.remove_project(project.path);
+        props.reloadPage();
+        break;
+    }
   }
 
   return (
@@ -206,23 +255,17 @@ function Project({ project }: { project: TauriTypes.Project }) {
       {/* Options */}
       <button
         className="flex items-center justify-center w-12 h-12 aspect-square rounded-md text-stone-50 hover:bg-stone-500"
-        // onClick={openOptions}
+        onClick={openOptions}
       >
         <EllipsisVertical width={20} height={20} />
       </button>
 
       <Menu id={"project-" + project.path} theme="dark_custom">
-        <Item
-          id="open"
-          //onClick={handleItemClick}
-        >
+        <Item id="open" onClick={handleItemClick}>
           Show in Exporer
         </Item>
         <Separator />
-        <Item
-          id="remove"
-          // onClick={handleItemClick}
-        >
+        <Item id="remove" onClick={handleItemClick}>
           Remove
         </Item>
       </Menu>
