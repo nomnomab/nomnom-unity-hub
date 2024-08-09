@@ -10,6 +10,7 @@ import ProjectsView from "./views/projects/projects-view";
 import { GlobalContext } from "./context/global-context";
 import EditorsView from "./views/editors/editors-view";
 import NewProjectView from "./views/new-project/new-project-view";
+import SettingsView from "./views/settings/settings-view";
 
 function App() {
   const globalContext = useContext(GlobalContext.Context);
@@ -21,6 +22,7 @@ function App() {
         {globalContext.state.currentTab === "projects" && <ProjectsView />}
         {globalContext.state.currentTab === "editors" && <EditorsView />}
         {globalContext.state.currentTab === "new_project" && <NewProjectView />}
+        {globalContext.state.currentTab === "settings" && <SettingsView />}
       </div>
     </div>
     // <FirstTimeBoot>

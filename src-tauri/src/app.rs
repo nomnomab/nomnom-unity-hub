@@ -175,3 +175,21 @@ pub fn get_editors(app_state: &tauri::State<AppState>) -> anyhow::Result<Vec<edi
 pub fn cmd_show_path_in_file_manager(path: String) {
     showfile::show_path_in_file_manager(path);
 }
+
+#[tauri::command]
+pub fn cmd_is_valid_path(path: String) -> bool {
+    let path = std::path::Path::new(&path);
+    path.exists()
+}
+
+#[tauri::command]
+pub fn cmd_is_valid_dir(path: String) -> bool {
+    let path = std::path::Path::new(&path);
+    path.exists() && path.is_dir()
+}
+
+#[tauri::command]
+pub fn cmd_is_valid_file(path: String) -> bool {
+    let path = std::path::Path::new(&path);
+    path.exists() && path.is_file()
+}

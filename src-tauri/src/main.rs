@@ -20,11 +20,15 @@ fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             app::cmd_show_path_in_file_manager,
+            app::cmd_is_valid_path,
+            app::cmd_is_valid_dir,
+            app::cmd_is_valid_file,
             // prefs
             prefs::cmd_get_prefs,
             prefs::cmd_load_prefs,
             prefs::cmd_save_prefs,
             prefs::cmd_set_pref_value,
+            prefs::cmd_set_prefs,
             // user_cache
             cache::cmd_get_user_cache,
             cache::cmd_save_user_cache,

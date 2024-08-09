@@ -7,6 +7,18 @@ export namespace TauriRouter {
     return invoke("cmd_show_path_in_file_manager", { path });
   }
 
+  export async function is_valid_path(path: string): Promise<boolean> {
+    return invoke("cmd_is_valid_path", { path });
+  }
+
+  export async function is_valid_dir(path: string): Promise<boolean> {
+    return invoke("cmd_is_valid_dir", { path });
+  }
+
+  export async function is_valid_file(path: string): Promise<boolean> {
+    return invoke("cmd_is_valid_file", { path });
+  }
+
   // prefs
   export async function get_prefs(): Promise<TauriTypes.Prefs> {
     return invoke("cmd_get_prefs");
@@ -25,6 +37,10 @@ export namespace TauriRouter {
     value: any
   ): Promise<void> {
     return invoke("cmd_set_pref_value", { key, value });
+  }
+
+  export async function set_prefs(prefs: TauriTypes.Prefs): Promise<void> {
+    return invoke("cmd_set_prefs", { prefs });
   }
 
   // user_cache

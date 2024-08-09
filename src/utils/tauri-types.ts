@@ -8,10 +8,10 @@ export namespace TauriTypes {
   }
 
   export enum PrefsKey {
-    HubPath,
-    HubEditorsPath,
-    HubAppDataPath,
-    NewProjectPath,
+    HubPath = "HubPath",
+    HubEditorsPath = "HubEditorsPath",
+    HubAppDataPath = "HubAppDataPath",
+    NewProjectPath = "NewProjectPath",
   }
 
   export interface Prefs {

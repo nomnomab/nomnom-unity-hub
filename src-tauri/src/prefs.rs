@@ -45,6 +45,15 @@ pub fn cmd_get_prefs(app_state: tauri::State<AppState>) -> Result<Prefs, errors:
 }
 
 #[tauri::command]
+pub fn cmd_set_prefs(app_handle: tauri::AppHandle, app_state: tauri::State<AppState>, prefs: Prefs) -> Result<(), errors::AnyError> {
+    let mut lock = app_state.prefs.lock()
+        .map_err(|_| errors::str_error("Failed to get prefs. Is it locked?"))?;
+    *lock = prefs.clone();
+    app::save_new_prefs_to_disk(&app_handle)?;
+    Ok(())
+}
+
+#[tauri::command]
 pub fn cmd_load_prefs(app_handle: tauri::AppHandle, app_state: tauri::State<'_, AppState>) -> Result<Prefs, errors::AnyError> {
     let disk_prefs = app::load_prefs_from_disk(&app_handle)?;
     let mut lock = app_state.prefs.lock()
