@@ -83,6 +83,16 @@ export namespace TauriRouter {
     return invoke("cmd_open_project_in_editor", { projectPath, editorVersion });
   }
 
+  export async function change_project_editor_version(
+    projectPath: string,
+    editorVersion: string
+  ): Promise<void> {
+    return invoke("cmd_change_project_editor_version", {
+      projectPath,
+      editorVersion,
+    });
+  }
+
   // editor
 
   export async function get_editors(): Promise<

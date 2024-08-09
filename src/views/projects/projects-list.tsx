@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import AsyncComponent from "../../components/async-component";
 import { TauriTypes } from "../../utils/tauri-types";
 import { TauriRouter } from "../../utils/tauri-router";
@@ -8,6 +8,7 @@ import {
   Item,
   Menu,
   Separator,
+  Submenu,
   TriggerEvent,
   useContextMenu,
 } from "react-contexify";
@@ -39,6 +40,7 @@ function Pagination({
     return Math.floor(projectData.value.projects.length / perPage);
   }, [projectData.value]);
   const reloadPage = useBetterState(false);
+  const editors = useBetterState<TauriTypes.UnityEditorInstall[] | null>(null);
 
   // load all the projects from a given page
   const loadProjectsOnPage = useCallback(async () => {
@@ -93,6 +95,16 @@ function Pagination({
     return numbers;
   }, [pageCount, projectData.value.currentPage]);
 
+  useEffect(() => {
+    const load = async () => {
+      editors.set(null);
+      const newEditors = await TauriRouter.get_editors();
+      const userCache = await TauriRouter.get_user_cache();
+      editors.set(newEditors);
+    };
+    load();
+  }, []);
+
   return (
     <AsyncComponent
       loading={
@@ -118,6 +130,7 @@ function Pagination({
               key={x.path}
               project={x}
               reloadPage={() => reloadPage.set(true)}
+              editors={editors.value}
             />
           ))}
         </div>
@@ -191,6 +204,7 @@ function Project({
   ...props
 }: {
   project: TauriTypes.Project;
+  editors: TauriTypes.UnityEditorInstall[] | null;
   reloadPage: () => void;
 }) {
   const [isOpening, setIsOpening] = useState(false);
@@ -214,7 +228,7 @@ function Project({
     });
   }
 
-  function handleItemClick({ id, event, _ }: any) {
+  function handleItemClick({ id, event, data }: any) {
     event.stopPropagation();
     hideAll();
     switch (id) {
@@ -224,6 +238,11 @@ function Project({
       case "remove":
         TauriRouter.remove_project(project.path);
         props.reloadPage();
+        break;
+      case "version":
+        TauriRouter.change_project_editor_version(project.path, data).then(() =>
+          props.reloadPage()
+        );
         break;
     }
   }
@@ -264,6 +283,18 @@ function Project({
         <Item id="open" onClick={handleItemClick}>
           Show in Exporer
         </Item>
+        <Submenu label="Change Version">
+          {props.editors?.map((x) => (
+            <Item
+              key={x.exePath}
+              id="version"
+              data={x.version}
+              onClick={handleItemClick}
+            >
+              {x.version}
+            </Item>
+          ))}
+        </Submenu>
         <Separator />
         <Item id="remove" onClick={handleItemClick}>
           Remove

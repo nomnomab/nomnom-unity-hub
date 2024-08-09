@@ -168,7 +168,7 @@ pub fn cmd_get_projects_on_page(app_state: tauri::State<AppState>, page: usize, 
 }
 
 #[tauri::command]
-pub fn cmd_open_project_in_editor(project_path: PathBuf, editor_version: String, app_handle: tauri::AppHandle, app_state: tauri::State<AppState>) -> Result<(), errors::AnyError> {
+pub fn cmd_open_project_in_editor(app_state: tauri::State<AppState>, project_path: PathBuf, editor_version: String) -> Result<(), errors::AnyError> {
     if !project_path.exists() {
         return Err(errors::io_not_found("Invalid project path"));
     }
@@ -180,5 +180,21 @@ pub fn cmd_open_project_in_editor(project_path: PathBuf, editor_version: String,
     let args = vec!["-projectPath".to_string(), project_path_str];
     crate::editor::open(editor_version, args, &app_state)?;
 
+    Ok(())
+}
+
+#[tauri::command]
+pub fn cmd_change_project_editor_version(app_handle: tauri::AppHandle, app_state: tauri::State<AppState>, project_path: PathBuf, editor_version: String) -> Result<(), errors::AnyError> {
+    let mut projects = app_state.projects.lock()
+        .map_err(|_| errors::str_error("Failed to get projects. Is it locked?"))?;
+
+    let project = projects
+        .iter_mut()
+        .find(|x| x.path == project_path)
+        .ok_or(errors::str_error("Project not found"))?;
+
+    project.version = editor_version;
+    app::save_projects_to_disk(&projects, &app_handle)?;
+        
     Ok(())
 }
