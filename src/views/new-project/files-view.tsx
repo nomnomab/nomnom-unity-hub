@@ -148,7 +148,7 @@ export default function FilesView() {
       {/* Browse */}
       <div className="flex justify-center border-b border-stone-700 pb-4">
         <div
-          className="border border-stone-600 border-dashed px-8 py-4 flex flex-col gap-4 items-center cursor-pointer hover:bg-stone-800"
+          className="border border-stone-600 border-dashed px-8 py-4 flex flex-col gap-4 items-center cursor-pointer hover:bg-stone-800 opacity-20"
           tabIndex={0}
         >
           <div className="text-center select-none">
@@ -162,13 +162,20 @@ export default function FilesView() {
       </div>
 
       {/* File tree */}
-      <AsyncLazyValueComponent loading={<LoadingSpinner />} value={files.value}>
+      <AsyncLazyValueComponent
+        loading={
+          <div className="w-full h-full flex items-center justify-center">
+            <LoadingSpinner />
+          </div>
+        }
+        value={files.value}
+      >
         {(files.value.value?.children?.length ?? 0) === 0 && (
           <p className="pt-4 select-none">No files</p>
         )}
         {(files.value.value?.children?.length ?? 0) > 0 && (
           <>
-            <div>
+            <div className="mb-1">
               <p className="pt-4">
                 {filesInfo.selectedFiles.length.toLocaleString()}/
                 {fileCount.toLocaleString()} selected
@@ -357,9 +364,7 @@ function Folder({ data, indent, ...props }: FolderProps) {
         >
           {!isOpen && <ChevronUp width={20} height={20} />}
           {isOpen && <ChevronDown width={20} height={20} />}
-          <p className="text-left pl-1 font-bold">
-            {data.name} [{data.id}]
-          </p>
+          <p className="text-left pl-1 font-bold">{data.name}</p>
         </button>
       </div>
 

@@ -39,7 +39,7 @@ export default function BasicInfoView({
   return (
     <>
       <ValidateInputContext onErrorChanged={hasFieldError.set}>
-        <div className="flex flex-col gap-2 overflow-y-auto pt-4">
+        <div className="flex flex-col gap-2 overflow-y-auto pt-4 flex-shrink-0">
           <ValidateInput
             label="Project Name"
             name="projectName"
@@ -109,7 +109,7 @@ function Overview() {
   }, [newProjectContext.state.filesInfo]);
 
   return (
-    <div className="mt-8 select-none border-t border-t-stone-700">
+    <div className="mt-8 select-none border-t border-t-stone-700 overflow-y-auto pb-2">
       <p className="text-xl pb-1 pt-4">Overview</p>
 
       <p className="text-stone-400 flex w-full">
@@ -132,13 +132,11 @@ function Overview() {
         Packages
         <span className="ml-auto">{packageInfo.selectedPackages.length}</span>
       </p>
-      <div className="max-h-64 overflow-y-auto">
-        {packageInfo.selectedPackages.map((p) => (
-          <p key={p} className="text-stone-400 w-full pl-4">
-            - {p}
-          </p>
-        ))}
-      </div>
+      {packageInfo.selectedPackages.map((p) => (
+        <p key={p} className="text-stone-400 w-full pl-4">
+          - {p}
+        </p>
+      ))}
 
       <p className="text-stone-400 flex w-full">
         Files
