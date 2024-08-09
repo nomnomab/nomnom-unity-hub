@@ -9,32 +9,7 @@ import { TauriRouter } from "../../utils/tauri-router";
 import ChevronDown from "../../components/svg/chevron-down";
 import ChevronUp from "../../components/svg/chevron-up";
 import Checkmark from "../../components/svg/checkmark";
-
-const testData: TauriTypes.FileDir = {
-  id: "0",
-  name: "package",
-  children: [
-    {
-      id: "1",
-      name: "Foo",
-      children: [
-        {
-          id: "2",
-          name: "a.json",
-          children: [],
-        },
-        {
-          id: "3",
-          name: "b.json",
-          children: [],
-        },
-      ],
-    },
-    { id: "4", name: "c.json", children: [] },
-    { id: "5", name: "d.json", children: [] },
-    { id: "6", name: "e.json", children: [] },
-  ],
-};
+import { Buttons } from "../../components/parts/buttons";
 
 export default function FilesView() {
   const newProjectContext = useContext(NewProjectContext.Context);
@@ -45,6 +20,35 @@ export default function FilesView() {
 
   const openFolders = useBetterState<string[]>([]);
   const selectedFiles = useBetterState<string[]>([]);
+  const fileCount = useMemo(() => {
+    let count = 1;
+    function getCount(data: TauriTypes.FileDir | null) {
+      if (!data) {
+        return;
+      }
+      if (data.children) {
+        data.children.forEach((child) => {
+          count++;
+          getCount(child);
+        });
+      }
+    }
+    getCount(files.value?.value);
+    return count;
+  }, [files.value]);
+
+  function getAllIds(data: TauriTypes.FileDir) {
+    const ids = [data.id];
+    if (data.children) {
+      data.children.forEach((child) => {
+        if (child.name === "Library" && data.name === "ProjectData~") {
+          return;
+        }
+        ids.push(...getAllIds(child));
+      });
+    }
+    return ids;
+  }
 
   useEffect(() => {
     const load = async () => {
@@ -66,25 +70,47 @@ export default function FilesView() {
       );
 
       files.set({ status: "success", value: newFiles });
-      console.log(newFiles);
+      selectedFiles.set([...getAllIds(newFiles)]);
     };
     load();
   }, []);
 
   return (
-    <div className="py-4 overflow-hidden">
-      <div></div>
+    <div className="flex flex-col h-full py-4 overflow-hidden">
+      {/* Browse */}
+      <div className="flex justify-center">
+        <div className="border border-stone-600 border-dashed px-8 py-4 flex flex-col gap-4 items-center cursor-pointer hover:bg-stone-800">
+          <div className="text-center ">
+            Click here to select a new project to
+            <br /> work off of instead.
+          </div>
+          <Buttons.ActionButton title="Browse" />
+        </div>
+      </div>
 
+      {/* File tree */}
       <AsyncLazyValueComponent loading={<LoadingSpinner />} value={files.value}>
-        <div className="tree-root flex flex-col h-full overflow-y-auto">
-          {files.value.value && (
-            <Tree
-              data={files.value.value}
-              indent={0}
-              openFolders={openFolders}
-              selectedFiles={selectedFiles}
-            />
-          )}
+        <p className="pt-4">
+          {selectedFiles.value.length.toLocaleString()}/
+          {fileCount.toLocaleString()} selected
+        </p>
+        <div className="tree-root flex flex-col overflow-y-auto">
+          {files.value.value &&
+            // <Tree
+            //   data={files.value.value}
+            //   indent={-1}
+            //   openFolders={openFolders}
+            //   selectedFiles={selectedFiles}
+            // />
+            files.value.value?.children?.map((child) => (
+              <Tree
+                key={child.id}
+                data={child}
+                indent={0}
+                openFolders={openFolders}
+                selectedFiles={selectedFiles}
+              />
+            ))}
         </div>
       </AsyncLazyValueComponent>
     </div>
@@ -98,7 +124,6 @@ type SharedProps = {
 
 type TreeProps = {
   data: TauriTypes.FileDir;
-  skipRoot?: boolean;
   indent: number;
 } & SharedProps;
 
@@ -146,8 +171,8 @@ function Folder({ data, indent, ...props }: FolderProps) {
 
         {data.children?.length === 0 && (
           <p
-            style={{ paddingLeft: `${(indent + 1) * 20}px` }}
-            className="tree-item px-2 py-1"
+            style={{ paddingLeft: `${(indent + 1) * 20 + 12}px` }}
+            className="tree-item py-1"
           >
             No files
           </p>
@@ -160,6 +185,10 @@ function Folder({ data, indent, ...props }: FolderProps) {
     return props.openFolders.value?.includes(data.id);
   }, [props.openFolders, data.id]);
 
+  const isSelected = useMemo(() => {
+    return props.selectedFiles.value?.includes(data.id);
+  }, [props.selectedFiles, data.id]);
+
   function toggleFolder() {
     if (isOpen) {
       props.openFolders.set(
@@ -170,14 +199,50 @@ function Folder({ data, indent, ...props }: FolderProps) {
     }
   }
 
+  function toggleSelection() {
+    if (isSelected) {
+      props.selectedFiles.set((s) => s?.filter((x) => x !== data.id));
+
+      // recursively unselect all children
+      function disableChildren(dir: TauriTypes.FileDir) {
+        if (dir.children) {
+          dir.children.forEach((child) => {
+            props.selectedFiles.set((s) => s?.filter((x) => x !== child.id));
+            disableChildren(child);
+          });
+        }
+      }
+
+      disableChildren(data);
+    } else {
+      props.selectedFiles.set([...(props.selectedFiles.value ?? []), data.id]);
+
+      let ids: string[] = [];
+      function enableChildren(dir: TauriTypes.FileDir, ids: string[]) {
+        if (dir.children) {
+          dir.children.forEach((child) => {
+            ids.push(child.id);
+            enableChildren(child, ids);
+          });
+        }
+      }
+
+      enableChildren(data, ids);
+      props.selectedFiles.set((s) => {
+        ids = ids.filter((id) => !s?.includes(id));
+        return s?.concat(ids);
+      });
+    }
+  }
+
   return (
     <>
-      <div className="tree-item flex items-center w-full">
-        <button className="ml-1 aspect-square rounded-md border border-stone-600">
-          <div className="p-1">
-            <Checkmark width={16} height={16} />
-          </div>
-        </button>
+      <div
+        className={`tree-item flex items-center w-full ${
+          isSelected && "selected"
+        }`}
+      >
+        <CheckBox selected={isSelected} onClick={toggleSelection} />
         <button
           style={{
             paddingLeft: indent !== 0 ? `calc(${indent * 20}px)` : undefined,
@@ -187,7 +252,7 @@ function Folder({ data, indent, ...props }: FolderProps) {
         >
           {!isOpen && <ChevronUp width={20} height={20} />}
           {isOpen && <ChevronDown width={20} height={20} />}
-          <p className="text-left pl-1">{data.name}</p>
+          <p className="text-left pl-1 font-bold">{data.name}</p>
         </button>
       </div>
 
@@ -200,19 +265,38 @@ type FileProps = {
   data: TauriTypes.FileDir;
   indent: number;
 } & SharedProps;
-function File({ data, indent }: FileProps) {
+function File({ data, indent, ...props }: FileProps) {
+  const isSelected = useMemo(() => {
+    return props.selectedFiles.value?.includes(data.id);
+  }, [props.selectedFiles, data.id]);
+
+  function toggleSelection() {
+    if (isSelected) {
+      props.selectedFiles.set(
+        props.selectedFiles.value?.filter((x) => x !== data.id)
+      );
+    } else {
+      props.selectedFiles.set([...(props.selectedFiles.value ?? []), data.id]);
+    }
+  }
+
   return (
-    <div className="tree-item tree-item flex items-center w-full">
-      <button className="ml-1 aspect-square rounded-md border border-stone-600">
-        <div className="p-1">
-          <Checkmark width={16} height={16} />
-        </div>
-      </button>
+    <div
+      className={`tree-item tree-item flex items-center w-full ${
+        isSelected && "selected"
+      }`}
+    >
+      <CheckBox selected={isSelected} onClick={toggleSelection} />
       <button
         style={{ paddingLeft: `${indent * 20}px` }}
         className="tree-item px-2 py-1 w-full"
       >
-        <p className="text-left">{data.name}</p>
+        <p
+          className="text-left"
+          style={{ paddingLeft: indent === 0 ? `10px` : `4px` }}
+        >
+          {data.name}
+        </p>
       </button>
     </div>
   );
@@ -220,6 +304,19 @@ function File({ data, indent }: FileProps) {
 
 function isFile(node: TauriTypes.FileDir) {
   return node.children?.length === 0 && node.name.includes(".");
+}
+
+function CheckBox(props: { selected: boolean; onClick: () => void }) {
+  return (
+    <button
+      className="ml-1 aspect-square rounded-md border border-stone-600"
+      onClick={props.onClick}
+    >
+      <div className="p-1 w-[22px] h-[22px]">
+        {props.selected && <Checkmark width={16} height={16} />}
+      </div>
+    </button>
+  );
 }
 
 // function Node({

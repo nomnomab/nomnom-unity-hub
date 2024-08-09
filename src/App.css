@@ -217,6 +217,21 @@ h4 {
 }
 
 /* even children */
-.tree-root > .tree-item:nth-child(2n + 1) {
+.tree-root>.tree-item {
+	position: relative;
+}
+
+.tree-root>.tree-item:nth-child(2n + 1) {
 	background-color: #2525255d;
+}
+
+.tree-root>.tree-item.selected::after {
+	content: "";
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	right: 0;
+	height: 100%;
+	width: 0.3rem;
+	background-color: #0284c7;
 }
