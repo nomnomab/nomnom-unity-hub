@@ -41,6 +41,7 @@ function Pagination({
   }, [projectData.value]);
   const reloadPage = useBetterState(false);
   const editors = useBetterState<TauriTypes.UnityEditorInstall[] | null>(null);
+  const searchQuery = useBetterState<string | undefined>(undefined);
 
   // load all the projects from a given page
   const loadProjectsOnPage = useCallback(async () => {
@@ -51,13 +52,14 @@ function Pagination({
     // await new Promise((resolve) => setTimeout(resolve, 1000));
     const projects = await TauriRouter.get_projects_on_page(
       projectData.value.currentPage,
-      perPage
+      perPage,
+      searchQuery.value === "" ? undefined : searchQuery.value
     ).then((x) => x.reverse());
     projectData.set((s) => ({
       ...s,
       projects,
     }));
-  }, [projectData.value.currentPage, reloadPage.value]);
+  }, [projectData.value.currentPage, reloadPage.value, searchQuery.value]);
 
   function changePage(page: number) {
     projectData.set((s) => ({ ...s, currentPage: page }));
@@ -122,6 +124,13 @@ function Pagination({
         }}
       >
         <div className="flex flex-col gap-4">
+          <input
+            type="search"
+            className="rounded-md p-2 bg-stone-800 text-stone-50 border border-stone-600 placeholder:text-stone-400"
+            placeholder="Search for a project"
+            value={searchQuery.value}
+            onChange={(e) => searchQuery.set(e.target.value)}
+          />
           {projectData.value.projects.length === 0 && (
             <p className="select-none p-2">No projects to show</p>
           )}

@@ -78,12 +78,13 @@ pub fn remove_missing_projects(app_state: &tauri::State<AppState>) -> anyhow::Re
     Ok(missing_projects)
 }
 
-pub fn get_projects_on_page(app_state: &tauri::State<AppState>, page: usize, per_page_count: usize) -> anyhow::Result<Vec<Project>> {
+pub fn get_projects_on_page(app_state: &tauri::State<AppState>, page: usize, per_page_count: usize, search: Option<String>) -> anyhow::Result<Vec<Project>> {
     let projects = app_state.projects.lock()
         .map_err(|_| errors::str_error("Failed to lock projects"))?;
     let start = page * per_page_count;
     let mut projects = projects
         .iter()
+        .filter(|x| search.is_none() || x.name.to_lowercase().contains(&search.clone().unwrap().to_lowercase()))
         .skip(start)
         .take(per_page_count)
         .map(|x| x.clone())
@@ -162,8 +163,8 @@ pub fn cmd_get_projects(app_state: tauri::State<AppState>) -> Result<Vec<Project
 }
 
 #[tauri::command]
-pub fn cmd_get_projects_on_page(app_state: tauri::State<AppState>, page: usize, per_page_count: usize) -> Result<Vec<Project>, errors::AnyError> {
-    let projects = get_projects_on_page(&app_state, page, per_page_count)?;
+pub fn cmd_get_projects_on_page(app_state: tauri::State<AppState>, page: usize, per_page_count: usize, search: Option<String>) -> Result<Vec<Project>, errors::AnyError> {
+    let projects = get_projects_on_page(&app_state, page, per_page_count, search)?;
     Ok(projects)
 }
 

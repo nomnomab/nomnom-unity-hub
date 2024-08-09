@@ -71,9 +71,10 @@ export namespace TauriRouter {
 
   export async function get_projects_on_page(
     page: number,
-    perPageCount: number
+    perPageCount: number,
+    search?: string
   ): Promise<TauriTypes.Project[]> {
-    return invoke("cmd_get_projects_on_page", { page, perPageCount });
+    return invoke("cmd_get_projects_on_page", { page, perPageCount, search });
   }
 
   export async function open_project_in_editor(
