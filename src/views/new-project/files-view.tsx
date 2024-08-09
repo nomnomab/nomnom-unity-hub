@@ -146,8 +146,6 @@ export default function FilesView() {
     });
   }, [isNewFile.value, filesInfo.root]);
 
-  console.log(files.value?.value?.children);
-
   return (
     <div className="flex flex-col h-full py-4 overflow-hidden">
       {/* Browse */}
