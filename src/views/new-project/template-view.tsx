@@ -132,6 +132,9 @@ function tryGetDefaultUnityPackage(name: string):
 
 export default function TemplateView() {
   const newProjectContext = useContext(NewProjectContext.Context);
+  const initialTemplateInfo = useMemo(() => {
+    return newProjectContext.state.initialTemplateInfo;
+  }, [newProjectContext.state.initialTemplateInfo]);
 
   const searchQuery = useBetterState("");
   const selectedCategory = useBetterState("");
@@ -144,14 +147,20 @@ export default function TemplateView() {
     value: null,
   });
 
+  useEffect(() => {
+    newProjectContext.dispatch({
+      type: "set_initial_template",
+      template: undefined,
+    });
+  }, [initialTemplateInfo.editorVersion]);
+
   const loadSurfacePackages = useCallback(async () => {
-    const editorVersion =
-      newProjectContext.state.initialTemplateInfo.editorVersion;
+    const editorVersion = initialTemplateInfo.editorVersion;
     const templates = await TauriRouter.get_surface_templates(
       editorVersion.version
     );
     surfaceTemplates.set(templates);
-  }, [newProjectContext.state.initialTemplateInfo.editorVersion]);
+  }, [initialTemplateInfo.editorVersion]);
 
   const queriedPackages = useMemo(() => {
     return surfaceTemplates.value
@@ -185,8 +194,7 @@ export default function TemplateView() {
   }, [surfaceTemplates.value, searchQuery.value, selectedCategory.value]);
 
   const selectedPackageWrapper = useMemo(() => {
-    const selectedTemplate =
-      newProjectContext.state.initialTemplateInfo.selectedTemplate;
+    const selectedTemplate = initialTemplateInfo.selectedTemplate;
     if (!selectedTemplate) return null;
 
     const p = tryGetDefaultUnityPackage(selectedTemplate.name);
@@ -195,7 +203,7 @@ export default function TemplateView() {
       name: p?.name,
       category: p?.category ?? "Custom",
     };
-  }, [newProjectContext.state.initialTemplateInfo.selectedTemplate]);
+  }, [initialTemplateInfo.selectedTemplate]);
 
   useEffect(() => {
     selectedCategory.set(categories[0]);
@@ -236,8 +244,8 @@ export default function TemplateView() {
                 value={x}
                 onClick={() => selectTemplate(x._template)}
                 selected={
-                  newProjectContext.state.initialTemplateInfo.selectedTemplate
-                    ?.name === x._template.name
+                  initialTemplateInfo.selectedTemplate?.name ===
+                  x._template.name
                 }
               />
             ))}
@@ -356,6 +364,9 @@ function TemplateInfo({
   tgzJson: UseState<LazyValue<TauriTypes.TgzPackageJsonRecord>>;
 }) {
   const newProjectContext = useContext(NewProjectContext.Context);
+  const initialTemplateInfo = useMemo(() => {
+    return newProjectContext.state.initialTemplateInfo;
+  }, [newProjectContext.state.initialTemplateInfo]);
 
   useEffect(() => {
     const load = async () => {
@@ -373,7 +384,7 @@ function TemplateInfo({
     };
 
     load();
-  }, [newProjectContext.state.initialTemplateInfo.selectedTemplate, value]);
+  }, [initialTemplateInfo.selectedTemplate, value]);
 
   const tabs = [
     { id: "info", title: "Info" },

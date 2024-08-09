@@ -111,11 +111,12 @@ impl FileDir {
                 let a_path = std::path::PathBuf::from(&a.name);
                 let b_path = std::path::PathBuf::from(&b.name);
 
-                let a_extension = a_path.extension();
-                let b_extension = b_path.extension();
+                let a_is_file = a_path.extension().is_some() || a.name.starts_with(".");
+                let b_is_file = b_path.extension().is_some() || b.name.starts_with(".");
 
-                if a_extension.is_some() && b_extension.is_none() { std::cmp::Ordering::Greater }
-                else if a_extension.is_none() && b_extension.is_some() { std::cmp::Ordering::Less }
+                if a_is_file && !b_is_file { std::cmp::Ordering::Greater }
+                else if !a_is_file && b_is_file { std::cmp::Ordering::Less }
+                // just ignore the unwraps, they should be fine
                 else { a_path.file_name().unwrap().to_ascii_lowercase().cmp(&b_path.file_name().unwrap().to_ascii_lowercase()) }
             });
         // self.children
