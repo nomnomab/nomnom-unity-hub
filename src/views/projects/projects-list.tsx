@@ -34,14 +34,21 @@ function Pagination({
   projectData: UseState<ProjectViewData>;
 }) {
   // page settings
-  const perPage = 10;
+  const perPage = 4;
   const buttonCountOneDirection = 2;
-  const pageCount = useMemo(() => {
-    return Math.floor(projectData.value.allProjects.length / perPage) + 1;
-  }, [projectData.value]);
   const reloadPage = useBetterState(false);
   const editors = useBetterState<TauriTypes.UnityEditorInstall[] | null>(null);
   const searchQuery = useBetterState<string | undefined>(undefined);
+
+  const pageCount = useMemo(() => {
+    return (
+      Math.floor(
+        projectData.value.allProjects.filter((x) =>
+          x.name.toLowerCase().includes(searchQuery.value?.toLowerCase() || "")
+        ).length / perPage
+      ) + 1
+    );
+  }, [projectData.value]);
 
   // load all the projects from a given page
   const loadProjectsOnPage = useCallback(async () => {
