@@ -34,19 +34,17 @@ function Pagination({
   projectData: UseState<ProjectViewData>;
 }) {
   // page settings
-  const perPage = 4;
+  const perPage = 10;
   const buttonCountOneDirection = 2;
   const reloadPage = useBetterState(false);
   const editors = useBetterState<TauriTypes.UnityEditorInstall[] | null>(null);
   const searchQuery = useBetterState<string | undefined>(undefined);
 
   const pageCount = useMemo(() => {
-    return (
-      Math.floor(
-        projectData.value.allProjects.filter((x) =>
-          x.name.toLowerCase().includes(searchQuery.value?.toLowerCase() || "")
-        ).length / perPage
-      ) + 1
+    return Math.ceil(
+      projectData.value.allProjects.filter((x) =>
+        x.name.toLowerCase().includes(searchQuery.value?.toLowerCase() || "")
+      ).length / perPage
     );
   }, [projectData.value]);
 
