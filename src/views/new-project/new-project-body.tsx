@@ -119,6 +119,8 @@ export default function NewProjectBody() {
         console.log(output);
 
         await TauriRouter.add_project(output);
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
         globalContext.dispatch({ type: "change_tab", tab: "projects" });
       } catch (e) {
         console.error(e);
@@ -153,7 +155,7 @@ export default function NewProjectBody() {
         )}
       </div>
       <div className="flex flex-row justify-between p-4 border-t border-t-stone-700 relative">
-        {selectedTab === "package" && (
+        {(selectedTab === "package" || selectedTab === "files") && (
           <div className="flex absolute w-full items-center justify-center select-none pointer-events-none top-0 bottom-0">
             <p className="text-center text-stone-400 text-sm leading-0">
               {newProjectContext.state.initialTemplateInfo.selectedTemplate

@@ -108,6 +108,9 @@ export default function BasicInfoView({
 
 function Overview() {
   const newProjectContext = useContext(NewProjectContext.Context);
+  const basicInfo = useMemo(() => {
+    return newProjectContext.state.basicInfo;
+  }, [newProjectContext.state.basicInfo]);
   const initialTemplateInfo = useMemo(() => {
     return newProjectContext.state.initialTemplateInfo;
   }, [newProjectContext.state.initialTemplateInfo]);
@@ -135,6 +138,13 @@ function Overview() {
           {initialTemplateInfo.selectedTemplate?.name ?? "N/A"}
           {" @ "}
           <span>{initialTemplateInfo.selectedTemplate?.version ?? "N/A"}</span>
+        </span>
+      </p>
+
+      <p className="text-stone-400 flex w-full">
+        Output path
+        <span className="ml-auto">
+          {basicInfo.path}\{basicInfo.name}
         </span>
       </p>
 

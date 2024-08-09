@@ -6,10 +6,10 @@ import { TauriTypes } from "../../utils/tauri-types";
 import AsyncLazyValueComponent from "../../components/async-lazy-value-component";
 import LoadingSpinner from "../../components/svg/loading-spinner";
 import { TauriRouter } from "../../utils/tauri-router";
-import ChevronDown from "../../components/svg/chevron-down";
-import ChevronUp from "../../components/svg/chevron-up";
 import Checkmark from "../../components/svg/checkmark";
 import { Buttons } from "../../components/parts/buttons";
+import FolderClosed from "../../components/svg/folder-closed";
+import FolderOpen from "../../components/svg/folder-open";
 
 const cannotExclude = ["package.json/", "package.json.meta/"];
 
@@ -375,8 +375,8 @@ function Folder({ data, indent, ...props }: FolderProps) {
           className="flex items-center px-2 py-1 w-full"
           onClick={toggleFolder}
         >
-          {!isOpen && <ChevronUp width={20} height={20} />}
-          {isOpen && <ChevronDown width={20} height={20} />}
+          {!isOpen && <FolderClosed width={20} height={20} />}
+          {isOpen && <FolderOpen width={20} height={20} />}
           <p className="text-left pl-1 font-bold">{data.name}</p>
         </button>
       </div>
