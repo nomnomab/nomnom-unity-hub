@@ -6,12 +6,14 @@ import ViewBody from "../../components/view-body";
 import useBetterState from "../../hooks/useBetterState";
 
 export type ProjectViewData = {
+  allProjects: TauriTypes.Project[];
   projects: TauriTypes.Project[];
   currentPage: number;
 };
 
 export default function ProjectsView() {
   const projects = useBetterState<ProjectViewData>({
+    allProjects: [],
     projects: [],
     currentPage: 0,
   });

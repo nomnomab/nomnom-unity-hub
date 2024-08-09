@@ -37,7 +37,7 @@ function Pagination({
   const perPage = 10;
   const buttonCountOneDirection = 2;
   const pageCount = useMemo(() => {
-    return Math.floor(projectData.value.projects.length / perPage);
+    return Math.floor(projectData.value.allProjects.length / perPage) + 1;
   }, [projectData.value]);
   const reloadPage = useBetterState(false);
   const editors = useBetterState<TauriTypes.UnityEditorInstall[] | null>(null);
@@ -49,6 +49,10 @@ function Pagination({
       reloadPage.set(false);
       return;
     }
+
+    const allProjects = await TauriRouter.get_projects();
+    projectData.set((s) => ({ ...s, allProjects }));
+
     // await new Promise((resolve) => setTimeout(resolve, 1000));
     const projects = await TauriRouter.get_projects_on_page(
       projectData.value.currentPage,
@@ -70,6 +74,7 @@ function Pagination({
   // and always show the first and last button where available
   const pageNumbersAroundCurrent = useMemo(() => {
     const page = projectData.value.currentPage;
+
     let start = page - buttonCountOneDirection;
     let end = page + buttonCountOneDirection;
 
@@ -107,51 +112,78 @@ function Pagination({
     load();
   }, []);
 
+  const showFirstButton = useMemo(() => {
+    if (pageCount > 0) {
+      return true;
+    }
+
+    return (
+      pageNumbersAroundCurrent.length === 0 ||
+      (pageNumbersAroundCurrent.length > 1 && pageNumbersAroundCurrent[0] !== 0)
+    );
+  }, [pageNumbersAroundCurrent.length, pageCount]);
+
+  const showLastButton = useMemo(() => {
+    if (pageCount > 1 && pageNumbersAroundCurrent.length === 0) {
+      return true;
+    }
+
+    return (
+      pageNumbersAroundCurrent.length > 0 &&
+      pageNumbersAroundCurrent[pageNumbersAroundCurrent.length - 1] !==
+        pageCount - 1
+    );
+  }, [pageNumbersAroundCurrent.length, pageCount]);
+
   return (
-    <AsyncComponent
-      loading={
-        <div className="w-full h-full flex items-center justify-center animate-pulse transition-all">
-          <LoadingSpinner />
-        </div>
-      }
-      callback={loadProjectsOnPage}
-    >
-      {/* Contents */}
-      <div
-        className="px-4 py-4 overflow-y-auto relative"
-        style={{
-          height: pageCount > 0 ? "calc(100% - 54px)" : undefined,
-        }}
-      >
-        <div className="flex flex-col gap-4">
-          <input
-            type="search"
-            className="rounded-md p-2 bg-stone-800 text-stone-50 border border-stone-600 placeholder:text-stone-400"
-            placeholder="Search for a project"
-            value={searchQuery.value}
-            onChange={(e) => searchQuery.set(e.target.value)}
-          />
-          {projectData.value.projects.length === 0 && (
-            <p className="select-none p-2">No projects to show</p>
-          )}
-          {projectData.value.projects.map((x) => (
-            <Project
-              key={x.path}
-              project={x}
-              reloadPage={() => reloadPage.set(true)}
-              editors={editors.value}
-            />
-          ))}
-        </div>
+    <>
+      <div className="p-4 flex mt-2">
+        <input
+          type="search"
+          className="rounded-md p-2 bg-stone-800 text-stone-50 border border-stone-600 placeholder:text-stone-400 w-full"
+          placeholder="Search for a project"
+          value={searchQuery.value ?? ""}
+          onChange={(e) => searchQuery.set(e.target.value)}
+        />
       </div>
 
+      <AsyncComponent
+        loading={
+          <div className="w-full h-full flex items-center justify-center animate-pulse transition-all">
+            <LoadingSpinner />
+          </div>
+        }
+        callback={loadProjectsOnPage}
+      >
+        {/* Contents */}
+        <div
+          className="px-4 pb-6 overflow-y-auto relative"
+          style={{
+            height:
+              pageCount > 1 ? "calc(100% - 54px - 75px)" : "calc(100% - 75px)",
+          }}
+        >
+          <div className="flex flex-col gap-4">
+            {projectData.value.projects.length === 0 && (
+              <p className="select-none p-2">No projects to show</p>
+            )}
+            {projectData.value.projects.map((x) => (
+              <Project
+                key={x.path}
+                project={x}
+                reloadPage={() => reloadPage.set(true)}
+                editors={editors.value}
+              />
+            ))}
+          </div>
+        </div>
+      </AsyncComponent>
+
       {/* Page buttons */}
-      {pageCount > 0 && (
+      {pageCount > 1 && (
         <div className="flex flex-row items-center justify-center gap-2 px-6 py-3 w-full border-t border-t-stone-700">
           {/* First page */}
-          {(pageNumbersAroundCurrent.length === 0 ||
-            (pageNumbersAroundCurrent.length > 1 &&
-              pageNumbersAroundCurrent[0] !== 0)) && (
+          {showFirstButton && (
             <PageButton
               pageNumber={0}
               isSelected={projectData.value.currentPage === 0}
@@ -170,7 +202,14 @@ function Pagination({
           ))}
 
           {/* Last page */}
-          {pageNumbersAroundCurrent.length > 1 &&
+          {showLastButton && (
+            <PageButton
+              pageNumber={pageCount - 1}
+              isSelected={projectData.value.currentPage === pageCount - 1}
+              onClick={() => changePage(pageCount - 1)}
+            />
+          )}
+          {/* {pageNumbersAroundCurrent.length > 1 &&
             pageNumbersAroundCurrent[pageNumbersAroundCurrent.length - 1] !==
               pageCount - 1 && (
               <PageButton
@@ -178,10 +217,10 @@ function Pagination({
                 isSelected={projectData.value.currentPage === pageCount - 1}
                 onClick={() => changePage(pageCount - 1)}
               />
-            )}
+            )} */}
         </div>
       )}
-    </AsyncComponent>
+    </>
   );
 }
 
