@@ -2,7 +2,7 @@ import React from "react";
 
 export default function ViewBody(props: React.PropsWithChildren) {
   return (
-    <div className="w-full max-w-6xl self-center overflow-hidden h-full">
+    <div className="w-full max-w-7xl self-center overflow-hidden h-full">
       {props.children}
     </div>
   );

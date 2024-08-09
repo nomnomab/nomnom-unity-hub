@@ -1,9 +1,10 @@
 use std::{path::PathBuf, sync::Mutex};
 
-use crate::{editor, errors, prefs, project};
+use crate::{cache, editor, errors, prefs, project};
 
 pub struct AppState {
     pub prefs: Mutex<prefs::Prefs>,
+    pub user_cache: Mutex<cache::UserCache>,
     pub projects: Mutex<Vec<project::Project>>,
     pub editors: Mutex<Vec<editor::UnityEditorInstall>>,
 }
@@ -79,6 +80,35 @@ pub fn save_prefs_to_disk(prefs: &prefs::Prefs, app_handle: &tauri::AppHandle) -
     let path = get_prefs_save_path(app_handle)?;
     save_to_disk(path, prefs)?;
     Ok(())
+}
+
+// user cache
+
+pub fn get_user_cache_save_path(app_handle: &tauri::AppHandle) -> anyhow::Result<PathBuf> {
+    let path = get_save_path("user_cache", app_handle)?;
+    Ok(path)
+}
+
+pub fn get_user_cache(app_state: &tauri::State<AppState>) -> anyhow::Result<cache::UserCache> {
+    let user_cache = app_state.user_cache.lock()
+        .map_err(|_| errors::str_error("Failed to get user_cache. Is it locked?"))?;
+
+    Ok(user_cache.clone())
+}
+
+pub fn load_user_cache_from_disk(app_handle: &tauri::AppHandle) -> anyhow::Result<cache::UserCache> {
+    let path = get_user_cache_save_path(app_handle)?;
+    load_from_disk(&path)
+}
+
+pub fn save_new_user_cache_to_disk(app_handle: &tauri::AppHandle) -> anyhow::Result<cache::UserCache> {
+    let path = get_user_cache_save_path(app_handle)?;
+    save_new_to_disk::<cache::UserCache>(path)
+}
+
+pub fn save_user_cache_to_disk(user_cache: &cache::UserCache, app_handle: &tauri::AppHandle) -> anyhow::Result<()> {
+    let path = get_user_cache_save_path(app_handle)?;
+    save_to_disk(path, &user_cache)
 }
 
 // projects

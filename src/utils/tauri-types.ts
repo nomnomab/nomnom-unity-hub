@@ -21,6 +21,14 @@ export namespace TauriTypes {
     hubAppdataPath?: string;
   }
 
+  export interface UserCache {
+    lastEditorVersion?: string;
+  }
+
+  export enum UserCacheKey {
+    LastEditorVersion = "LastEditorVersion",
+  }
+
   export interface UnityEditorInstall {
     exePath: string;
     version: string;
@@ -91,6 +99,38 @@ export namespace TauriTypes {
     URP,
     HDRP,
     Custom,
+  }
+
+  export interface MinimalPackage {
+    name: string;
+    version: string;
+    isFile: boolean;
+  }
+
+  export interface FilePath {
+    parts: string[];
+  }
+
+  export interface FileDir {
+    id: string;
+    name: string;
+    children?: FileDir[];
+  }
+
+  export function initFileDir(fileDir: FileDir): FileDir {
+    if (fileDir.children?.length === 0) {
+      fileDir.children = undefined;
+    }
+
+    if (!fileDir.children) {
+      return fileDir;
+    }
+
+    for (let i = 0; i < fileDir.children.length; i++) {
+      fileDir.children[i] = initFileDir(fileDir.children[i]);
+    }
+
+    return fileDir;
   }
 }
 

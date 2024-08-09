@@ -27,6 +27,23 @@ export namespace TauriRouter {
     return invoke("cmd_set_pref_value", { key, value });
   }
 
+  // user_cache
+
+  export async function get_user_cache(): Promise<TauriTypes.UserCache> {
+    return invoke("cmd_get_user_cache");
+  }
+
+  export async function save_user_cache(): Promise<void> {
+    return invoke("cmd_save_user_cache");
+  }
+
+  export async function set_user_cache_value(
+    key: TauriTypes.UserCacheKey,
+    value: any
+  ): Promise<void> {
+    return invoke("cmd_set_user_cache_value", { key, value });
+  }
+
   // project
   export async function get_default_project_path(): Promise<string> {
     return invoke("cmd_get_default_project_path");
@@ -84,12 +101,7 @@ export namespace TauriRouter {
 
   export async function get_default_editor_packages(
     editorVersion: string
-  ): Promise<
-    {
-      name: string;
-      version: string;
-    }[]
-  > {
+  ): Promise<TauriTypes.MinimalPackage[]> {
     return invoke("cmd_get_default_editor_packages", { editorVersion });
   }
 
@@ -107,7 +119,14 @@ export namespace TauriRouter {
     return invoke("cmd_get_template_information", { surfaceTemplate });
   }
 
+  export async function get_template_file_paths(
+    surfaceTemplate: TauriTypes.SurfaceTemplate
+  ): Promise<TauriTypes.FileDir> {
+    return invoke("cmd_get_template_file_paths", { surfaceTemplate });
+  }
+
   // other
+
   export async function open_unity_hub(): Promise<void> {
     return invoke("cmd_open_unity_hub");
   }

@@ -7,7 +7,7 @@
   },
   "package": {
     "productName": "nomnom-unity-hub",
-    "version": "1.0.0-beta"
+    "version": "1.0.0"
   },
   "tauri": {
     "allowlist": {

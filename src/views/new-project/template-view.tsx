@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useContext, useEffect, useMemo } from "react";
 import useBetterState from "../../hooks/useBetterState";
 import { convertBytes, LazyValue, UseState } from "../../utils";
 import { TauriTypes } from "../../utils/tauri-types";
@@ -7,6 +7,9 @@ import AsyncComponent from "../../components/async-component";
 import LoadingSpinner from "../../components/svg/loading-spinner";
 import AsyncLazyValueComponent from "../../components/async-lazy-value-component";
 import TabView from "../../components/tab-view";
+import { Buttons } from "../../components/parts/buttons";
+import PackagePlus from "../../components/svg/package-plus";
+import { NewProjectContext } from "../../context/new-project-context";
 
 const categories = ["All", "Core", "Sample", "Learning", "Custom"];
 const defaultUnityPackages = [
@@ -17,8 +20,18 @@ const defaultUnityPackages = [
     category: "Core",
   },
   {
+    id: "com.unity.template.2d-cross-platform",
+    name: "Universal 2D (URP)",
+    category: "Core",
+  },
+  {
     id: "com.unity.template.3d",
     name: "3D (Built-in Render Pipeline)",
+    category: "Core",
+  },
+  {
+    id: "com.unity.template.3d-cross-platform",
+    name: "Universal 3D (URP)",
     category: "Core",
   },
   {
@@ -33,6 +46,11 @@ const defaultUnityPackages = [
   },
   {
     id: "com.unity.template.hdrp-blank",
+    name: "High Definition 3D (HDRP)",
+    category: "Core",
+  },
+  {
+    id: "com.unity.template.3d-high-end",
     name: "High Definition 3D (HDRP)",
     category: "Core",
   },
@@ -111,18 +129,30 @@ function tryGetDefaultUnityPackage(name: string):
 }
 
 export default function TemplateView() {
+  const newProjectContext = useContext(NewProjectContext.Context);
+
   const searchQuery = useBetterState("");
   const selectedCategory = useBetterState("");
-  const surfacePackages = useBetterState<TauriTypes.SurfaceTemplate[]>([]);
-  const selectedPackage = useBetterState<string | null>(null);
+  const surfaceTemplates = useBetterState<TauriTypes.SurfaceTemplate[]>([]);
+  // const selectedTemplate = useBetterState<string | null>(null);
+  const selectedTgzJson = useBetterState<
+    LazyValue<TauriTypes.TgzPackageJsonRecord>
+  >({
+    status: "loading",
+    value: null,
+  });
 
   const loadSurfacePackages = useCallback(async () => {
-    const packages = await TauriRouter.get_surface_templates("2022.3.40f1");
-    surfacePackages.set(packages);
-  }, []);
+    const editorVersion =
+      newProjectContext.state.initialTemplateInfo.editorVersion;
+    const templates = await TauriRouter.get_surface_templates(
+      editorVersion.version
+    );
+    surfaceTemplates.set(templates);
+  }, [newProjectContext.state.initialTemplateInfo.editorVersion]);
 
   const queriedPackages = useMemo(() => {
-    return surfacePackages.value
+    return surfaceTemplates.value
       .map((x) => ({
         found: tryGetDefaultUnityPackage(x.name),
         x,
@@ -150,33 +180,41 @@ export default function TemplateView() {
         if (b.category === "Custom") return -1;
         return 0;
       });
-  }, [surfacePackages.value, searchQuery.value, selectedCategory.value]);
+  }, [surfaceTemplates.value, searchQuery.value, selectedCategory.value]);
 
   const selectedPackageWrapper = useMemo(() => {
-    if (!selectedPackage.value) return null;
-    const found = surfacePackages.value.find(
-      (x) => x.name === selectedPackage.value
-    );
-    if (!found) return null;
+    const selectedTemplate =
+      newProjectContext.state.initialTemplateInfo.selectedTemplate;
+    if (!selectedTemplate) return null;
 
-    const p = tryGetDefaultUnityPackage(selectedPackage.value);
+    const p = tryGetDefaultUnityPackage(selectedTemplate.name);
     return {
-      _template: surfacePackages.value.find(
-        (x) => x.name === selectedPackage.value
-      )!,
+      _template: selectedTemplate!,
       name: p?.name,
       category: p?.category ?? "Custom",
     };
-  }, [selectedPackage.value]);
+  }, [newProjectContext.state.initialTemplateInfo.selectedTemplate]);
 
   useEffect(() => {
     selectedCategory.set(categories[0]);
   }, []);
 
+  function selectTemplate(x: TauriTypes.SurfaceTemplate) {
+    newProjectContext.dispatch({
+      type: "set_initial_template",
+      template: x,
+    });
+
+    newProjectContext.dispatch({
+      type: "set_packages",
+      packages: [],
+    });
+  }
+
   return (
     <div className="flex h-full">
       <Sidebar categories={categories} selectedCategory={selectedCategory} />
-      <div className="px-4 w-full flex flex-col overflow-y-auto">
+      <div className="px-4 pt-4 w-full flex flex-col overflow-y-auto">
         <AsyncComponent
           loading={<LoadingSpinner />}
           callback={loadSurfacePackages}
@@ -194,15 +232,21 @@ export default function TemplateView() {
               <Template
                 key={i}
                 value={x}
-                onClick={() => selectedPackage.set(x._template.name)}
-                selected={selectedPackage.value === x._template.name}
+                onClick={() => selectTemplate(x._template)}
+                selected={
+                  newProjectContext.state.initialTemplateInfo.selectedTemplate
+                    ?.name === x._template.name
+                }
               />
             ))}
           </div>
         </AsyncComponent>
       </div>
       {selectedPackageWrapper && (
-        <TemplateInfo value={selectedPackageWrapper} />
+        <TemplateInfo
+          value={selectedPackageWrapper}
+          tgzJson={selectedTgzJson}
+        />
       )}
     </div>
   );
@@ -215,8 +259,36 @@ function Sidebar({
   categories: string[];
   selectedCategory: UseState<string>;
 }) {
+  const newProjectContext = useContext(NewProjectContext.Context);
+
+  function useEmptyTemplate() {
+    newProjectContext.dispatch({
+      type: "set_initial_template",
+      template: undefined,
+    });
+
+    newProjectContext.dispatch({
+      type: "set_packages",
+      packages: [],
+    });
+
+    newProjectContext.dispatch({
+      type: "change_tab",
+      tab: "package",
+    });
+  }
+
   return (
-    <div className="flex flex-col w-48 gap-2 border-r border-r-stone-700 pr-4 overflow-y-auto flex-shrink-0">
+    <div className="flex flex-col w-48 gap-2 border-r border-r-stone-700 pr-4 pt-4 overflow-y-auto flex-shrink-0">
+      <button
+        className="flex justify-between border bg-stone-800 border-stone-700 px-3 py-2 rounded-md hover:bg-stone-700 select-none cursor-pointer box-border"
+        onClick={useEmptyTemplate}
+      >
+        <div className="flex items-center gap-2">
+          <PackagePlus width={20} height={20} />
+          <span>Start Empty</span>
+        </div>
+      </button>
       {categories.map((x, i) => (
         <button
           className={`flex justify-between border border-stone-700 px-3 py-2 rounded-md hover:bg-stone-700 select-none cursor-pointer box-border ${
@@ -251,7 +323,7 @@ function Template({
     <button
       className={`flex flex-wrap px-4 py-3 text-sm font-medium rounded-md border ${
         selected
-          ? "bg-sky-600 text-stone-50 border-stone-900"
+          ? "border-l-8 border-l-sky-600 text-stone-50 border-sky-600 bg-stone-900"
           : "border-stone-600 hover:bg-stone-800"
       }`}
       onClick={onClick}
@@ -272,27 +344,30 @@ function Template({
 
 function TemplateInfo({
   value,
+  tgzJson,
 }: {
   value: {
     _template: TauriTypes.SurfaceTemplate;
     name: string | undefined;
     category: string | undefined;
   };
+  tgzJson: UseState<LazyValue<TauriTypes.TgzPackageJsonRecord>>;
 }) {
-  const tgzJson = useBetterState<LazyValue<TauriTypes.TgzPackageJsonRecord>>({
-    status: "loading",
-    value: null,
-  });
+  const newProjectContext = useContext(NewProjectContext.Context);
 
   useEffect(() => {
     const load = async () => {
       tgzJson.set({ status: "loading", value: null });
       const json = await TauriRouter.get_template_information(value._template);
       tgzJson.set({ status: "success", value: json });
+      newProjectContext.dispatch({
+        type: "set_packages",
+        packages: Object.keys(json.tgzPackage.dependencies ?? {}) ?? [],
+      });
     };
 
     load();
-  }, [value]);
+  }, [newProjectContext.state.initialTemplateInfo.selectedTemplate, value]);
 
   const tabs = [
     { id: "info", title: "Info" },
@@ -302,7 +377,7 @@ function TemplateInfo({
   const selectedTab = useBetterState<string | number>(tabs[0].id);
 
   return (
-    <div className="flex flex-col w-96 gap-4 border-l border-l-stone-700 overflow-y-auto flex-shrink-0">
+    <div className="flex flex-col w-96 gap-4 pt-4 border-l border-l-stone-700 overflow-y-auto flex-shrink-0">
       {/* <div className="border-b border-b-stone-700 px-4 pb-4"> */}
       <div className="px-4">
         <p className="text-stone-50">
@@ -379,7 +454,10 @@ function TemplateInfo({
                     {Object.keys(
                       tgzJson.value?.value?.tgzPackage?.dependencies
                     ).map((x) => (
-                      <div className="flex justify-between text-sm leading-6">
+                      <div
+                        key={x}
+                        className="flex justify-between text-sm leading-6"
+                      >
                         <span className="w-10/12 overflow-hidden">{x}</span>{" "}
                         <span className="text-stone-400">
                           {tgzJson.value?.value?.tgzPackage?.dependencies?.[x]}

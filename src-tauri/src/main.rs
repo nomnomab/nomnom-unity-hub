@@ -6,6 +6,7 @@ use std::sync::Mutex;
 use tauri::Manager;
 
 mod app;
+mod cache;
 mod editor;
 mod errors;
 mod package;
@@ -23,6 +24,10 @@ fn main() {
             prefs::cmd_load_prefs,
             prefs::cmd_save_prefs,
             prefs::cmd_set_pref_value,
+            // user_cache
+            cache::cmd_get_user_cache,
+            cache::cmd_save_user_cache,
+            cache::cmd_set_user_cache_value,
             // project
             project::cmd_get_default_project_path,
             project::cmd_remove_missing_projects,
@@ -40,14 +45,17 @@ fn main() {
             // templates
             template::cmd_get_surface_templates,
             template::cmd_get_template_information,
+            template::cmd_get_template_file_paths,
         ])
         .setup(|app| {
             let app_handle = app.handle();
             let prefs = app::load_prefs_from_disk(&app_handle)?;
+            let user_cache = app::load_user_cache_from_disk(&app_handle)?;
             let projects = app::load_projects_from_disk(&app_handle)?;
 
             app.manage(app::AppState {
                 prefs: Mutex::new(prefs),
+                user_cache: Mutex::new(user_cache),
                 projects: Mutex::new(projects),
                 editors: Mutex::new(Vec::new()),
             });

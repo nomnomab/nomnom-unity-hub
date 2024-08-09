@@ -92,7 +92,7 @@ function Pagination({
     >
       {/* Contents */}
       <div
-        className="px-6 py-4 overflow-y-auto relative"
+        className="px-4 py-4 overflow-y-auto relative"
         style={{
           height: pageCount > 0 ? "calc(100% - 54px)" : undefined,
         }}

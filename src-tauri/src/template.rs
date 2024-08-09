@@ -1,4 +1,4 @@
-use std::{collections::HashMap, io::Read, path::{Path, PathBuf}};
+use std::{collections::HashMap, io::Read, path::{self, Path, PathBuf}};
 use flate2::read::GzDecoder;
 use crate::{app::{self, AppState}, errors, io_utils};
 
@@ -44,6 +44,14 @@ pub struct Repository {
     url: Option<String>,
     r#type: Option<String>, // `type` is a reserved keyword in Rust, so we use `r#type`
     revision: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TgzPath {
+  pub name: String,
+  pub children: Vec<TgzPath>,
+  pub is_allowed: bool,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -140,6 +148,10 @@ pub fn read_user_templates_manifest(editor_version: String, app_state: &tauri::S
     .map_err(|_| errors::io_not_found("Invalid user template manifest"))?;
   let manifest: HashMap<String, serde_json::Value> = serde_json::from_str(&json)
     .map_err(|_| errors::str_error("Invalid user template manifest"))?;
+
+  if !manifest.contains_key(&editor_version) {
+    return Ok(serde_json::Map::new());
+  }
 
   let editor_value = manifest.get(&editor_version)
     .ok_or(errors::str_error("Invalid editor version"))?;
@@ -277,6 +289,56 @@ fn detect_unity_pipeline(tgz_package: &TgzPackageJson) -> Vec<UnityPipeline> {
   pipelines
 }
 
+fn extract_file_paths(app: &tauri::AppHandle, surface_template: &SurfaceTemplate) -> Result<io_utils::FileDir, errors::AnyError> {
+  let file_name = surface_template.path.file_name()
+    .ok_or(errors::str_error("Invalid template file name"))?;
+
+  let cache_dir = app.path_resolver().app_cache_dir()
+    .ok_or(errors::str_error("Invalid app cache dir"))?
+    .join("templates")
+    .join(file_name);
+  std::fs::create_dir_all(&cache_dir)?;
+
+  // need to extract tgz file, so dumb
+  let tar_gz = std::fs::File::open(&surface_template.path)?;
+  let tar_decoder = GzDecoder::new(tar_gz);
+  let mut tar = tar::Archive::new(tar_decoder);
+
+  let mut valid_entries = tar
+    .entries()
+    .map_err(|_| errors::str_error("Invalid template tgz"))?
+    .filter_map(|x| x.ok());
+
+  let mut file_paths = Vec::new();
+  for mut entry in valid_entries.into_iter() {
+    let path = entry
+      .path()
+      .map_err(|_| errors::str_error("Invalid template tgz"))?
+      .to_path_buf();
+    file_paths.push(path);
+  }
+
+  // turn file paths into a file tree
+  let mut dir = io_utils::dir("package");
+  for file_path in file_paths.iter() {
+    let path_split = file_path
+      .components()
+      .filter_map(|x| {
+        if let std::path::Component::Normal(x) = x {
+          Some(x.to_str().and_then(|x| Some(x.to_string())))
+        } else {
+          None
+        }
+      })
+      .map(|x| x.unwrap())
+      .collect::<Vec<_>>();
+
+    io_utils::build_tree(&mut dir, &path_split, 0);
+  }
+
+  Ok(dir)
+}
+
 // commands
 
 #[tauri::command]
@@ -290,4 +352,19 @@ pub async fn cmd_get_surface_templates(editor_version: String, app_state: tauri:
 pub async fn cmd_get_template_information(app_handle: tauri::AppHandle, surface_template: SurfaceTemplate) -> Result<TgzPackageJsonRecord, errors::AnyError> {
   let template = extract_template_information(&app_handle, &surface_template)?;
   Ok(template)
+}
+
+#[tauri::command]
+pub async fn cmd_get_template_file_paths(app_handle: tauri::AppHandle, surface_template: SurfaceTemplate) -> Result<io_utils::FileDir, errors::AnyError> {
+  let mut paths = extract_file_paths(&app_handle, &surface_template)?;
+  paths.sort();
+
+  let paths = paths.children.get(0)
+    .ok_or(errors::str_error("Invalid template tgz"))?;
+
+  let mut paths = *paths.clone();
+  let mut id = 0u64;
+  io_utils::build_ids(&mut paths, &mut id);
+
+  Ok(paths)
 }

@@ -18,7 +18,7 @@ pub struct Package {
 pub struct PackageManagerEditorManifest {
   pub schema_version: u64,
   pub packages: HashMap<String, PackageManagerEditorManifestPackage>,
-  pub metadata_package_name: String,
+  pub metadata_package_name: String
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -30,6 +30,7 @@ pub struct PackageManagerEditorManifestPackage {
   pub minimum_version: Option<String>,
   pub deprecated: Option<String>,
   pub remove_on_project_upgrade: Option<bool>,
+  pub is_file: Option<bool>
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -37,6 +38,7 @@ pub struct PackageManagerEditorManifestPackage {
 pub struct MinimalPackage { 
   pub name: String,
   pub version: String,
+  pub is_file: bool
 }
 
 pub fn get_editor_package_manager_manifest(editor_version: String, app_state: &tauri::State<AppState>) -> Result<PackageManagerEditorManifest, errors::AnyError> {
@@ -48,13 +50,15 @@ pub fn get_editor_package_manager_manifest(editor_version: String, app_state: &t
     .clone();
 
   let root_path = crate::editor::get_root_folder(editor.exe_path.clone());
-  let manifest_path = root_path
+  let manifest_folder_path = root_path
     .ok_or(errors::io_not_found("Invalid editor path"))?
     .join("Editor")
     .join("Data")
     .join("Resources")
     .join("PackageManager")
-    .join("Editor")
+    .join("Editor");
+
+  let manifest_path = manifest_folder_path
     .join("manifest")
     .with_extension("json");
 
@@ -65,8 +69,23 @@ pub fn get_editor_package_manager_manifest(editor_version: String, app_state: &t
   let manifest_contents = std::fs::read_to_string(&manifest_path)
     .map_err(|_| errors::io_not_found("Invalid manifest file"))?;
 
-  let manifest: PackageManagerEditorManifest = serde_json::from_str(&manifest_contents)
+  let mut manifest: PackageManagerEditorManifest = serde_json::from_str(&manifest_contents)
     .map_err(|_| errors::io_not_found("Invalid manifest file"))?;
+
+  let files = std::fs::read_dir(&manifest_folder_path)
+    .map_err(|_| errors::io_not_found("Invalid manifest file"))?
+    .filter_map(|x| x.ok())
+    .filter_map(|x| x.file_name().to_str().map(|x| x.to_string()))
+    .collect::<Vec<_>>();
+
+  for (key, package) in manifest.packages.iter_mut() {
+    let version = package.version.clone();
+    if let Some(version) = version {
+      package.is_file = Some(files.contains(&format!("{}-{}.tgz", &key, version)));
+    } else {
+      package.is_file = None;
+    }
+  }
 
   Ok(manifest)
 }
@@ -82,10 +101,11 @@ pub fn cmd_get_default_editor_packages(editor_version: String, app_state: tauri:
     .map(|x| MinimalPackage {
       name: x.0.clone(),
       version: x.1.version.clone().unwrap_or_default(),
+      is_file: x.1.is_file.unwrap_or(false)
     })
     .collect::<Vec<_>>();
 
-    manifest_packages.sort_by(|x, y| x.name.cmp(&y.name));
+  manifest_packages.sort_by(|x, y| x.name.cmp(&y.name));
   
   Ok(manifest_packages)
 }

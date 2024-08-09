@@ -39,6 +39,7 @@ export default function ProjectsHeader({
     <ViewHeader title="Projects">
       <div className="ml-auto" />
       <Buttons.DefaultButton title="Add" onClick={addExistingProject} />
+      <div className="ml-2" />
       <Buttons.ActionButton title="New" onClick={startNewProject} />
     </ViewHeader>
   );
