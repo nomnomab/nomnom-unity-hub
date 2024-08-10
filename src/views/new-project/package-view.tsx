@@ -587,7 +587,7 @@ function Package({
           <p className="flex basis-full text-stone-50 select-none">
             {package_.package_.name}{" "}
             <span
-              className={`ml-auto ${
+              className={`ml-auto text-right ${
                 selected ? "text-stone-50" : "text-stone-400"
               }`}
             >
