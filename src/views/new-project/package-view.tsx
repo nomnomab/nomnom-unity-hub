@@ -1,5 +1,5 @@
 import { useContext, useEffect, useMemo } from "react";
-import { LazyValue, UseState } from "../../utils";
+import { LazyValue, LazyVoid, UseState } from "../../utils";
 import { NewProjectContext } from "../../context/new-project-context";
 import useBetterState from "../../hooks/useBetterState";
 import { TauriTypes } from "../../utils/tauri-types";
@@ -7,7 +7,9 @@ import AsyncLazyValueComponent from "../../components/async-lazy-value-component
 import LoadingSpinner from "../../components/svg/loading-spinner";
 import { TauriRouter } from "../../utils/tauri-router";
 import Checkmark from "../../components/svg/checkmark";
-import Warning from "../../components/svg/warning";
+import FolderOpen from "../../components/svg/folder-open";
+import { open } from "@tauri-apps/api/dialog";
+import { Buttons } from "../../components/parts/buttons";
 
 const categories = ["All", "Internal", "Git", "Local"];
 
@@ -70,7 +72,22 @@ export default function PackageView() {
   }
 
   const queriedPackages = useMemo(() => {
+    const gitPackages = newProjectContext.state.packageInfo.gitPackages.map(
+      (x) => ({
+        package_: x,
+        category: "Git",
+      })
+    );
+    const localPackages = newProjectContext.state.packageInfo.localPackages.map(
+      (x) => ({
+        package_: x,
+        category: "Local",
+      })
+    );
+
     const validPackages = (minimalPackages.value.value ?? [])
+      .concat(gitPackages)
+      .concat(localPackages)
       .filter((x) =>
         x.package_.name.toLowerCase().includes(searchQuery.value.toLowerCase())
       )
@@ -93,6 +110,8 @@ export default function PackageView() {
     onlyShowSelectedPackages.value,
     searchQuery.value,
     selectedCategory.value,
+    newProjectContext.state.packageInfo.gitPackages,
+    newProjectContext.state.packageInfo.localPackages,
   ]);
 
   return (
@@ -128,39 +147,10 @@ export default function PackageView() {
           </div>
 
           {selectedCategory.value === "Git" && (
-            <div className="flex pt-2">
-              <input
-                type="text"
-                className="flex-grow rounded-md rounded-tr-none rounded-br-none border-r-0 p-2 bg-stone-800 text-stone-50 border border-stone-600 placeholder:text-stone-400"
-                placeholder="Add a .git URL"
-                value={searchQuery.value}
-                onChange={(e) => searchQuery.set(e.target.value)}
-                autoComplete="off"
-                spellCheck="false"
-              />
-
-              <button className="text-stone-300 flex justify-between border border-stone-700 px-3 py-2 rounded-md rounded-tl-none rounded-bl-none hover:bg-stone-700 select-none cursor-pointer box-border">
-                Add
-              </button>
-            </div>
+            <GitAdd selectPackage={selectPackage} />
           )}
-
           {selectedCategory.value === "Local" && (
-            <div className="flex pt-2">
-              <input
-                type="text"
-                className="flex-grow rounded-md rounded-tr-none rounded-br-none border-r-0 p-2 bg-stone-800 text-stone-50 border border-stone-600 placeholder:text-stone-400"
-                placeholder="Add a package.json file path"
-                value={searchQuery.value}
-                onChange={(e) => searchQuery.set(e.target.value)}
-                autoComplete="off"
-                spellCheck="false"
-              />
-
-              <button className="text-stone-300 flex justify-between border border-stone-700 px-3 py-2 rounded-md rounded-tl-none rounded-bl-none hover:bg-stone-700 select-none cursor-pointer box-border">
-                Add
-              </button>
-            </div>
+            <LocalAdd selectPackage={selectPackage} />
           )}
 
           <div className="flex flex-col gap-2 py-3 w-full">
@@ -178,6 +168,239 @@ export default function PackageView() {
         </AsyncLazyValueComponent>
       </div>
     </div>
+  );
+}
+
+function GitAdd(props: { selectPackage: (x: string) => void }) {
+  const newProjectContext = useContext(NewProjectContext.Context);
+  const gitPackageJson = useBetterState("");
+  const gitPackageId = useBetterState("");
+  const gitPackageUrl = useBetterState("");
+  const tab = useBetterState<"url" | "manifest">("url");
+
+  async function addPackage() {
+    if (tab.value === "url") {
+      if (gitPackageId.value === "") return;
+      if (gitPackageUrl.value === "") return;
+      if (
+        newProjectContext.state.packageInfo.gitPackages.some(
+          (x) =>
+            x.type === TauriTypes.PackageType.Git &&
+            x.version === gitPackageUrl.value
+        )
+      ) {
+        return;
+      }
+
+      newProjectContext.dispatch({
+        type: "add_git_package",
+        package: {
+          id: gitPackageId.value,
+          url: gitPackageUrl.value,
+        },
+      });
+
+      gitPackageId.set("");
+      gitPackageUrl.set("");
+
+      props.selectPackage(gitPackageId.value);
+    } else {
+      if (gitPackageJson.value === "") return;
+
+      try {
+        const obj: { [key: string]: string } = JSON.parse(
+          `{${gitPackageJson.value}}`
+        );
+        const [name, version] = Object.entries(obj)[0];
+
+        if (
+          newProjectContext.state.packageInfo.gitPackages.some(
+            (x) =>
+              x.type === TauriTypes.PackageType.Git &&
+              x.name === name &&
+              x.version === version
+          )
+        ) {
+          return;
+        }
+
+        newProjectContext.dispatch({
+          type: "add_git_package",
+          package: {
+            id: name,
+            url: version,
+          },
+        });
+
+        props.selectPackage(name);
+      } catch (e) {
+        console.error(e);
+        return;
+      }
+
+      gitPackageJson.set("");
+    }
+  }
+
+  function changeTab(newTab: "url" | "manifest") {
+    tab.set(newTab);
+  }
+
+  return (
+    <>
+      <div className="flex flex-row pt-2 gap-2">
+        <button
+          className={`flex justify-between border border-stone-700 px-3 py-2 rounded-md hover:bg-stone-700 select-none cursor-pointer box-border disabled:cursor-not-allowed disabled:opacity-50 ${
+            tab.value === "url" && "bg-sky-600 text-stone-50 border-stone-900"
+          }`}
+          onClick={() => changeTab("url")}
+        >
+          Add from URL
+        </button>
+        <button
+          className={`flex justify-between border border-stone-700 px-3 py-2 rounded-md hover:bg-stone-700 select-none cursor-pointer box-border disabled:cursor-not-allowed disabled:opacity-50 ${
+            tab.value === "manifest" &&
+            "bg-sky-600 text-stone-50 border-stone-900"
+          }`}
+          onClick={() => changeTab("manifest")}
+        >
+          Add from Manifest Entry
+        </button>
+      </div>
+
+      {tab.value === "url" && (
+        <div className="flex pt-2 gap-1 items-center">
+          <input
+            type="text"
+            className="flex-grow rounded-md p-2 bg-stone-800 text-stone-50 border border-stone-600 placeholder:text-stone-400 disabled:opacity-40 disabled:cursor-not-allowed"
+            placeholder="com.unity.package"
+            value={gitPackageId.value}
+            onChange={(e) => gitPackageId.set(e.target.value)}
+            autoComplete="off"
+            spellCheck="false"
+          />
+          <input
+            type="text"
+            className="flex-grow rounded-md p-2 bg-stone-800 text-stone-50 border border-stone-600 placeholder:text-stone-400 disabled:opacity-40 disabled:cursor-not-allowed"
+            placeholder="Add a .git URL"
+            value={gitPackageUrl.value}
+            onChange={(e) => gitPackageUrl.set(e.target.value)}
+            autoComplete="off"
+            spellCheck="false"
+          />
+
+          <button
+            className="text-stone-300 flex justify-between border border-stone-700 px-3 py-2 rounded-md hover:bg-stone-700 select-none cursor-pointer box-border disabled:opacity-40 disabled:cursor-not-allowed"
+            onClick={addPackage}
+            disabled={gitPackageId.value === "" && gitPackageUrl.value === ""}
+          >
+            Add
+          </button>
+        </div>
+      )}
+
+      {tab.value === "manifest" && (
+        <div className="flex pt-2 gap-1 items-center">
+          <input
+            type="text"
+            className="flex-grow rounded-md p-2 bg-stone-800 text-stone-50 border border-stone-600 placeholder:text-stone-400 disabled:opacity-40 disabled:cursor-not-allowed"
+            placeholder={`"com.unity.package": "https://github.com/author/package.git"`}
+            value={gitPackageJson.value}
+            onChange={(e) => gitPackageJson.set(e.target.value)}
+            autoComplete="off"
+            spellCheck="false"
+          />
+
+          <button
+            className="text-stone-300 flex justify-between border border-stone-700 px-3 py-2 rounded-md hover:bg-stone-700 select-none cursor-pointer box-border disabled:opacity-40 disabled:cursor-not-allowed"
+            onClick={addPackage}
+            disabled={gitPackageJson.value === ""}
+          >
+            Add
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+
+function LocalAdd(props: { selectPackage: (name: string) => void }) {
+  const newProjectContext = useContext(NewProjectContext.Context);
+  const localPackage = useBetterState("");
+
+  async function addPackage() {
+    if (localPackage.value === "") return;
+    if (
+      newProjectContext.state.packageInfo.localPackages.some(
+        (x) =>
+          x.type === TauriTypes.PackageType.Local &&
+          x.name === localPackage.value
+      )
+    ) {
+      return;
+    }
+
+    newProjectContext.dispatch({
+      type: "add_local_package",
+      package: {
+        path: localPackage.value,
+      },
+    });
+
+    props.selectPackage(localPackage.value);
+
+    localPackage.set("");
+  }
+
+  async function selectPackageFile() {
+    const path = await open({
+      directory: false,
+      multiple: false,
+      filters: [{ name: "Package", extensions: ["json"] }],
+    });
+
+    if (!path) return;
+    const pathStr = path as string;
+
+    if (!pathStr.endsWith("package.json")) {
+      return;
+    }
+
+    localPackage.set(pathStr);
+  }
+
+  return (
+    <>
+      <div className="flex pt-2 gap-1 items-center">
+        <div className="w-full flex flex-col">
+          <div className="flex">
+            <input
+              autoComplete="off"
+              spellCheck="false"
+              value={localPackage.value}
+              onChange={(e) => localPackage.set(e.target.value)}
+              placeholder="Add a package.json file path"
+              className="flex-grow rounded-md rounded-tr-none rounded-br-none p-2 bg-stone-800 text-stone-50 border border-stone-600 border-r-0 placeholder:text-stone-400 disabled:opacity-40 disabled:cursor-not-allowed"
+            />
+
+            <button
+              className="hover:text-stone-50 border-stone-600 w-[40px] flex items-center justify-center aspect-square rounded-md rounded-tl-none rounded-bl-none text-stone-50 hover:bg-stone-500 p-2 border"
+              onClick={() => selectPackageFile()}
+            >
+              <FolderOpen />
+            </button>
+          </div>
+        </div>
+
+        <button
+          className="text-stone-300 flex justify-between border border-stone-700 px-3 py-2 rounded-md hover:bg-stone-700 select-none cursor-pointer box-border disabled:opacity-40 disabled:cursor-not-allowed"
+          onClick={addPackage}
+          disabled={localPackage.value === ""}
+        >
+          Add
+        </button>
+      </div>
+    </>
   );
 }
 

@@ -12,6 +12,7 @@ mod errors;
 mod package;
 mod prefs;
 mod project;
+mod git;
 mod io_utils;
 mod template;
 mod generate;
@@ -56,6 +57,8 @@ fn main() {
             // generate
             generate::cmd_generate_project,
             generate::cmd_generate_template,
+            // git
+            git::cmd_get_git_package_json
         ])
         .setup(|app| {
             let app_handle = app.handle();
