@@ -1,209 +1,281 @@
-import React, {
-	createContext,
-	PropsWithChildren,
-	useContext,
-	useEffect,
-	useReducer,
-} from "react";
-import Delete from "./svg/delete";
+import React, { createContext, useContext, useEffect, useReducer } from "react";
+import { TauriRouter } from "../utils/tauri-router";
 
-type ValidateInputContextType = {
-	state: ValidateInputState;
-	dispatch: React.Dispatch<Action>;
-};
+export namespace ValidateInputContext {
+  type Type = {
+    state: State;
+    dispatch: React.Dispatch<Action>;
+  };
 
-type ValidateInputState = {
-	hasError: { [key: string]: boolean };
-};
+  export type ErrorMap = {
+    [key: string]: Error | null;
+  };
 
-type Action = {
-	type: "set_error";
-	key: string;
-	value: boolean;
-};
+  type State = {
+    hasError: ErrorMap;
+    refresh: number;
+  };
 
-const reducer = (state: ValidateInputState, action: Action) => {
-	switch (action.type) {
-		case "set_error":
-			return {
-				...state,
-				hasError: {
-					...state.hasError,
-					[action.key]: action.value,
-				},
-			};
-	}
-};
+  type Action =
+    | {
+        type: "set_error";
+        key: string;
+        value: Error | null;
+      }
+    | {
+        type: "refresh";
+      };
 
-const Context = createContext<ValidateInputContextType>(
-	{} as ValidateInputContextType
-);
+  const reducer = (state: State, action: Action) => {
+    switch (action.type) {
+      case "set_error":
+        return {
+          ...state,
+          hasError: {
+            ...state.hasError,
+            [action.key]: action.value,
+          },
+        };
+      case "refresh":
+        return {
+          ...state,
+          refresh: state.refresh + 1,
+        };
+      default:
+        return state;
+    }
+  };
 
-type ContextProps = {
-	onErrorChanged: (value: boolean) => void;
-} & PropsWithChildren;
-export function ValidateInputContext(props: ContextProps) {
-	const [state, dispatch] = useReducer(reducer, {
-		hasError: {},
-	});
+  export const Context = createContext<Type>({} as Type);
 
-	useEffect(() => {
-		const hasError = Object.values(state.hasError).some((value) => value);
-		props.onErrorChanged(hasError);
-	}, [state.hasError]);
+  export function User(props: React.PropsWithChildren) {
+    const [state, dispatch] = useReducer(reducer, {
+      hasError: {},
+      refresh: 0,
+    });
 
-	return (
-		<Context.Provider value={{ state, dispatch }}>
-			{props.children}
-		</Context.Provider>
-	);
+    return (
+      <Context.Provider value={{ state, dispatch }}>
+        {props.children}
+      </Context.Provider>
+    );
+  }
+
+  export function isEmptyString(
+    value: string | null | undefined
+  ): Error | null {
+    if (
+      value === undefined ||
+      value === null ||
+      value.trim() === "" ||
+      value.trim().length === 0
+    ) {
+      return new Error("Value cannot be empty");
+    }
+
+    return null;
+  }
+
+  export async function isBadPath(
+    value: string | null | undefined
+  ): Promise<Error | null> {
+    if (value === undefined || value === null || value.trim() === "") {
+      return new Error("Value cannot be empty");
+    }
+
+    if (!(await TauriRouter.is_valid_path(value))) {
+      return new Error("Value is not a valid path");
+    }
+
+    return null;
+  }
+
+  export function hasWhitespace(
+    value: string | null | undefined
+  ): Error | null {
+    if (value === undefined || value === null || value.trim() === "") {
+      return new Error("Value cannot be empty");
+    }
+
+    if (/\s/.test(value)) {
+      return new Error("Value cannot have whitespace");
+    }
+
+    return null;
+  }
+
+  export function isNotComName(
+    value: string | null | undefined,
+    syntax: string
+  ): Error | null {
+    if (value === undefined || value === null || value.trim() === "") {
+      return new Error("Value cannot be empty");
+    }
+
+    const split = value.split(".");
+    if (split.length != 3) {
+      return new Error(`Value must be in the format '${syntax}'`);
+    }
+
+    if (hasWhitespace(value.substring(value.lastIndexOf(".") + 1)) !== null) {
+      return new Error(`Value must be in the format '${syntax}'`);
+    }
+
+    return null;
+  }
 }
 
+type ErrorProps = {
+  hasError: () => Error | null;
+};
+
 type InputProps = {
-	label?: string;
-	subtitle?: string;
-	value: string;
-	errorMessage: () => string;
-	hasError: () => boolean;
-	divProps?: React.HTMLAttributes<HTMLDivElement>;
-} & React.InputHTMLAttributes<HTMLInputElement>;
+  label?: string;
+  subtitle?: string;
+  value: string;
+  divProps?: React.HTMLAttributes<HTMLDivElement>;
+} & React.InputHTMLAttributes<HTMLInputElement> &
+  ErrorProps;
 export function ValidateInput({
-	label,
-	subtitle,
-	value,
-	errorMessage,
-	hasError,
-	divProps,
-	...props
+  label,
+  subtitle,
+  value,
+  hasError,
+  divProps,
+  ...props
 }: InputProps) {
-	const { state, dispatch } = useContext(Context);
+  const { state, dispatch } = useContext(ValidateInputContext.Context);
 
-	useEffect(() => {
-		dispatch({
-			type: "set_error",
-			key: props.name ?? "",
-			value: hasError && hasError(),
-		});
-	}, []);
+  useEffect(() => {
+    dispatch({
+      type: "set_error",
+      key: props.name ?? "",
+      value: hasError && hasError(),
+    });
+  }, []);
 
-	useEffect(() => {
-		dispatch({
-			type: "set_error",
-			key: props.name ?? "",
-			value: hasError && hasError(),
-		});
-	}, [value, hasError]);
+  useEffect(() => {
+    dispatch({
+      type: "set_error",
+      key: props.name ?? "",
+      value: hasError && hasError(),
+    });
+  }, [value, state.refresh]);
 
-	// const hasErrorCheck = state.hasError[props.name ?? ""] ?? false;
-	const hasErrorCheck = React.useMemo(() => {
-		return (!state.hasError || state.hasError[props.name ?? ""]) ?? false;
-	}, [state.hasError, props.name]);
+  // const hasErrorCheck = state.hasError[props.name ?? ""] ?? false;
+  const error = React.useMemo(() => {
+    return (!state.hasError || state.hasError[props.name ?? ""]) ?? false;
+  }, [state.hasError, props.name, value, state.refresh]);
 
-	return (
-		<div {...divProps} className={`flex flex-col ${divProps?.className ?? ""}`}>
-			{label && <label className="select-none">{label}</label>}
-			{subtitle && <p className="text-stone-400">{subtitle}</p>}
-			<input {...props} autoComplete="off" value={value} />
-			{hasErrorCheck && <p className="text-red-500">{errorMessage()}</p>}
-		</div>
-	);
+  return (
+    <div {...divProps} className={`flex flex-col ${divProps?.className ?? ""}`}>
+      {label && <label className="select-none">{label}</label>}
+      {subtitle && <p className="text-stone-400">{subtitle}</p>}
+      <input {...props} autoComplete="off" value={value} />
+      {error && <p className="text-red-500">{error.message}</p>}
+    </div>
+  );
 }
 
 type InputWithButtonProps = {
-	label?: string;
-	subtitle?: string;
-	value: string;
-	errorMessage: () => string;
-	hasError: () => boolean;
-	divProps?: React.HTMLAttributes<HTMLDivElement>;
-	children: React.ReactNode;
-} & React.InputHTMLAttributes<HTMLInputElement>;
+  label?: string;
+  subtitle?: string;
+  value: string;
+  divProps?: React.HTMLAttributes<HTMLDivElement>;
+  children: React.ReactNode;
+} & React.InputHTMLAttributes<HTMLInputElement> &
+  ErrorProps;
 export function ValidateInputWithButton({
-	label,
-	subtitle,
-	value,
-	errorMessage,
-	hasError,
-	divProps,
-	children,
-	...props
+  label,
+  subtitle,
+  value,
+  hasError,
+  divProps,
+  children,
+  ...props
 }: InputWithButtonProps) {
-	const { state, dispatch } = useContext(Context);
+  const { state, dispatch } = useContext(ValidateInputContext.Context);
 
-	useEffect(() => {
-		dispatch({
-			type: "set_error",
-			key: props.name ?? "",
-			value: hasError && hasError(),
-		});
-	}, []);
+  useEffect(() => {
+    dispatch({
+      type: "set_error",
+      key: props.name ?? "",
+      value: hasError && hasError(),
+    });
+  }, []);
 
-	useEffect(() => {
-		dispatch({
-			type: "set_error",
-			key: props.name ?? "",
-			value: hasError && hasError(),
-		});
-	}, [value, hasError]);
+  useEffect(() => {
+    dispatch({
+      type: "set_error",
+      key: props.name ?? "",
+      value: hasError && hasError(),
+    });
+  }, [value, state.refresh]);
 
-	// const hasErrorCheck = state.hasError[props.name ?? ""] ?? false;
-	const hasErrorCheck = React.useMemo(() => {
-		return (!state.hasError || state.hasError[props.name ?? ""]) ?? false;
-	}, [state.hasError, props.name]);
+  // const hasErrorCheck = state.hasError[props.name ?? ""] ?? false;
+  const error = React.useMemo(() => {
+    return (!state.hasError || state.hasError[props.name ?? ""]) ?? false;
+  }, [state.hasError, props.name, value, state.refresh]);
 
-	return (
-		<div {...divProps} className={`flex flex-col ${divProps?.className ?? ""}`}>
-			{label && <label className="select-none">{label}</label>}
-			{subtitle && <p className="text-stone-400">{subtitle}</p>}
-			<div className="pb-1" />
-			<div className="flex">
-				<input {...props} autoComplete="off" value={value} />
-				{children}
-			</div>
-			{hasErrorCheck && <p className="text-red-500">{errorMessage()}</p>}
-		</div>
-	);
+  return (
+    <div {...divProps} className={`flex flex-col ${divProps?.className ?? ""}`}>
+      {label && <label className="select-none">{label}</label>}
+      {subtitle && <p className="text-stone-400">{subtitle}</p>}
+      <div className="pb-1" />
+      <div className="flex">
+        <input {...props} autoComplete="off" value={value} />
+        {children}
+      </div>
+      {error && <p className="text-red-500">{error.message}</p>}
+    </div>
+  );
 }
 
 type TextAreaProps = {
-	label?: string;
-	value: string;
-	errorMessage: () => string;
-	hasError: () => boolean;
-	divProps?: React.HTMLAttributes<HTMLDivElement>;
-} & React.TextareaHTMLAttributes<HTMLTextAreaElement>;
+  label?: string;
+  value: string;
+  divProps?: React.HTMLAttributes<HTMLDivElement>;
+} & React.TextareaHTMLAttributes<HTMLTextAreaElement> &
+  ErrorProps;
 export function ValidateTextArea({
-	label,
-	value,
-	errorMessage,
-	hasError,
-	divProps,
-	...props
+  label,
+  value,
+  hasError,
+  divProps,
+  ...props
 }: TextAreaProps) {
-	const { state, dispatch } = useContext(Context);
-	useEffect(() => {
-		dispatch({
-			type: "set_error",
-			key: props.name ?? "",
-			value: hasError && hasError(),
-		});
-	}, [value, hasError]);
+  const { state, dispatch } = useContext(ValidateInputContext.Context);
+  useEffect(() => {
+    dispatch({
+      type: "set_error",
+      key: props.name ?? "",
+      value: hasError && hasError(),
+    });
+  }, []);
 
-	// const hasErrorCheck = state.hasError[props.name ?? ""] ?? false;
-	const hasErrorCheck = React.useMemo(() => {
-		return (!state.hasError || state.hasError[props.name ?? ""]) ?? false;
-	}, [state.hasError, props.name]);
+  useEffect(() => {
+    dispatch({
+      type: "set_error",
+      key: props.name ?? "",
+      value: hasError && hasError(),
+    });
+  }, [value, state.refresh]);
 
-	return (
-		<div {...divProps} className={`flex flex-col ${divProps?.className ?? ""}`}>
-			{label && <label className="select-none pb-1">{label}</label>}
-			<textarea
-				{...(props as React.InputHTMLAttributes<HTMLTextAreaElement>)}
-				value={value}
-			/>
-			{hasErrorCheck && <p className="text-red-500">{errorMessage()}</p>}
-		</div>
-	);
+  // const hasErrorCheck = state.hasError[props.name ?? ""] ?? false;
+  const error = React.useMemo(() => {
+    return (!state.hasError || state.hasError[props.name ?? ""]) ?? false;
+  }, [state.hasError, props.name, value, state.refresh]);
+
+  return (
+    <div {...divProps} className={`flex flex-col ${divProps?.className ?? ""}`}>
+      {label && <label className="select-none">{label}</label>}
+      <textarea
+        {...(props as React.InputHTMLAttributes<HTMLTextAreaElement>)}
+        value={value}
+      />
+      {error && <p className="text-red-500">{error.message}</p>}
+    </div>
+  );
 }
 
 // type PathInputProps = {

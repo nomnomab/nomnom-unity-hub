@@ -1,24 +1,28 @@
-use std::{collections::HashMap, process::Command};
-use serde::{Deserialize, Serialize};
 use crate::{io_util::get_cache_dir, prefs::Prefs};
 use filesize::PathExt;
+use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, process::Command};
 
 #[tauri::command]
 pub fn open_project(app: tauri::AppHandle, project_path: String, editor_version: String) {
     let project_path = project_path.replace("\\", "/");
-    open_editor(app, editor_version, vec!["-projectPath".to_string(), project_path]);
+    open_editor(
+        app,
+        editor_version,
+        vec!["-projectPath".to_string(), project_path],
+    );
 }
 
 #[tauri::command]
 pub fn open_editor(app: tauri::AppHandle, editor_version: String, arguments: Vec<String>) {
     let editors = get_editor_installs(app).unwrap();
-    let editor = editors.iter().find(|x| x.version == editor_version).unwrap();
+    let editor = editors
+        .iter()
+        .find(|x| x.version == editor_version)
+        .unwrap();
     let exe_path = &editor.path;
 
-    Command::new(&exe_path)
-        .args(arguments)
-        .spawn()
-        .unwrap();
+    Command::new(&exe_path).args(arguments).spawn().unwrap();
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -50,7 +54,7 @@ impl Default for EditorModule {
 pub struct Editor {
     pub version: String,
     pub path: String,
-    pub modules: Vec<EditorModule>
+    pub modules: Vec<EditorModule>,
 }
 
 impl Default for Editor {
@@ -58,14 +62,19 @@ impl Default for Editor {
         Self {
             version: String::new(),
             path: String::new(),
-            modules: Vec::new()
+            modules: Vec::new(),
         }
     }
 }
 
 impl Editor {
     pub fn get_folder(path: &str) -> std::path::PathBuf {
-        std::path::PathBuf::from(path).parent().unwrap().parent().unwrap().to_path_buf()
+        std::path::PathBuf::from(path)
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .to_path_buf()
     }
 
     pub fn load_modules(folder: std::path::PathBuf) -> Vec<EditorModule> {
@@ -86,28 +95,47 @@ pub fn get_editor_installs(app: tauri::AppHandle) -> Result<Vec<Editor>, String>
                 return Err(msg.to_string());
             }
 
-            let mut folders = folders.unwrap()
+            let mut folders = folders
+                .unwrap()
                 .map(|entry| {
                     let entry = entry.unwrap();
                     let version = entry.file_name().to_str().unwrap().to_string();
-                    let path = entry.path().join("Editor").join("Unity.exe").to_str().unwrap().to_string();
+                    let path = entry
+                        .path()
+                        .join("Editor")
+                        .join("Unity.exe")
+                        .to_str()
+                        .unwrap()
+                        .to_string();
                     let folder = entry.path();
                     let modules = Editor::load_modules(folder.clone());
 
                     Editor {
                         version,
                         path,
-                        modules
+                        modules,
                     }
                 })
                 .collect::<Vec<_>>();
 
             folders.sort_by(|a, b| {
-                let split_a = a.version.split(|c| c == '.' || c == 'f').collect::<Vec<_>>();
-                let split_b = b.version.split(|c| c == '.' || c == 'f').collect::<Vec<_>>();
+                let split_a = a
+                    .version
+                    .split(|c| c == '.' || c == 'f')
+                    .collect::<Vec<_>>();
+                let split_b = b
+                    .version
+                    .split(|c| c == '.' || c == 'f')
+                    .collect::<Vec<_>>();
 
-                let nums_a = split_a.iter().map(|s| s.parse::<u32>().unwrap()).collect::<Vec<_>>();
-                let nums_b = split_b.iter().map(|s| s.parse::<u32>().unwrap()).collect::<Vec<_>>();
+                let nums_a = split_a
+                    .iter()
+                    .map(|s| s.parse::<u32>().unwrap())
+                    .collect::<Vec<_>>();
+                let nums_b = split_b
+                    .iter()
+                    .map(|s| s.parse::<u32>().unwrap())
+                    .collect::<Vec<_>>();
 
                 (nums_a[0].cmp(&nums_b[0]))
                     .then_with(|| nums_a[1].cmp(&nums_b[1]))
@@ -117,7 +145,7 @@ pub fn get_editor_installs(app: tauri::AppHandle) -> Result<Vec<Editor>, String>
             folders.reverse();
 
             Ok(folders)
-        },
+        }
         Err(err) => Err(err.to_string()),
     }
 }
@@ -144,7 +172,7 @@ pub async fn calculate_editor_disk_size(app: tauri::AppHandle, editor_path: Stri
         let disk_size = map.get(&editor_path).unwrap().as_u64().unwrap();
         return disk_size;
     }
-    
+
     let path = Editor::get_folder(&editor_path);
     // let dir = std::path::Path::new(&path);
     // let disk_size = dir.size_on_disk().unwrap();
@@ -153,7 +181,7 @@ pub async fn calculate_editor_disk_size(app: tauri::AppHandle, editor_path: Stri
 
     map.insert(editor_path, serde_json::Value::from(disk_size));
     std::fs::write(tmp_json_path, serde_json::to_string_pretty(&map).unwrap()).unwrap();
-    
+
     disk_size
 }
 
@@ -194,7 +222,9 @@ pub fn set_last_used_editor(app: tauri::AppHandle, editor_version: String) {
     prefs.save(&app).unwrap();
 }
 
-pub fn get_hub_templates_path(app: &tauri::AppHandle) -> std::path::PathBuf {
-    let prefs = Prefs::create(&app).unwrap();
-    prefs.hub_appdata_path.unwrap().join("Templates")
+pub fn get_hub_templates_path(app: &tauri::AppHandle) -> anyhow::Result<std::path::PathBuf> {
+    let prefs = Prefs::create(&app)?;
+    let path = prefs.hub_appdata_path?.join("Templates");
+    std::fs::create_dir_all(&path)?;
+    Ok(path)
 }

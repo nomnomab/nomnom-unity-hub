@@ -1,78 +1,88 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use anyhow::Context;
+use std::sync::Mutex;
 
-mod editors;
+use tauri::Manager;
+
+mod app;
+mod cache;
+mod editor;
+mod errors;
+mod package;
 mod prefs;
-mod templates;
-mod graphql;
 mod project;
-mod io_util;
-mod git;
-
-#[tauri::command]
-fn get_config_path(app: tauri::AppHandle) -> String {
-    let config = app.config();
-    let path = prefs::Prefs::get_config_path(&config);
-    path.to_str().unwrap().to_string()
-}
-
-#[tauri::command]
-fn show_path_in_file_manager(path: String) {
-  showfile::show_path_in_file_manager(path);
-}
+mod io_utils;
+mod template;
+mod generate;
 
 fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
-            get_config_path, 
-            show_path_in_file_manager,
-            editors::get_editor_installs, 
-            editors::get_last_used_editor,
-            editors::set_last_used_editor,
-            editors::calculate_disk_size,
-            editors::calculate_editor_disk_size,
-            prefs::get_prefs,
-            prefs::save_prefs,
-            prefs::get_projects,
-            prefs::add_project,
-            prefs::remove_project,
-            prefs::get_default_project_path,
-            prefs::clean_projects,
-            prefs::is_first_boot,
-            prefs::set_past_first_boot,
-            editors::open_project,
-            editors::open_editor,
-            templates::get_quick_templates,
-            templates::load_template,
-            templates::generate_template,
-            templates::refresh_template_cache,
-            templates::delete_custom_template,
-            graphql::parse_graphql,
-            project::generate_project,
-            project::change_project_editor_version,
-            project::is_valid_project_root_dir,
-            project::is_valid_new_project_root_dir,
-            project::is_valid_path,
-            project::open_unity_hub,
-            git::get_git_package_json,
+            app::cmd_show_path_in_file_manager,
+            app::cmd_is_valid_path,
+            app::cmd_is_valid_dir,
+            app::cmd_is_valid_file,
+            // prefs
+            prefs::cmd_get_prefs,
+            prefs::cmd_load_prefs,
+            prefs::cmd_save_prefs,
+            prefs::cmd_set_pref_value,
+            prefs::cmd_set_prefs,
+            // user_cache
+            cache::cmd_get_user_cache,
+            cache::cmd_save_user_cache,
+            cache::cmd_set_user_cache_value,
+            // project
+            project::cmd_get_default_project_path,
+            project::cmd_remove_missing_projects,
+            project::cmd_add_project,
+            project::cmd_remove_project,
+            project::cmd_get_projects,
+            project::cmd_get_projects_on_page,
+            project::cmd_open_project_in_editor,
+            project::cmd_change_project_editor_version,
+            // editors
+            editor::cmd_get_editors,
+            editor::cmd_open_unity_hub,
+            editor::cmd_estimate_editor_size,
+            // packages
+            package::cmd_get_default_editor_packages,
+            // templates
+            template::cmd_get_surface_templates,
+            template::cmd_get_template_information,
+            template::cmd_get_template_file_paths,
+            template::cmd_delete_template,
+            // generate
+            generate::cmd_generate_project,
+            generate::cmd_generate_template,
         ])
         .setup(|app| {
-            let handle = app.handle().clone();
-            
-            if let Err(err) = setup(&handle) {
-                println!("{:?}", err);
-                return Err(err.into());
+            let app_handle = app.handle();
+            let prefs = app::load_prefs_from_disk(&app_handle)?;
+            let user_cache = app::load_user_cache_from_disk(&app_handle)?;
+            let projects = app::load_projects_from_disk(&app_handle)?;
+
+            app.manage(app::AppState {
+                prefs: Mutex::new(prefs),
+                user_cache: Mutex::new(user_cache),
+                projects: Mutex::new(projects),
+                editors: Mutex::new(Vec::new()),
+            });
+
+            let app_state = app.state::<app::AppState>();
+            match editor::find_editor_installs(&app_state) {
+                Ok(editors) => {
+                    (*app_state.editors.lock().unwrap()).clear();
+                    (*app_state.editors.lock().unwrap()).extend(editors);
+                },
+                Err(err) => {
+                    println!("{}", err);
+                }
             }
 
             Ok(())
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
-}
-
-fn setup(app: &tauri::AppHandle) -> anyhow::Result<()> {
-    prefs::setup(app).context("Failed to read settings")?;
-    Ok(())
 }
