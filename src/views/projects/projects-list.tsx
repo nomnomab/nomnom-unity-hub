@@ -65,7 +65,7 @@ function Pagination({
       projectData.value.currentPage,
       perPage,
       searchQuery.value === "" ? undefined : searchQuery.value
-    ).then((x) => x.reverse());
+    );
     projectData.set((s) => ({
       ...s,
       projects,

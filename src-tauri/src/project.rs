@@ -120,18 +120,14 @@ pub fn cmd_add_project(project_path: PathBuf, app_handle: tauri::AppHandle, app_
         return Err(errors::io_not_found("Invalid project path"));
     }
     
-    let projects = app::get_projects(&app_state)?;
+    let mut projects = app_state.projects.lock()
+        .map_err(|_| errors::str_error("Failed to get projects. Is it locked?"))?;
     if projects.iter().any(|x| x.path == project_path) {
         return Err(errors::str_error("Project already exists"));
     }
     
     let project = load(project_path)?;
-    let projects = {
-        let mut projects = app_state.projects.lock()
-            .map_err(|_| errors::str_error("Failed to get projects. Is it locked?"))?;
-        projects.insert(0, project.clone());
-        projects
-    };
+    projects.insert(0, project.clone());
 
     app::save_projects_to_disk(&projects, &app_handle)?;
     

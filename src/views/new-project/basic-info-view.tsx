@@ -94,7 +94,6 @@ function Info() {
         value={basicInfo.name}
         hasError={() => ValidateInputContext.isEmptyString(basicInfo.name)}
         onChange={(e) => {
-          console.log(e.target.value);
           newProjectContext.dispatch({
             type: "set_basic_info_name",
             name: e.target.value,
