@@ -153,13 +153,13 @@ pub fn cmd_remove_project(project_path: PathBuf, app_handle: tauri::AppHandle, a
 }
 
 #[tauri::command]
-pub fn cmd_get_projects(app_state: tauri::State<AppState>) -> Result<Vec<Project>, errors::AnyError> {
+pub async fn cmd_get_projects(app_state: tauri::State<'_, AppState>) -> Result<Vec<Project>, errors::AnyError> {
     let projects = app::get_projects(&app_state)?;
     Ok(projects)
 }
 
 #[tauri::command]
-pub fn cmd_get_projects_on_page(app_state: tauri::State<AppState>, page: usize, per_page_count: usize, search: Option<String>) -> Result<Vec<Project>, errors::AnyError> {
+pub async fn cmd_get_projects_on_page(app_state: tauri::State<'_, AppState>, page: usize, per_page_count: usize, search: Option<String>) -> Result<Vec<Project>, errors::AnyError> {
     let projects = get_projects_on_page(&app_state, page, per_page_count, search)?;
     Ok(projects)
 }

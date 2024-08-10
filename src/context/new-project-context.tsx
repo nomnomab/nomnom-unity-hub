@@ -69,6 +69,8 @@ export namespace NewProjectContext {
   }
 
   interface PackageInfo {
+    gitPackages: TauriTypes.MinimalPackage[];
+    localPackages: TauriTypes.MinimalPackage[];
     selectedPackages: string[];
   }
 
@@ -97,6 +99,8 @@ export namespace NewProjectContext {
     },
     packageInfo: {
       selectedPackages: [],
+      gitPackages: [],
+      localPackages: [],
     },
     filesInfo: {
       root: null,
@@ -150,7 +154,9 @@ export namespace NewProjectContext {
     | { type: "set_new_template_name"; name: string }
     | { type: "set_new_template_display_name"; displayName: string }
     | { type: "set_new_template_version"; version: string }
-    | { type: "set_new_template_description"; description: string };
+    | { type: "set_new_template_description"; description: string }
+    | { type: "add_git_package"; package: { id: string; url: string } }
+    | { type: "add_local_package"; package: { path: string } };
 
   const reducer = (state: State, action: Action): State => {
     switch (action.type) {
@@ -283,6 +289,38 @@ export namespace NewProjectContext {
           newTemplateInfo: {
             ...state.newTemplateInfo,
             description: action.description,
+          },
+        };
+      case "add_git_package":
+        return {
+          ...state,
+          packageInfo: {
+            ...state.packageInfo,
+            gitPackages: [
+              ...state.packageInfo.gitPackages,
+              {
+                name: action.package.id,
+                version: action.package.url,
+                isFile: false,
+                type: TauriTypes.PackageType.Git,
+              },
+            ],
+          },
+        };
+      case "add_local_package":
+        return {
+          ...state,
+          packageInfo: {
+            ...state.packageInfo,
+            localPackages: [
+              ...state.packageInfo.localPackages,
+              {
+                name: action.package.path,
+                version: "", // will get turned into file:../id
+                isFile: false,
+                type: TauriTypes.PackageType.Local,
+              },
+            ],
           },
         };
       default:

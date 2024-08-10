@@ -175,6 +175,14 @@ export namespace TauriRouter {
     return invoke("cmd_generate_template", { templateInfo });
   }
 
+  // git
+
+  export async function get_git_package_json(
+    url: string
+  ): Promise<TauriTypes.PackageJson> {
+    return invoke("cmd_get_git_package_json", { url });
+  }
+
   // other
 
   export async function open_unity_hub(): Promise<void> {

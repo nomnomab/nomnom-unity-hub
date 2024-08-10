@@ -2,7 +2,7 @@ use std::{collections::HashMap, path::PathBuf};
 
 use flate2::{read::GzDecoder, write::GzEncoder};
 
-use crate::{app::{self, AppState}, editor::UnityEditorInstall, errors, io_utils, package::MinimalPackage, template::SurfaceTemplate};
+use crate::{app::{self, AppState}, editor::UnityEditorInstall, errors, io_utils, package::{self, MinimalPackage}, template::SurfaceTemplate};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -39,7 +39,7 @@ pub fn generate_project(app: &tauri::AppHandle, project_info: &ProjectInfoForGen
   
   let package_cache_dir = io_utils::get_cache_appended_dir(app, "new_project_package");
   unpack_package_into_cache(&package_cache_dir, &template_info)?;
-  modify_package_json(&package_cache_dir, &template_info.packages)?;
+  modify_package_json(&package_cache_dir, &template_info.packages, &package_cache_dir_out)?;
 
   // create project directory
   std::fs::create_dir(&package_cache_dir_out)?;
@@ -88,8 +88,10 @@ pub fn generate_project(app: &tauri::AppHandle, project_info: &ProjectInfoForGen
 // generate a new template file
 pub fn generate_template(app: &tauri::AppHandle, app_state: &tauri::State<AppState>, template_info: &NewTemplateInfo) -> Result<PathBuf, errors::AnyError> {
   let package_cache_dir = io_utils::get_cache_appended_dir(app, "new_template_package");
+  let package_cache_dir_out = io_utils::get_cache_appended_dir(app, "new_template_package_output");
+
   unpack_package_into_cache(&package_cache_dir, &template_info.template)?;
-  modify_package_json(&package_cache_dir, &template_info.template.packages)?;
+  modify_package_json(&package_cache_dir, &template_info.template.packages, &package_cache_dir_out)?;
 
   // modify package.json
   let package_json_path = package_cache_dir
@@ -115,8 +117,6 @@ pub fn generate_template(app: &tauri::AppHandle, app_state: &tauri::State<AppSta
   });
   println!("Writing new package.json: {}", package_json_path.display());
   std::fs::write(&package_json_path, serde_json::to_string_pretty(&new_package_json)?)?;
-  
-  let package_cache_dir_out = io_utils::get_cache_appended_dir(app, "new_template_package_output");
 
   // copy contents from package to output
   let data_root = PathBuf::from("package");
@@ -217,7 +217,7 @@ fn unpack_package_into_cache(output: &PathBuf, template_info: &TemplateInfoForGe
   Ok(())
 }
 
-fn modify_package_json(package_cache_dir: &PathBuf, packages: &Vec<MinimalPackage>) -> Result<(), errors::AnyError> {
+fn modify_package_json(package_cache_dir: &PathBuf, packages: &Vec<MinimalPackage>, output_path: &PathBuf) -> Result<(), errors::AnyError> {
   // modify package.json for dependencies
   let packages_dir = package_cache_dir
     .join("package")
@@ -235,6 +235,20 @@ fn modify_package_json(package_cache_dir: &PathBuf, packages: &Vec<MinimalPackag
     std::fs::remove_file(&packages_lock_json)?;
   }
 
+  // read any local packages
+  let local_packages = packages
+    .iter()
+    .filter(|x| x._type == package::PackageType::Local)
+    .collect::<Vec<_>>();
+
+  let rest_packages = packages
+    .iter()
+    .filter(|x| x._type != package::PackageType::Local)
+    .collect::<Vec<_>>();
+
+  println!("Local packages: {:?}", local_packages);
+  println!("Rest packages: {:?}", rest_packages);
+
   let manifest_json_contents = std::fs::read_to_string(&manifest_json)?;
   let mut manifest_json_contents: HashMap<String, serde_json::Value> 
     = serde_json::from_str(&manifest_json_contents)?;
@@ -242,11 +256,47 @@ fn modify_package_json(package_cache_dir: &PathBuf, packages: &Vec<MinimalPackag
   let mut dependencies: serde_json::Map<String, serde_json::Value> = serde_json::Map::new();
 
   // override the dependencies
-  for package in packages.iter() {
+  for package in rest_packages.iter() {
+    println!("Rest package: {:?}", package);
     let name = package.name.clone();
     let version = package.version.clone();
     dependencies.insert(name, serde_json::Value::String(version));
   }
+
+  // local ones now
+  for package in local_packages.iter() {
+    println!("Local package: {:?}", package);
+    // get local path from this project to the json path in name
+    let package_json_path = std::path::Path::new(&package.name).to_path_buf();
+    let package_json_path_parent = package_json_path
+      .parent()
+      .ok_or(errors::str_error("Failed to get parent"))?;
+    let relative_path = io_utils::diff_paths(&package_json_path_parent, &output_path.join("Packages"));
+
+    let relative_path = match relative_path {
+      Some(path) => path.to_path_buf(),
+      None => package_json_path.clone()
+    };
+
+    let json = std::fs::read_to_string(&package_json_path)?;
+    let json: serde_json::Value = serde_json::from_str(&json)?;
+    let name = json.as_object()
+      .ok_or(errors::str_error(&format!("Failed to get json object from {}", package_json_path.display())))?
+      .get("name")
+      .ok_or(errors::str_error(&format!("Failed to get name from {}", package_json_path.display())))?
+      .as_str()
+      .ok_or(errors::str_error(&format!("Failed to get name from {}", package_json_path.display())))?
+      .to_string();
+    
+    let name = name.clone();
+    let version = format!("file:{}", relative_path
+      .to_str()
+      .ok_or(errors::str_error("Failed to get str"))?
+      .replace("\\", "/")
+    );
+    dependencies.insert(name, serde_json::Value::String(version));
+  }
+  
   manifest_json_contents.insert("dependencies".to_string(), serde_json::Value::Object(dependencies));
 
   // save to disk

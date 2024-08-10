@@ -55,7 +55,7 @@ export default function NewProjectBody() {
 
       const packages = await TauriRouter.get_default_editor_packages(
         initialTemplateInfo.editorVersion.version
-      );
+      ).then((x) => x.concat(pack.gitPackages).concat(pack.localPackages));
 
       let paths: string[] = [];
       let rootMap = new Map<string, number>();
@@ -120,7 +120,7 @@ export default function NewProjectBody() {
 
       const packages = await TauriRouter.get_default_editor_packages(
         template.editorVersion.version
-      );
+      ).then((x) => x.concat(pack.gitPackages).concat(pack.localPackages));
 
       let paths: string[] = [];
       let rootMap = new Map<string, number>();

@@ -196,7 +196,18 @@ export default function TemplateView() {
 
   const selectedPackageWrapper = useMemo(() => {
     const selectedTemplate = initialTemplateInfo.selectedTemplate;
-    if (!selectedTemplate) return null;
+    if (!selectedTemplate) {
+      newProjectContext.dispatch({
+        type: "set_has_error",
+        hasError: true,
+      });
+      return null;
+    }
+
+    newProjectContext.dispatch({
+      type: "set_has_error",
+      hasError: false,
+    });
 
     const p = tryGetDefaultUnityPackage(selectedTemplate.name);
     return {

@@ -93,6 +93,14 @@ export namespace TauriTypes {
     diskSizeBytes: number;
   }
 
+  export interface GitPackage {
+    url: string;
+  }
+
+  export interface LocalPackage {
+    path: string;
+  }
+
   export enum UnityPipeline {
     Unknown,
     BuiltIn,
@@ -105,6 +113,13 @@ export namespace TauriTypes {
     name: string;
     version: string;
     isFile: boolean;
+    type: PackageType;
+  }
+
+  export enum PackageType {
+    Internal = "internal",
+    Git = "git",
+    Local = "local",
   }
 
   export interface FilePath {
@@ -151,6 +166,11 @@ export namespace TauriTypes {
     displayName: string;
     version: string;
     description: string;
+  }
+
+  export interface PackageJson {
+    name: string;
+    version: string;
   }
 }
 
