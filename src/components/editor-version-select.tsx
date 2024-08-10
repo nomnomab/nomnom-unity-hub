@@ -31,7 +31,7 @@ export default function EditorVersionSelect(props: Props) {
   const className =
     (props.style ?? "link") === "link"
       ? (props.className ?? "") +
-        " text-stone-200 underline underline-offset-4 decoration-stone-600"
+        " text-stone-200 underline underline-offset-4 decoration-stone-400"
       : (props.className ?? "") + " ";
   return (
     <>

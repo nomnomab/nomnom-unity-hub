@@ -10,6 +10,7 @@ import Checkmark from "../../components/svg/checkmark";
 import FolderOpen from "../../components/svg/folder-open";
 import { open } from "@tauri-apps/api/dialog";
 import { Buttons } from "../../components/parts/buttons";
+import Delete from "../../components/svg/delete";
 
 const categories = ["All", "Internal", "Git", "Local"];
 
@@ -31,44 +32,76 @@ export default function PackageView() {
       minimalPackages.set({ status: "loading", value: null });
       const newMinimalPackages = await TauriRouter.get_default_editor_packages(
         newProjectContext.state.initialTemplateInfo.editorVersion.version
-      );
+      )
+        .then((x) =>
+          x.map((x) => ({
+            package_: x,
+            category: "Internal",
+          }))
+        )
+        .then(async (x) => {
+          const p = await TauriRouter.get_user_cache();
+          const gitPackages = p.gitPackages.map((x) => ({
+            package_: x,
+            category: "Git",
+          }));
+
+          const localPackages = p.localPackages.map((x) => ({
+            package_: x,
+            category: "Local",
+          }));
+          return [...x, ...gitPackages, ...localPackages];
+        });
+
       minimalPackages.set({
         status: "success",
         // value: newMinimalPackages.filter((x) => x.isFile),
-        value: newMinimalPackages.map((x) => ({
-          package_: x,
-          category: "Internal",
-        })),
+        // value: newMinimalPackages.map((x) => ({
+        //   package_: x,
+        //   category: "Internal",
+        // })),
+        value: newMinimalPackages,
       });
     };
     load();
   }, []);
 
-  function selectPackage(x: string) {
+  function selectPackage(name: string, version?: string) {
     const packages = newProjectContext.state.packageInfo.selectedPackages;
-    const filtered = packages.filter((y) => y !== x);
+    const filtered = packages.filter(
+      (y) => y.name !== name && y.version !== version
+    );
     newProjectContext.dispatch({
       type: "set_packages",
-      packages: [...filtered, x],
+      packages: [...filtered, { name, version }],
     });
   }
 
-  function removePackage(x: string) {
+  function removePackage(name: string, version: string) {
     const packages = newProjectContext.state.packageInfo.selectedPackages;
-    const filtered = packages.filter((y) => y !== x);
+    const filtered = packages.filter(
+      (y) => y.name !== name || y.version !== version
+    );
+
     newProjectContext.dispatch({
       type: "set_packages",
       packages: filtered,
     });
   }
 
-  function togglePackage(x: string) {
+  function togglePackage(name: string, version: string) {
     const packages = newProjectContext.state.packageInfo.selectedPackages;
-    if (packages.includes(x)) {
-      removePackage(x);
+    if (packages.find((x) => x.name === name && x.version === version)) {
+      removePackage(name, version);
     } else {
-      selectPackage(x);
+      selectPackage(name, version);
     }
+
+    // if (packages.includes(x)) {
+    //   removePackage(x);
+    // } else {
+    //   selectPackage(x);
+    // }
   }
 
   const queriedPackages = useMemo(() => {
@@ -103,7 +136,11 @@ export default function PackageView() {
 
     const packages = newProjectContext.state.packageInfo.selectedPackages;
     return (
-      validPackages.filter((x) => packages.includes(x.package_.name)) ?? []
+      validPackages.filter((x) =>
+        packages.find(
+          (y) => y.name === x.package_.name && y.version === x.package_.version
+        )
+      ) ?? []
     );
   }, [
     minimalPackages.value,
@@ -113,6 +150,50 @@ export default function PackageView() {
     newProjectContext.state.packageInfo.gitPackages,
     newProjectContext.state.packageInfo.localPackages,
   ]);
+
+  async function destroyPackage(package_: TauriTypes.MinimalPackage) {
+    if (package_.type === TauriTypes.PackageType.Local) {
+      await TauriRouter.remove_local_package_from_cache(package_);
+      newProjectContext.dispatch({
+        type: "set_packages",
+        packages: newProjectContext.state.packageInfo.selectedPackages.filter(
+          (x) => x.name !== package_.name && x.version !== package_.version
+        ),
+      });
+      newProjectContext.dispatch({
+        type: "remove_local_package",
+        package: package_,
+      });
+      minimalPackages.set({
+        ...minimalPackages.value,
+        value: minimalPackages.value.value!.filter(
+          (x) =>
+            x.package_.name !== package_.name &&
+            x.package_.version !== package_.version
+        ),
+      });
+    } else if (package_.type === TauriTypes.PackageType.Git) {
+      await TauriRouter.remove_git_package_from_cache(package_);
+      newProjectContext.dispatch({
+        type: "set_packages",
+        packages: newProjectContext.state.packageInfo.selectedPackages.filter(
+          (x) => x.name !== package_.name && x.version !== package_.version
+        ),
+      });
+      newProjectContext.dispatch({
+        type: "remove_git_package",
+        package: package_,
+      });
+      minimalPackages.set({
+        ...minimalPackages.value,
+        value: minimalPackages.value.value!.filter(
+          (x) =>
+            x.package_.name !== package_.name &&
+            x.package_.version !== package_.version
+        ),
+      });
+    }
+  }
 
   return (
     <div className="flex h-full">
@@ -158,9 +239,14 @@ export default function PackageView() {
               <Package
                 key={i}
                 package_={x}
-                onClick={() => togglePackage(x.package_.name)}
-                selected={newProjectContext.state.packageInfo.selectedPackages.includes(
-                  x.package_.name
+                onClick={() =>
+                  togglePackage(x.package_.name, x.package_.version)
+                }
+                destroyPackage={destroyPackage}
+                selected={newProjectContext.state.packageInfo.selectedPackages.some(
+                  (y) =>
+                    y.name === x.package_.name &&
+                    y.version === x.package_.version
                 )}
               />
             ))}
@@ -171,7 +257,9 @@ export default function PackageView() {
   );
 }
 
-function GitAdd(props: { selectPackage: (x: string) => void }) {
+function GitAdd(props: {
+  selectPackage: (name: string, version?: string) => void;
+}) {
   const newProjectContext = useContext(NewProjectContext.Context);
   const gitPackageJson = useBetterState("");
   const gitPackageId = useBetterState("");
@@ -192,6 +280,13 @@ function GitAdd(props: { selectPackage: (x: string) => void }) {
         return;
       }
 
+      await TauriRouter.add_git_package_to_cache({
+        name: gitPackageId.value,
+        version: gitPackageUrl.value,
+        isFile: false,
+        type: TauriTypes.PackageType.Git,
+      });
+
       newProjectContext.dispatch({
         type: "add_git_package",
         package: {
@@ -203,7 +298,7 @@ function GitAdd(props: { selectPackage: (x: string) => void }) {
       gitPackageId.set("");
       gitPackageUrl.set("");
 
-      props.selectPackage(gitPackageId.value);
+      props.selectPackage(gitPackageId.value, gitPackageUrl.value);
     } else {
       if (gitPackageJson.value === "") return;
 
@@ -224,6 +319,13 @@ function GitAdd(props: { selectPackage: (x: string) => void }) {
           return;
         }
 
+        await TauriRouter.add_git_package_to_cache({
+          name,
+          version,
+          isFile: false,
+          type: TauriTypes.PackageType.Git,
+        });
+
         newProjectContext.dispatch({
           type: "add_git_package",
           package: {
@@ -232,7 +334,7 @@ function GitAdd(props: { selectPackage: (x: string) => void }) {
           },
         });
 
-        props.selectPackage(name);
+        props.selectPackage(name, version);
       } catch (e) {
         console.error(e);
         return;
@@ -324,7 +426,9 @@ function GitAdd(props: { selectPackage: (x: string) => void }) {
   );
 }
 
-function LocalAdd(props: { selectPackage: (name: string) => void }) {
+function LocalAdd(props: {
+  selectPackage: (name: string, version?: string) => void;
+}) {
   const newProjectContext = useContext(NewProjectContext.Context);
   const localPackage = useBetterState("");
 
@@ -340,6 +444,13 @@ function LocalAdd(props: { selectPackage: (name: string) => void }) {
       return;
     }
 
+    await TauriRouter.add_local_package_to_cache({
+      name: localPackage.value,
+      version: "",
+      isFile: false,
+      type: TauriTypes.PackageType.Local,
+    });
+
     newProjectContext.dispatch({
       type: "add_local_package",
       package: {
@@ -347,7 +458,7 @@ function LocalAdd(props: { selectPackage: (name: string) => void }) {
       },
     });
 
-    props.selectPackage(localPackage.value);
+    props.selectPackage(localPackage.value, undefined);
 
     localPackage.set("");
   }
@@ -445,6 +556,7 @@ function Package({
   package_,
   onClick,
   selected,
+  destroyPackage,
 }: {
   package_: {
     package_: TauriTypes.MinimalPackage;
@@ -452,35 +564,54 @@ function Package({
   };
   onClick?: () => void;
   selected: boolean;
+  destroyPackage: (package_: TauriTypes.MinimalPackage) => void;
 }) {
   return (
-    <button
-      className={`flex flex-col px-4 py-3 text-sm font-medium rounded-md border ${
+    <div
+      className={`flex text-sm font-medium rounded-md border ${
         selected
           ? "border-l-8 border-l-sky-600 text-stone-50 border-sky-600 bg-stone-900"
-          : "border-stone-600 hover:bg-stone-800"
+          : "border-stone-600"
       }`}
-      onClick={onClick}
     >
-      {/* <div className="h-full aspect-square border-r border-r-stone-600">
+      <button
+        className={`flex flex-col px-4 py-3 flex-grow ${
+          selected ? "" : "hover:bg-stone-800"
+        }`}
+        onClick={onClick}
+      >
+        {/* <div className="h-full aspect-square border-r border-r-stone-600">
         <div className="p-2">{selected && <Checkmark />}</div>
       </div> */}
-      <div className="flex justify-between w-full">
-        <p className="flex basis-full text-stone-50 select-none">
-          {package_.package_.name}{" "}
-          <span
-            className={`ml-auto ${
-              selected ? "text-stone-50" : "text-stone-400"
-            }`}
+        <div className="flex justify-between w-full">
+          <p className="flex basis-full text-stone-50 select-none">
+            {package_.package_.name}{" "}
+            <span
+              className={`ml-auto ${
+                selected ? "text-stone-50" : "text-stone-400"
+              }`}
+            >
+              {package_.package_.version === ""
+                ? "N/A"
+                : package_.package_.version}
+            </span>
+          </p>
+          {/* {value.isPinned && <p>Pinned</p>} */}
+        </div>
+        {package_.category && (
+          <p className="select-none">{package_.category}</p>
+        )}
+      </button>
+
+      {package_.package_.type === TauriTypes.PackageType.Local ||
+        (package_.package_.type === TauriTypes.PackageType.Git && (
+          <button
+            className="w-10 p-2 bg-red-900 border-l border-stone-600 rounded-md rounded-tl-none rounded-bl-none hover:bg-red-800"
+            onClick={() => destroyPackage(package_.package_)}
           >
-            {package_.package_.version === ""
-              ? "N/A"
-              : package_.package_.version}
-          </span>
-        </p>
-        {/* {value.isPinned && <p>Pinned</p>} */}
-      </div>
-      {package_.category && <p className="select-none">{package_.category}</p>}
-    </button>
+            <Delete />
+          </button>
+        ))}
+    </div>
   );
 }
