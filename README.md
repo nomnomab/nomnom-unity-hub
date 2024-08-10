@@ -1,7 +1,34 @@
-# Tauri + React + Typescript
+# Nomnom's Unity Hub
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
+## Features
 
-## Recommended IDE Setup
+- Written in React + Tauri + Rust
+- Paginated project list
+- Project creation
+  - Select a template to start from, or start from scratch
+  - Select the specific packages you want
+  - Select the files/folders you want from the template
+  - Can override the template's internal project entirely
+- Template creation
+  - Integrated into the project creation
+  - The final template file will also be discoverable by the Unity Hub
+- Editor version list
+  - Can see how large each version's disk size is
+  - Can open a version's changelog
+  - Can open the version's folder on disk
+  - Can see what modules are installed
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+## Building
+
+```bash
+# move into src folder
+cd .\src\
+
+# if npm
+npm run tauri build
+
+# if pnpm
+pnpm tauri build
+```
+
+Then find the exe in `\src-tauri\target\release\`
