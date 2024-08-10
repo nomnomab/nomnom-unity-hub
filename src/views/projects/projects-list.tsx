@@ -28,14 +28,15 @@ export default function ProjectList({
   );
 }
 
+const perPage = 10;
+const buttonCountOneDirection = 2;
+
 function Pagination({
   projectData,
 }: {
   projectData: UseState<ProjectViewData>;
 }) {
   // page settings
-  const perPage = 10;
-  const buttonCountOneDirection = 2;
   const reloadPage = useBetterState(false);
   const editors = useBetterState<TauriTypes.UnityEditorInstall[] | null>(null);
   const searchQuery = useBetterState<string | undefined>(undefined);

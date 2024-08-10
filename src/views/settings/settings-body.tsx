@@ -13,29 +13,37 @@ import LoadingSpinner from "../../components/svg/loading-spinner";
 import { TauriRouter } from "../../utils/tauri-router";
 import { open } from "@tauri-apps/api/dialog";
 
-export default function SettingsBody() {
+export default function SettingsBody(props: {
+  overrideClassName?: string;
+  onBadPref?: (bad: boolean) => void;
+}) {
   const lazyPrefs = useBetterState<LazyValue<TauriTypes.Prefs>>({
     status: "loading",
     value: null,
   });
 
   useEffect(() => {
+    props.onBadPref?.(true);
+
     const load = async () => {
       const prefs = await TauriRouter.get_prefs();
       lazyPrefs.set({ status: "success", value: prefs });
+      props.onBadPref?.(false);
     };
 
     load();
   }, []);
 
   return (
-    <div className="flex flex-col px-8 py-4 gap-4">
+    <div className={props.overrideClassName ?? "flex flex-col px-8 py-4 gap-4"}>
       <ValidateInputContext.User>
         <AsyncLazyValueComponent
           loading={<LoadingSpinner />}
           value={lazyPrefs.value}
         >
-          {lazyPrefs && <Inputs lazyPrefs={lazyPrefs} />}
+          {lazyPrefs && (
+            <Inputs lazyPrefs={lazyPrefs} onBadPref={props.onBadPref} />
+          )}
         </AsyncLazyValueComponent>
       </ValidateInputContext.User>
     </div>
@@ -44,10 +52,11 @@ export default function SettingsBody() {
 
 function Inputs({
   lazyPrefs,
+  onBadPref,
 }: {
   lazyPrefs: UseState<LazyValue<TauriTypes.Prefs>>;
+  onBadPref?: (bad: boolean) => void;
 }) {
-  const globalContext = useContext(GlobalContext.Context);
   const validInputContext = useContext(ValidateInputContext.Context);
 
   const prefs = useMemo(() => {
@@ -79,19 +88,22 @@ function Inputs({
     setPrefs({ ...prefs, [key]: path as string });
   }
 
-  function checkPath(key: string) {
+  function checkPath(key: string): Promise<boolean> {
     try {
       // @ts-ignore
-      ValidateInputContext.isBadPath(prefs[key]).then((err) =>
+      return ValidateInputContext.isBadPath(prefs[key]).then((err) => {
         validInputContext.dispatch({
           type: "set_error",
           key: key,
           value: err,
-        })
-      );
+        });
+        return err !== null;
+      });
     } catch (err) {
       console.error(err);
     }
+
+    return Promise.resolve(false);
   }
 
   useEffect(() => {
@@ -105,6 +117,13 @@ function Inputs({
     prefs.hubEditorsPath,
     prefs.hubAppdataPath,
   ]);
+
+  useEffect(() => {
+    const anyError = Object.values(validInputContext.state.hasError).some(
+      (v) => v
+    );
+    onBadPref?.(anyError);
+  }, [validInputContext.state]);
 
   return (
     <>

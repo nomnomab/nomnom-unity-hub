@@ -4,16 +4,47 @@ import "./ContextMenu.css";
 // import "reactjs-popup/dist/index.css";
 
 // import "reactjs-popup/dist/index.css";
-import { useContext } from "react";
+import { useContext, useEffect } from "react";
 import MainSidebar from "./components/main-sidebar";
 import ProjectsView from "./views/projects/projects-view";
 import { GlobalContext } from "./context/global-context";
 import EditorsView from "./views/editors/editors-view";
 import NewProjectView from "./views/new-project/new-project-view";
 import SettingsView from "./views/settings/settings-view";
+import useBetterState from "./hooks/useBetterState";
+import FirstBoot from "./views/first-boot/first-boot";
 
 function App() {
   const globalContext = useContext(GlobalContext.Context);
+  const isLoading = useBetterState(true);
+  const isFirstBoot = useBetterState(false);
+
+  useEffect(() => {
+    // window.localStorage.removeItem("pastFirstBoot");
+    const firstBoot = !window.localStorage.getItem("pastFirstBoot");
+
+    const load = async () => {
+      isFirstBoot.set(true);
+
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      isLoading.set(false);
+    };
+
+    if (firstBoot) {
+      load();
+    } else {
+      isFirstBoot.set(false);
+      isLoading.set(false);
+    }
+  }, []);
+
+  if (isLoading.value) {
+    return null;
+  }
+
+  if (isFirstBoot.value) {
+    return <FirstBoot />;
+  }
 
   return (
     <div className="flex flex-row w-screen h-screen overflow-hidden">
@@ -25,20 +56,6 @@ function App() {
         {globalContext.state.currentTab === "settings" && <SettingsView />}
       </div>
     </div>
-    // <FirstTimeBoot>
-    //   <div className="flex flex-row w-screen h-screen overflow-hidden">
-    //     <MainSidebar />
-    //     <div className="flex flex-grow h-screen overflow-hidden">
-    //       {state.currentTab === "projects" && <ProjectsView />}
-    //       {state.currentTab === "editors" && <EditorsView />}
-    //       <NewTemplateContext>
-    //         {state.currentTab === "new_project" && <NewProjectView />}
-    //         {state.currentTab === "new_template" && <NewTemplateView />}
-    //       </NewTemplateContext>
-    //       {state.currentTab === "settings" && <SettingsView />}
-    //     </div>
-    //   </div>
-    // </FirstTimeBoot>
   );
 }
 

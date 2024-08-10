@@ -3,12 +3,20 @@ import ViewBody from "../../components/view-body";
 import SettingsBody from "./settings-body";
 import SettingsHeader from "./settings-header";
 
-export default function SettingsView() {
+type Props = {
+  overrideClassName?: string;
+  noHeader?: boolean;
+  onBadPref?: (bad: boolean) => void;
+};
+export default function SettingsView(props: Props) {
   return (
     <SectionView>
-      <SettingsHeader />
+      {props.noHeader || <SettingsHeader />}
       <ViewBody>
-        <SettingsBody />
+        <SettingsBody
+          overrideClassName={props.overrideClassName}
+          onBadPref={props.onBadPref}
+        />
       </ViewBody>
     </SectionView>
   );
