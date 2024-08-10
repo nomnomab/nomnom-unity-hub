@@ -69,6 +69,7 @@ function Inputs({
   function savePrefs() {
     if (!prefs) return;
     TauriRouter.set_prefs(prefs);
+    TauriRouter.save_prefs();
   }
 
   function setPrefs(prefs: TauriTypes.Prefs) {

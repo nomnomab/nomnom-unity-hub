@@ -71,7 +71,11 @@ export default function NewProjectBody() {
         packages: packages.filter((x) =>
           pack.selectedPackages.includes(x.name)
         ),
-        selectedFiles: trimmedPaths,
+        selectedFiles: [
+          "package/package.json",
+          "package/package.json.meta",
+          ...trimmedPaths,
+        ],
       };
       const template: TauriTypes.NewTemplateInfo = {
         template: templateInfo,
@@ -80,15 +84,16 @@ export default function NewProjectBody() {
 
       try {
         const output = await TauriRouter.generate_template(template);
-        isLoading.set(false);
 
         console.log(output);
 
         // await TauriRouter.add_project(output);
         await new Promise((resolve) => setTimeout(resolve, 1000));
 
+        isLoading.set(false);
+
         globalContext.dispatch({ type: "change_tab", tab: "projects" });
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 5));
         globalContext.dispatch({ type: "change_tab", tab: "new_project" });
       } catch (e) {
         console.error(e);
@@ -143,12 +148,13 @@ export default function NewProjectBody() {
           projectInfo,
           templateInfo
         );
-        isLoading.set(false);
 
         console.log(output);
 
         await TauriRouter.add_project(output);
         await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        isLoading.set(false);
 
         globalContext.dispatch({ type: "change_tab", tab: "projects" });
       } catch (e) {

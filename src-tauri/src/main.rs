@@ -52,6 +52,7 @@ fn main() {
             template::cmd_get_surface_templates,
             template::cmd_get_template_information,
             template::cmd_get_template_file_paths,
+            template::cmd_delete_template,
             // generate
             generate::cmd_generate_project,
             generate::cmd_generate_template,

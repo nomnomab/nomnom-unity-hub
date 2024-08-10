@@ -61,6 +61,7 @@ export namespace TauriRouter {
   }
 
   // project
+
   export async function get_default_project_path(): Promise<string> {
     return invoke("cmd_get_default_project_path");
   }
@@ -150,6 +151,13 @@ export namespace TauriRouter {
     surfaceTemplate: TauriTypes.SurfaceTemplate
   ): Promise<TauriTypes.FileDir> {
     return invoke("cmd_get_template_file_paths", { surfaceTemplate });
+  }
+
+  export async function delete_template(
+    surfaceTemplate: TauriTypes.SurfaceTemplate,
+    editorVersion: string
+  ): Promise<void> {
+    return invoke("cmd_delete_template", { surfaceTemplate, editorVersion });
   }
 
   // generate

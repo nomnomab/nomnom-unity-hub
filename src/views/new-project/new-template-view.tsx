@@ -8,6 +8,7 @@ import { NewProjectContext } from "../../context/new-project-context";
 import { NewProjectOverview } from "./basic-info-view";
 import useBetterState from "../../hooks/useBetterState";
 import { TauriRouter } from "../../utils/tauri-router";
+import FilesView from "./files-view";
 
 export default function NewTemplateView() {
   const newProjectContext = useContext(NewProjectContext.Context);
@@ -44,6 +45,10 @@ export default function NewTemplateView() {
         <ValidateInputContext.User>
           <Fields finalPath={finalPath} />
         </ValidateInputContext.User>
+
+        <div>
+          <FilesView startAtRoot />
+        </div>
 
         <NewProjectOverview noOverflow customOutputPath={finalPath} />
       </div>

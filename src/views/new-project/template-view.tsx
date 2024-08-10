@@ -159,6 +159,7 @@ export default function TemplateView() {
     const templates = await TauriRouter.get_surface_templates(
       editorVersion.version
     );
+    selectTemplate(undefined);
     surfaceTemplates.set(templates);
   }, [initialTemplateInfo.editorVersion]);
 
@@ -209,7 +210,7 @@ export default function TemplateView() {
     selectedCategory.set(categories[0]);
   }, []);
 
-  function selectTemplate(x: TauriTypes.SurfaceTemplate) {
+  function selectTemplate(x?: TauriTypes.SurfaceTemplate) {
     newProjectContext.dispatch({
       type: "set_initial_template",
       template: x,
@@ -256,6 +257,7 @@ export default function TemplateView() {
         <TemplateInfo
           value={selectedPackageWrapper}
           tgzJson={selectedTgzJson}
+          loadSurfacePackages={loadSurfacePackages}
         />
       )}
     </div>
@@ -355,6 +357,7 @@ function Template({
 function TemplateInfo({
   value,
   tgzJson,
+  loadSurfacePackages,
 }: {
   value: {
     _template: TauriTypes.SurfaceTemplate;
@@ -362,6 +365,7 @@ function TemplateInfo({
     category: string | undefined;
   };
   tgzJson: UseState<LazyValue<TauriTypes.TgzPackageJsonRecord>>;
+  loadSurfacePackages: () => void;
 }) {
   const newProjectContext = useContext(NewProjectContext.Context);
   const initialTemplateInfo = useMemo(() => {
@@ -400,6 +404,12 @@ function TemplateInfo({
     switch (id) {
       case "open":
         TauriRouter.show_path_in_file_manager(value._template.path);
+        break;
+      case "delete":
+        TauriRouter.delete_template(
+          value._template,
+          newProjectContext.state.initialTemplateInfo.editorVersion.version
+        ).then(loadSurfacePackages);
         break;
     }
 
@@ -514,6 +524,12 @@ function TemplateInfo({
         <Item id="open" onClick={pressMenuItem}>
           Open in Explorer
         </Item>
+
+        {value.category === "Custom" && (
+          <Item id="delete" onClick={pressMenuItem}>
+            Delete
+          </Item>
+        )}
       </Menu>
     </div>
   );

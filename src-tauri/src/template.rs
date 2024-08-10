@@ -399,3 +399,36 @@ pub async fn cmd_get_template_file_paths(app_handle: tauri::AppHandle, surface_t
 
   Ok(paths)
 }
+
+#[tauri::command]
+pub fn cmd_delete_template(app_state: tauri::State<'_, AppState>, surface_template: SurfaceTemplate, editor_version: String) -> Result<(), errors::AnyError> {
+  std::fs::remove_file(&surface_template.path)?;
+
+  let prefs = app::get_prefs(&app_state)?;
+  let template_manifest_path = &prefs.hub_appdata_path
+    .ok_or(errors::str_error("hub_appdata_path not set"))?
+    .join("Templates")
+    .join("manifest.json");
+
+  let template_manifest_str = std::fs::read_to_string(&template_manifest_path)?;
+  let mut template_manifest_json: serde_json::Map<String, serde_json::Value> = serde_json::from_str(&template_manifest_str)?;
+
+  if !template_manifest_json.contains_key(&editor_version) { 
+    return Ok(());
+  }
+
+  let editor_version_entry = template_manifest_json.get_mut(&editor_version)
+    .ok_or(errors::str_error("Failed to get editor version entry"))?
+    .as_object_mut()
+    .ok_or(errors::str_error("Failed to get editor version entry"))?;
+
+  if let Some(dependency_map) = editor_version_entry.get_mut("dependencies") {
+    if let Some(dependency_map) = dependency_map.as_object_mut() {
+      dependency_map.remove(surface_template.name.as_str());
+      let template_manifest_str = serde_json::to_string(&template_manifest_json)?;
+      std::fs::write(&template_manifest_path, template_manifest_str)?;
+    }
+  }
+
+  Ok(())
+}

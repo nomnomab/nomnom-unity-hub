@@ -13,7 +13,7 @@ import FolderOpen from "../../components/svg/folder-open";
 
 const cannotExclude = ["package.json/", "package.json.meta/"];
 
-export default function FilesView() {
+export default function FilesView(props: { startAtRoot?: boolean }) {
   const newProjectContext = useContext(NewProjectContext.Context);
   const filesInfo = useMemo(() => {
     return newProjectContext.state.filesInfo;
@@ -117,9 +117,9 @@ export default function FilesView() {
         const newFiles = await TauriRouter.get_template_file_paths(
           newProjectContext.state.initialTemplateInfo.selectedTemplate!
         );
-        const projectData = newFiles.children?.find(
-          (x) => x.name === "ProjectData~"
-        );
+        const projectData = props.startAtRoot
+          ? newFiles
+          : newFiles.children?.find((x) => x.name === "ProjectData~");
         files.set({ status: "success", value: projectData ?? newFiles });
         newProjectContext.dispatch({
           type: "set_files_root",

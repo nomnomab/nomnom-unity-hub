@@ -1,8 +1,8 @@
 use std::{collections::HashMap, path::PathBuf};
 
-use flate2::read::GzDecoder;
+use flate2::{read::GzDecoder, write::GzEncoder};
 
-use crate::{editor::UnityEditorInstall, errors, io_utils, package::MinimalPackage, template::SurfaceTemplate};
+use crate::{app::{self, AppState}, editor::UnityEditorInstall, errors, io_utils, package::MinimalPackage, template::SurfaceTemplate};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -43,6 +43,7 @@ pub fn generate_project(app: &tauri::AppHandle, project_info: &ProjectInfoForGen
 
   // create project directory
   std::fs::create_dir(&package_cache_dir_out)?;
+  std::fs::create_dir(&package_cache_dir_out.join("Assets"))?;
 
   // copy contents from ProjectData~ to output
   let project_data_root = PathBuf::from("package").join("ProjectData~");
@@ -85,11 +86,36 @@ pub fn generate_project(app: &tauri::AppHandle, project_info: &ProjectInfoForGen
 }
 
 // generate a new template file
-pub fn generate_template(app: &tauri::AppHandle, template_info: &NewTemplateInfo) -> Result<PathBuf, errors::AnyError> {
+pub fn generate_template(app: &tauri::AppHandle, app_state: &tauri::State<AppState>, template_info: &NewTemplateInfo) -> Result<PathBuf, errors::AnyError> {
   let package_cache_dir = io_utils::get_cache_appended_dir(app, "new_template_package");
   unpack_package_into_cache(&package_cache_dir, &template_info.template)?;
   modify_package_json(&package_cache_dir, &template_info.template.packages)?;
 
+  // modify package.json
+  let package_json_path = package_cache_dir
+    .join("package")
+    .join("package.json");
+
+  let mut dependency_map = serde_json::Map::new();
+  for package in template_info.template.packages.iter() {
+    let name = package.name.clone();
+    let version = package.version.clone();
+    dependency_map.insert(name, serde_json::Value::String(version));
+  }
+  
+  let new_package_json = serde_json::json!({
+    "name": template_info.name.clone(),
+    "displayName": template_info.display_name.clone(),
+    "version": template_info.version.clone(),
+    "type": "template",
+    "host": "hub",
+    "unity": template_info.template.editor_version.version.clone(),
+    "description": template_info.description.clone(),
+    "dependencies": dependency_map,
+  });
+  println!("Writing new package.json: {}", package_json_path.display());
+  std::fs::write(&package_json_path, serde_json::to_string_pretty(&new_package_json)?)?;
+  
   let package_cache_dir_out = io_utils::get_cache_appended_dir(app, "new_template_package_output");
 
   // copy contents from package to output
@@ -113,10 +139,65 @@ pub fn generate_template(app: &tauri::AppHandle, template_info: &NewTemplateInfo
     }
   }
 
+  std::fs::create_dir_all(&package_cache_dir_out.join("ProjectData~"))?;
+  std::fs::create_dir_all(&package_cache_dir_out.join("ProjectData~").join("Assets"))?;
+  std::fs::create_dir_all(&package_cache_dir_out.join("ProjectData~").join("Packages"))?;
+
+  // let project_settings_path = &package_cache_dir_out.join("ProjectData~").join("ProjectSettings");
+  // let project_settings_path_exists = project_settings_path.exists();
+  // std::fs::create_dir_all(&project_settings_path)?;
+
+  // if !project_settings_path_exists {
+  //   let project_version_txt = format!("m_EditorVersion: {}", template_info.template.editor_version.version.clone());
+  //   std::fs::write(&project_settings_path.join("ProjectVersion.txt"), project_version_txt)?;
+  // }
+
+  // build a new tgz file
+  let prefs = app::get_prefs(&app_state)?;
+  let output_path = &prefs.hub_appdata_path.clone()
+    .ok_or(errors::str_error("hub_appdata_path not set"))?
+    .join("Templates")
+    .join(format!("{}-{}.tgz", template_info.name, template_info.version));
+
+  let tgz = GzEncoder::new(std::fs::File::create(&output_path)?, flate2::Compression::default());
+  let mut tar = tar::Builder::new(tgz);
+  tar.append_dir_all("package", &package_cache_dir_out)?;
+  tar.finish()?;
+
   // remove cache
   std::fs::remove_dir_all(&package_cache_dir)?;
+  std::fs::remove_dir_all(&package_cache_dir_out)?;
+
+  // modify the appdata template manifest.json
+  let template_manifest_path = &prefs.hub_appdata_path
+    .ok_or(errors::str_error("hub_appdata_path not set"))?
+    .join("Templates")
+    .join("manifest.json");
+
+  let template_manifest_str = std::fs::read_to_string(&template_manifest_path)?;
+  let mut template_manifest_json: serde_json::Map<String, serde_json::Value> = serde_json::from_str(&template_manifest_str)?;
+
+  // make version if needed
+  let editor_version = template_info.template.editor_version.version.clone();
+  if !template_manifest_json.contains_key(&editor_version) { 
+    template_manifest_json.insert(editor_version.clone(), serde_json::json!({}));
+  }
+  let editor_version_entry = template_manifest_json.get_mut(&editor_version)
+    .ok_or(errors::str_error("Failed to get editor version entry"))?;
+
+  let dependency_map = editor_version_entry
+    .as_object_mut()
+    .ok_or(errors::str_error("Failed to get editor version entry"))?
+    .get_mut("dependencies")
+    .ok_or(errors::str_error("Failed to get editor version entry"))?
+    .as_object_mut()
+    .ok_or(errors::str_error("Failed to get editor version entry"))?;
+
+  dependency_map.insert(template_info.name.clone(), serde_json::Value::String(template_info.version.clone()));
+  let template_manifest_str = serde_json::to_string(&template_manifest_json)?;
+  std::fs::write(&template_manifest_path, template_manifest_str)?;
   
-  Ok(package_cache_dir_out)
+  Ok(output_path.clone())
 }
 
 fn unpack_package_into_cache(output: &PathBuf, template_info: &TemplateInfoForGeneration) -> Result<(), errors::AnyError> {
@@ -184,7 +265,7 @@ pub async fn cmd_generate_project(app: tauri::AppHandle, project_info: ProjectIn
 }
 
 #[tauri::command]
-pub async fn cmd_generate_template(app: tauri::AppHandle, template_info: NewTemplateInfo) -> Result<PathBuf, errors::AnyError> {
-  let output = generate_template(&app, &template_info)?;
+pub async fn cmd_generate_template(app: tauri::AppHandle, app_state: tauri::State<'_, AppState>, template_info: NewTemplateInfo) -> Result<PathBuf, errors::AnyError> {
+  let output = generate_template(&app, &app_state, &template_info)?;
   Ok(output)
 }
