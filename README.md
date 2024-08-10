@@ -7,6 +7,9 @@
 - Project creation
   - Select a template to start from, or start from scratch
   - Select the specific packages you want
+    - Supports internal packages
+    - Supports git packages
+    - Supports local file packages
   - Select the files/folders you want from the template
   - Can override the template's internal project entirely
 - Template creation
