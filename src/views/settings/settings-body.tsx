@@ -11,11 +11,14 @@ import AsyncLazyValueComponent from "../../components/async-lazy-value-component
 import LoadingSpinner from "../../components/svg/loading-spinner";
 import { TauriRouter } from "../../utils/tauri-router";
 import { open } from "@tauri-apps/api/dialog";
+import * as shell from "@tauri-apps/api/shell";
+import { GlobalContext } from "../../context/global-context";
 
 export default function SettingsBody(props: {
   overrideClassName?: string;
   onBadPref?: (bad: boolean) => void;
 }) {
+  const globalContext = useContext(GlobalContext.Context);
   const lazyPrefs = useBetterState<LazyValue<TauriTypes.Prefs>>({
     status: "loading",
     value: null,
@@ -45,6 +48,18 @@ export default function SettingsBody(props: {
           )}
         </AsyncLazyValueComponent>
       </ValidateInputContext.User>
+
+      {globalContext.state.currentTab === "settings" && (
+        <p
+          className="text-sm text-red-400 underline-offset-4 select-none cursor-pointer hover:underline transition-all"
+          title="https://github.com/nomnomab/nomnom-unity-hub/issues"
+          onClick={() =>
+            shell.open("https://github.com/nomnomab/nomnom-unity-hub/issues")
+          }
+        >
+          Report an issue
+        </p>
+      )}
     </div>
   );
 }

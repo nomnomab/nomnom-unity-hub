@@ -1,6 +1,10 @@
 import { ButtonHTMLAttributes, useContext } from "react";
 import { open } from "@tauri-apps/api/shell";
 import { GlobalContext } from "../context/global-context";
+import { getVersion } from "@tauri-apps/api/app";
+import AsyncComponent from "./async-component";
+
+const appVersion = await getVersion();
 
 export default function MainSidebar() {
   return (
@@ -14,41 +18,47 @@ export default function MainSidebar() {
 function Options() {
   const globalContext = useContext(GlobalContext.Context);
   return (
-    <div className="px-4 gap-3 flex flex-col flex-grow pb-3">
-      <OptionItem
-        title="Projects"
-        selected={globalContext.state.currentTab === "projects"}
-        onClick={() =>
-          globalContext.dispatch({ type: "change_tab", tab: "projects" })
-        }
-      />
-      <OptionItem
-        title="Editors"
-        selected={globalContext.state.currentTab === "editors"}
-        onClick={() =>
-          globalContext.dispatch({ type: "change_tab", tab: "editors" })
-        }
-      />
+    <>
+      <div className="px-4 gap-3 flex flex-col flex-grow pb-3">
+        <OptionItem
+          title="Projects"
+          selected={globalContext.state.currentTab === "projects"}
+          onClick={() =>
+            globalContext.dispatch({ type: "change_tab", tab: "projects" })
+          }
+        />
+        <OptionItem
+          title="Editors"
+          selected={globalContext.state.currentTab === "editors"}
+          onClick={() =>
+            globalContext.dispatch({ type: "change_tab", tab: "editors" })
+          }
+        />
 
-      <OptionItem
-        title="Settings"
-        selected={globalContext.state.currentTab === "settings"}
-        onClick={() =>
-          globalContext.dispatch({ type: "change_tab", tab: "settings" })
-        }
-        className="mt-auto"
-      />
+        <OptionItem
+          title="Settings"
+          selected={globalContext.state.currentTab === "settings"}
+          onClick={() =>
+            globalContext.dispatch({ type: "change_tab", tab: "settings" })
+          }
+          className="mt-auto"
+        />
+      </div>
+      <div className="px-4 gap-1 flex flex-col pb-3">
+        <p className="text-sm text-stone-400 select-none px-3">
+          <span className="text-xs">Made by</span> <br />
+          <span
+            className="text-stone-300 transition-colors hover:text-stone-50 hover:underline cursor-pointer"
+            title="https://github.com/nomnomab"
+            onClick={() => open("https://github.com/nomnomab")}
+          >
+            Andrew Burke
+          </span>
+        </p>
 
-      <p className="text-sm text-stone-400 select-none px-3">
-        Made by <br />
-        <span
-          className="text-stone-300 transition-colors hover:text-stone-50 hover:underline cursor-pointer"
-          onClick={() => open("https://github.com/nomnomab")}
-        >
-          Andrew Burke
-        </span>
-      </p>
-    </div>
+        <p className="text-xs text-stone-400 select-none px-3">v{appVersion}</p>
+      </div>
+    </>
   );
 }
 
