@@ -32,6 +32,25 @@ export default function BasicInfoView({
 
   useEffect(() => {});
 
+  return (
+    <>
+      <ValidateInputContext.User>
+        <Info />
+      </ValidateInputContext.User>
+
+      <Overview />
+    </>
+  );
+}
+
+function Info() {
+  const newProjectContext = useContext(NewProjectContext.Context);
+  const basicInfo = useMemo(() => {
+    return newProjectContext.state.basicInfo;
+  }, [newProjectContext.state.basicInfo]);
+
+  const validateContext = useContext(ValidateInputContext.Context);
+
   async function selectProjectFolder() {
     const path = await open({
       directory: true,
@@ -47,62 +66,71 @@ export default function BasicInfoView({
     });
   }
 
+  useEffect(() => {
+    ValidateInputContext.isBadPath(basicInfo.path).then((err) => {
+      validateContext.dispatch({
+        type: "set_error",
+        key: "projectPath",
+        value: err,
+      });
+    });
+  }, [basicInfo.name, basicInfo.path]);
+
+  useEffect(() => {
+    newProjectContext.dispatch({
+      type: "set_has_error",
+      hasError: Object.values(validateContext.state.hasError).some((v) => v),
+    });
+  }, [validateContext.state.hasError]);
+
   return (
-    <>
-      <ValidateInputContext onErrorChanged={hasFieldError.set}>
-        <div className="flex flex-col gap-2 overflow-y-auto pt-4 flex-shrink-0">
-          <ValidateInput
-            label="Project Name"
-            name="projectName"
-            value={basicInfo.name}
-            errorMessage={() => "Project name cannot be empty"}
-            hasError={() => !basicInfo.name || basicInfo.name.length === 0}
-            onChange={(e) => {
-              console.log(e.target.value);
-              newProjectContext.dispatch({
-                type: "set_basic_info_name",
-                name: e.target.value,
-              });
-            }}
-            className="w-full p-2 rounded-md border border-stone-600 bg-stone-800"
-          />
+    <div className="flex flex-col gap-2 overflow-y-auto pt-4 flex-shrink-0">
+      <ValidateInput
+        label="Project Name"
+        name="projectName"
+        value={basicInfo.name}
+        hasError={() =>
+          ValidateInputContext.isEmptyString(basicInfo.name) ||
+          validateContext.state.hasError["projectName"]
+        }
+        onChange={(e) => {
+          console.log(e.target.value);
+          newProjectContext.dispatch({
+            type: "set_basic_info_name",
+            name: e.target.value,
+          });
+        }}
+        className="w-full p-2 rounded-md border border-stone-600 bg-stone-800"
+      />
 
-          <ValidateInputWithButton
-            label="Project Path"
-            name="projectPath"
-            value={basicInfo.path}
-            errorMessage={() => {
-              if (!basicInfo.path || basicInfo.path.length === 0) {
-                return "Project path cannot be empty";
-              }
-
-              return "error";
-            }}
-            hasError={() => !basicInfo.path || basicInfo.path.length === 0}
-            onChange={(e) =>
-              newProjectContext.dispatch({
-                type: "set_basic_info_path",
-                path: e.target.value,
-              })
-            }
-            className="w-full p-2 rounded-md border rounded-tr-none rounded-br-none border-r-0 border-stone-600 bg-stone-800"
-            divProps={{
-              className: "flex-grow",
-            }}
-          >
-            <button
-              className="hover:text-stone-50 border-stone-600 w-[40px] flex items-center justify-center aspect-square rounded-md rounded-tl-none rounded-bl-none text-stone-50 hover:bg-stone-500 p-2 border"
-              onClick={selectProjectFolder}
-            >
-              <FolderOpen />
-            </button>
-          </ValidateInputWithButton>
-          {/* <div className="h-[5000px]"></div> */}
-        </div>
-      </ValidateInputContext>
-
-      <Overview />
-    </>
+      <ValidateInputWithButton
+        label="Project Path"
+        name="projectPath"
+        value={basicInfo.path}
+        hasError={() =>
+          ValidateInputContext.isEmptyString(basicInfo.path) ||
+          validateContext.state.hasError["projectPath"]
+        }
+        onChange={(e) =>
+          newProjectContext.dispatch({
+            type: "set_basic_info_path",
+            path: e.target.value,
+          })
+        }
+        className="w-full p-2 rounded-md border rounded-tr-none rounded-br-none border-r-0 border-stone-600 bg-stone-800"
+        divProps={{
+          className: "flex-grow",
+        }}
+      >
+        <button
+          className="hover:text-stone-50 border-stone-600 w-[40px] flex items-center justify-center aspect-square rounded-md rounded-tl-none rounded-bl-none text-stone-50 hover:bg-stone-500 p-2 border"
+          onClick={selectProjectFolder}
+        >
+          <FolderOpen />
+        </button>
+      </ValidateInputWithButton>
+      {/* <div className="h-[5000px]"></div> */}
+    </div>
   );
 }
 

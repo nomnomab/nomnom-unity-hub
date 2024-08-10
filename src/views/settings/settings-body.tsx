@@ -4,7 +4,6 @@ import {
   ValidateInputWithButton,
 } from "../../components/validate-input";
 import useBetterState from "../../hooks/useBetterState";
-import { GlobalContext } from "../../context/global-context";
 import FolderOpen from "../../components/svg/folder-open";
 import { TauriTypes } from "../../utils/tauri-types";
 import { LazyValue, UseState } from "../../utils";
