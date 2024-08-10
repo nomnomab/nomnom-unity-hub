@@ -69,7 +69,9 @@ export default function NewProjectBody() {
         template: initialTemplateInfo.selectedTemplate,
         editorVersion: initialTemplateInfo.editorVersion,
         packages: packages.filter((x) =>
-          pack.selectedPackages.includes(x.name)
+          pack.selectedPackages.some(
+            (y) => y.name === x.name && y.version === x.version
+          )
         ),
         selectedFiles: [
           "package/package.json",
@@ -134,7 +136,9 @@ export default function NewProjectBody() {
         template: template.selectedTemplate,
         editorVersion: template.editorVersion,
         packages: packages.filter((x) =>
-          pack.selectedPackages.includes(x.name)
+          pack.selectedPackages.some(
+            (y) => y.name === x.name && y.version === x.version
+          )
         ),
         selectedFiles: trimmedPaths,
       };

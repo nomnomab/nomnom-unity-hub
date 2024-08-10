@@ -34,6 +34,10 @@ fn main() {
             cache::cmd_get_user_cache,
             cache::cmd_save_user_cache,
             cache::cmd_set_user_cache_value,
+            cache::cmd_add_git_package_to_cache,
+            cache::cmd_add_local_package_to_cache,
+            cache::cmd_remove_git_package_from_cache,
+            cache::cmd_remove_local_package_from_cache,
             // project
             project::cmd_get_default_project_path,
             project::cmd_remove_missing_projects,

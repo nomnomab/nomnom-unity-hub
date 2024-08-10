@@ -71,7 +71,12 @@ export namespace NewProjectContext {
   interface PackageInfo {
     gitPackages: TauriTypes.MinimalPackage[];
     localPackages: TauriTypes.MinimalPackage[];
-    selectedPackages: string[];
+    selectedPackages: SelectedPackage[];
+  }
+
+  interface SelectedPackage {
+    name: string;
+    version?: string;
   }
 
   interface FilesInfo {
@@ -142,7 +147,7 @@ export namespace NewProjectContext {
       }
     | {
         type: "set_packages";
-        packages: string[];
+        packages: SelectedPackage[];
       }
     | { type: "set_files_root"; root: TauriTypes.FileDir }
     | { type: "set_files_open_folders"; folders: string[] }
@@ -156,7 +161,9 @@ export namespace NewProjectContext {
     | { type: "set_new_template_version"; version: string }
     | { type: "set_new_template_description"; description: string }
     | { type: "add_git_package"; package: { id: string; url: string } }
-    | { type: "add_local_package"; package: { path: string } };
+    | { type: "add_local_package"; package: { path: string } }
+    | { type: "remove_git_package"; package: TauriTypes.MinimalPackage }
+    | { type: "remove_local_package"; package: TauriTypes.MinimalPackage };
 
   const reducer = (state: State, action: Action): State => {
     switch (action.type) {
@@ -321,6 +328,30 @@ export namespace NewProjectContext {
                 type: TauriTypes.PackageType.Local,
               },
             ],
+          },
+        };
+      case "remove_git_package":
+        return {
+          ...state,
+          packageInfo: {
+            ...state.packageInfo,
+            gitPackages: state.packageInfo.gitPackages.filter(
+              (x) =>
+                x.name !== action.package.name &&
+                x.version !== action.package.version
+            ),
+          },
+        };
+      case "remove_local_package":
+        return {
+          ...state,
+          packageInfo: {
+            ...state.packageInfo,
+            localPackages: state.packageInfo.localPackages.filter(
+              (x) =>
+                x.name !== action.package.name &&
+                x.version !== action.package.version
+            ),
           },
         };
       default:

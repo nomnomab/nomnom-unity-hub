@@ -3,6 +3,7 @@ import { TauriTypes } from "./tauri-types";
 
 export namespace TauriRouter {
   // app
+
   export async function show_path_in_file_manager(path: string): Promise<void> {
     return invoke("cmd_show_path_in_file_manager", { path });
   }
@@ -20,6 +21,7 @@ export namespace TauriRouter {
   }
 
   // prefs
+
   export async function get_prefs(): Promise<TauriTypes.Prefs> {
     return invoke("cmd_get_prefs");
   }
@@ -58,6 +60,34 @@ export namespace TauriRouter {
     value: any
   ): Promise<void> {
     return invoke("cmd_set_user_cache_value", { key, value });
+  }
+
+  export async function add_git_package_to_cache(
+    _package: TauriTypes.MinimalPackage
+  ): Promise<void> {
+    return invoke("cmd_add_git_package_to_cache", { ["package"]: _package });
+  }
+
+  export async function remove_git_package_from_cache(
+    _package: TauriTypes.MinimalPackage
+  ): Promise<void> {
+    return invoke("cmd_remove_git_package_from_cache", {
+      ["package"]: _package,
+    });
+  }
+
+  export async function add_local_package_to_cache(
+    _package: TauriTypes.MinimalPackage
+  ): Promise<void> {
+    return invoke("cmd_add_local_package_to_cache", { ["package"]: _package });
+  }
+
+  export async function remove_local_package_from_cache(
+    _package: TauriTypes.MinimalPackage
+  ): Promise<void> {
+    return invoke("cmd_remove_local_package_from_cache", {
+      ["package"]: _package,
+    });
   }
 
   // project

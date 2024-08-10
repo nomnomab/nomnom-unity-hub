@@ -23,6 +23,8 @@ export namespace TauriTypes {
 
   export interface UserCache {
     lastEditorVersion?: string;
+    gitPackages: TauriTypes.MinimalPackage[];
+    localPackages: TauriTypes.MinimalPackage[];
   }
 
   export enum UserCacheKey {
