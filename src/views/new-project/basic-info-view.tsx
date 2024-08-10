@@ -70,8 +70,11 @@ function Info() {
     ValidateInputContext.isBadPath(basicInfo.path).then((err) => {
       validateContext.dispatch({
         type: "set_error",
-        key: "projectPath",
+        key: "empty_project_path",
         value: err,
+      });
+      validateContext.dispatch({
+        type: "refresh",
       });
     });
   }, [basicInfo.name, basicInfo.path]);
@@ -89,10 +92,7 @@ function Info() {
         label="Project Name"
         name="projectName"
         value={basicInfo.name}
-        hasError={() =>
-          ValidateInputContext.isEmptyString(basicInfo.name) ||
-          validateContext.state.hasError["projectName"]
-        }
+        hasError={() => ValidateInputContext.isEmptyString(basicInfo.name)}
         onChange={(e) => {
           console.log(e.target.value);
           newProjectContext.dispatch({
@@ -109,7 +109,7 @@ function Info() {
         value={basicInfo.path}
         hasError={() =>
           ValidateInputContext.isEmptyString(basicInfo.path) ||
-          validateContext.state.hasError["projectPath"]
+          validateContext.state.hasError["empty_project_path"]
         }
         onChange={(e) =>
           newProjectContext.dispatch({

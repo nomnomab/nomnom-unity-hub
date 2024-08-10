@@ -44,12 +44,69 @@ export default function NewProjectBody() {
 
   async function gotoNextTab() {
     const selectedTab = newProjectContext.state.tab;
+    if (selectedTab === "new-template") {
+      isLoading.set(true);
+
+      // create template
+      const initialTemplateInfo = newProjectContext.state.initialTemplateInfo;
+      const pack = newProjectContext.state.packageInfo;
+      const files = newProjectContext.state.filesInfo;
+      const newTemplateInfo = newProjectContext.state.newTemplateInfo;
+
+      const packages = await TauriRouter.get_default_editor_packages(
+        initialTemplateInfo.editorVersion.version
+      );
+
+      let paths: string[] = [];
+      let rootMap = new Map<string, number>();
+
+      if (files.root) {
+        fileDirToPaths(files.selectedFiles, files.root, "", paths, rootMap);
+      }
+
+      const trimmedPaths = paths.filter((path) => rootMap.get(path) === 1);
+      const templateInfo: TauriTypes.TemplateInfoForGeneration = {
+        template: initialTemplateInfo.selectedTemplate,
+        editorVersion: initialTemplateInfo.editorVersion,
+        packages: packages.filter((x) =>
+          pack.selectedPackages.includes(x.name)
+        ),
+        selectedFiles: trimmedPaths,
+      };
+      const template: TauriTypes.NewTemplateInfo = {
+        template: templateInfo,
+        ...newTemplateInfo,
+      };
+
+      try {
+        const output = await TauriRouter.generate_template(template);
+        isLoading.set(false);
+
+        console.log(output);
+
+        // await TauriRouter.add_project(output);
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        globalContext.dispatch({ type: "change_tab", tab: "projects" });
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        globalContext.dispatch({ type: "change_tab", tab: "new_project" });
+      } catch (e) {
+        console.error(e);
+        isLoading.set(false);
+      }
+
+      isLoading.set(false);
+      return;
+    }
+
     if (!NewProjectContext.onLastTab(selectedTab)) {
       newProjectContext.dispatch({
         type: "change_tab",
         tab: NewProjectContext.getNextTab(selectedTab)!,
       });
-    } else {
+    } else if (selectedTab === "info") {
+      isLoading.set(true);
+
       // create project
       const basicInfo = newProjectContext.state.basicInfo;
       const template = newProjectContext.state.initialTemplateInfo;
@@ -63,37 +120,9 @@ export default function NewProjectBody() {
       let paths: string[] = [];
       let rootMap = new Map<string, number>();
 
-      function fileDirToPaths(fileDir: TauriTypes.FileDir, path: string) {
-        if (path !== "" && !files.selectedFiles.includes(fileDir.id)) {
-          return;
-        }
-
-        const isRoot = path === "";
-        path += fileDir.name;
-
-        if (!isRoot) {
-          paths.push(path);
-
-          const components = path.split("/");
-          let part = "";
-          components.forEach((component) => {
-            part += (part !== "" ? "/" : "") + component;
-            if (rootMap.has(part)) {
-              rootMap.set(part, rootMap.get(part)! + 1);
-            } else {
-              rootMap.set(part, 1);
-            }
-          });
-        }
-
-        if (fileDir.children) {
-          for (const child of fileDir.children) {
-            fileDirToPaths(child, path + "/");
-          }
-        }
+      if (files.root) {
+        fileDirToPaths(files.selectedFiles, files.root, "", paths, rootMap);
       }
-
-      if (files.root) fileDirToPaths(files.root, "");
 
       const trimmedPaths = paths.filter((path) => rootMap.get(path) === 1);
       const templateInfo: TauriTypes.TemplateInfoForGeneration = {
@@ -109,7 +138,6 @@ export default function NewProjectBody() {
         path: basicInfo.path,
       };
 
-      isLoading.set(true);
       try {
         const output = await TauriRouter.generate_project(
           projectInfo,
@@ -128,6 +156,8 @@ export default function NewProjectBody() {
         isLoading.set(false);
       }
     }
+
+    isLoading.set(false);
   }
 
   const selectedTab = newProjectContext.state.tab;
@@ -216,7 +246,10 @@ export default function NewProjectBody() {
       >
         <div className="bg-[#000000aa] fixed left-0 right-0 top-0 bottom-0 w-full h-full flex items-center justify-center">
           <div className="bg-stone-900 border border-stone-600 outline-none w-full max-w-xl px-4 py-8 flex flex-col items-center">
-            <p>Creating your project...</p>
+            <p>
+              Creating your{" "}
+              {selectedTab === "new-template" ? "template" : "project"}...
+            </p>
             <p className="text-sm text-stone-400 pb-4">
               This might take a little bit
             </p>
@@ -226,4 +259,40 @@ export default function NewProjectBody() {
       </Popup>
     </div>
   );
+}
+
+function fileDirToPaths(
+  selectedFiles: string[],
+  fileDir: TauriTypes.FileDir,
+  path: string,
+  paths: string[],
+  rootMap: Map<string, number>
+) {
+  if (path !== "" && !selectedFiles.includes(fileDir.id)) {
+    return;
+  }
+
+  const isRoot = path === "";
+  path += fileDir.name;
+
+  if (!isRoot) {
+    paths.push(path);
+
+    const components = path.split("/");
+    let part = "";
+    components.forEach((component) => {
+      part += (part !== "" ? "/" : "") + component;
+      if (rootMap.has(part)) {
+        rootMap.set(part, rootMap.get(part)! + 1);
+      } else {
+        rootMap.set(part, 1);
+      }
+    });
+  }
+
+  if (fileDir.children) {
+    for (const child of fileDir.children) {
+      fileDirToPaths(selectedFiles, child, path + "/", paths, rootMap);
+    }
+  }
 }

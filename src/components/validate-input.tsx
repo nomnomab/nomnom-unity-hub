@@ -13,13 +13,18 @@ export namespace ValidateInputContext {
 
   type State = {
     hasError: ErrorMap;
+    refresh: number;
   };
 
-  type Action = {
-    type: "set_error";
-    key: string;
-    value: Error | null;
-  };
+  type Action =
+    | {
+        type: "set_error";
+        key: string;
+        value: Error | null;
+      }
+    | {
+        type: "refresh";
+      };
 
   const reducer = (state: State, action: Action) => {
     switch (action.type) {
@@ -31,6 +36,13 @@ export namespace ValidateInputContext {
             [action.key]: action.value,
           },
         };
+      case "refresh":
+        return {
+          ...state,
+          refresh: state.refresh + 1,
+        };
+      default:
+        return state;
     }
   };
 
@@ -39,6 +51,7 @@ export namespace ValidateInputContext {
   export function User(props: React.PropsWithChildren) {
     const [state, dispatch] = useReducer(reducer, {
       hasError: {},
+      refresh: 0,
     });
 
     return (
@@ -147,12 +160,12 @@ export function ValidateInput({
       key: props.name ?? "",
       value: hasError && hasError(),
     });
-  }, [value]);
+  }, [value, state.refresh]);
 
   // const hasErrorCheck = state.hasError[props.name ?? ""] ?? false;
   const error = React.useMemo(() => {
     return (!state.hasError || state.hasError[props.name ?? ""]) ?? false;
-  }, [state.hasError, props.name]);
+  }, [state.hasError, props.name, value, state.refresh]);
 
   return (
     <div {...divProps} className={`flex flex-col ${divProps?.className ?? ""}`}>
@@ -197,12 +210,12 @@ export function ValidateInputWithButton({
       key: props.name ?? "",
       value: hasError && hasError(),
     });
-  }, [value]);
+  }, [value, state.refresh]);
 
   // const hasErrorCheck = state.hasError[props.name ?? ""] ?? false;
   const error = React.useMemo(() => {
     return (!state.hasError || state.hasError[props.name ?? ""]) ?? false;
-  }, [state.hasError, props.name]);
+  }, [state.hasError, props.name, value, state.refresh]);
 
   return (
     <div {...divProps} className={`flex flex-col ${divProps?.className ?? ""}`}>
@@ -246,12 +259,12 @@ export function ValidateTextArea({
       key: props.name ?? "",
       value: hasError && hasError(),
     });
-  }, [value]);
+  }, [value, state.refresh]);
 
   // const hasErrorCheck = state.hasError[props.name ?? ""] ?? false;
   const error = React.useMemo(() => {
     return (!state.hasError || state.hasError[props.name ?? ""]) ?? false;
-  }, [state.hasError, props.name]);
+  }, [state.hasError, props.name, value, state.refresh]);
 
   return (
     <div {...divProps} className={`flex flex-col ${divProps?.className ?? ""}`}>
