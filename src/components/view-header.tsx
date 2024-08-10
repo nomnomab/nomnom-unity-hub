@@ -1,7 +1,7 @@
-import React from "react";
+import React, { ReactNode } from "react";
 
 type Props = {
-  title: string;
+  title: string | ReactNode;
   titleChildren?: React.ReactNode;
 } & React.PropsWithChildren;
 export default function ViewHeader(props: Props) {

@@ -8,6 +8,7 @@ import { LazyValue } from "../../utils";
 import { TauriTypes } from "../../utils/tauri-types";
 import { TauriRouter } from "../../utils/tauri-router";
 import { NewProjectContext } from "../../context/new-project-context";
+import ChevronDown from "../../components/svg/chevron-down";
 
 export default function NewProjectHeader() {
   const newProjectContext = useContext(NewProjectContext.Context);
@@ -54,9 +55,19 @@ export default function NewProjectHeader() {
   return (
     <ViewHeader
       title={
-        newProjectContext.state.tab === "new-template"
-          ? "New Template"
-          : "New Project"
+        newProjectContext.state.tab === "new-template" ? (
+          "New Template"
+        ) : (
+          <span className="flex items-center">
+            New Project{" "}
+            <span className="ml-2">
+              <ChevronDown className="-rotate-90" width={30} height={30} />
+            </span>
+            <span className="text-stone-400">
+              {newProjectContext.state.tab}
+            </span>
+          </span>
+        )
       }
     >
       <div className="ml-auto" />
