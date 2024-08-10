@@ -1,9 +1,11 @@
 import { useContext, useEffect, useMemo, useRef } from "react";
 import { NewProjectContext } from "../../context/new-project-context";
 import useBetterState from "../../hooks/useBetterState";
-import { LazyValue, UseState } from "../../utils";
+import { LazyValue, LazyVoid, UseState } from "../../utils";
 import { TauriTypes } from "../../utils/tauri-types";
-import AsyncLazyValueComponent from "../../components/async-lazy-value-component";
+import AsyncLazyValueComponent, {
+  AsyncLazyVoidComponent,
+} from "../../components/async-lazy-value-component";
 import LoadingSpinner from "../../components/svg/loading-spinner";
 import { TauriRouter } from "../../utils/tauri-router";
 import Checkmark from "../../components/svg/checkmark";
@@ -18,9 +20,8 @@ export default function FilesView(props: { startAtRoot?: boolean }) {
   const filesInfo = useMemo(() => {
     return newProjectContext.state.filesInfo;
   }, [newProjectContext.state.filesInfo]);
-  const files = useBetterState<LazyValue<TauriTypes.FileDir>>({
+  const loadingFiles = useBetterState<LazyVoid>({
     status: "loading",
-    value: null,
   });
   const isNewFile = useBetterState(false);
   const noDeselectFiles = useBetterState<string[]>([]);
@@ -32,13 +33,29 @@ export default function FilesView(props: { startAtRoot?: boolean }) {
     });
   }, [noDeselectFiles.value]);
 
+  function getFileRoot(dir: TauriTypes.FileDir | null) {
+    const projectData = props.startAtRoot
+      ? dir
+      : dir?.children?.find((x) => x.name === "ProjectData~");
+
+    return projectData ?? dir;
+  }
+
+  const fileRoot = useMemo(() => {
+    const base = filesInfo.root;
+    if (!base) {
+      return null;
+    }
+
+    return getFileRoot(base);
+  }, [loadingFiles.value, filesInfo.root]);
+
   const fileCount = useMemo(() => {
-    if (files.value.status !== "success") {
+    if (loadingFiles.value.status !== "success") {
       return 0;
     }
 
-    let count =
-      (newProjectContext.state.initialTemplateInfo.selectedTemplate && 1) || 0;
+    let count = 0;
     function getCount(data: TauriTypes.FileDir | null) {
       if (!data) {
         return;
@@ -50,7 +67,8 @@ export default function FilesView(props: { startAtRoot?: boolean }) {
         });
       }
     }
-    getCount(filesInfo.root);
+
+    getCount(fileRoot);
 
     let arr: string[] = [];
     function getDeselectFiles(data: TauriTypes.FileDir | null, prefix: string) {
@@ -68,11 +86,37 @@ export default function FilesView(props: { startAtRoot?: boolean }) {
         });
       }
     }
-    getDeselectFiles(filesInfo.root, "");
+
+    getDeselectFiles(fileRoot, "");
     noDeselectFiles.set(arr);
 
     return count;
-  }, [files.value, filesInfo.root]);
+  }, [loadingFiles.value, filesInfo.root]);
+
+  const fileSelectionCount = useMemo(() => {
+    // filter filesInfo.selectedFiles to fileroot
+    if (!fileRoot) {
+      return 0;
+    }
+
+    let count = 0;
+    function getCount(data: TauriTypes.FileDir | null) {
+      if (!data) {
+        return;
+      }
+      if (data.children) {
+        data.children.forEach((child) => {
+          if (filesInfo.selectedFiles.includes(child.id)) {
+            count++;
+          }
+          getCount(child);
+        });
+      }
+    }
+
+    getCount(fileRoot);
+    return count;
+  }, [filesInfo.selectedFiles]);
 
   function getAllIds(data: TauriTypes.FileDir | null) {
     if (!data) {
@@ -94,15 +138,9 @@ export default function FilesView(props: { startAtRoot?: boolean }) {
         type: "set_has_error",
         hasError: true,
       });
+
       if (!newProjectContext.state.initialTemplateInfo.selectedTemplate) {
-        files.set({
-          status: "success",
-          value: {
-            id: "0",
-            name: "No template selected",
-            children: [],
-          } as TauriTypes.FileDir,
-        });
+        loadingFiles.set({ status: "success" });
         isNewFile.set(false);
         newProjectContext.dispatch({
           type: "set_has_error",
@@ -113,21 +151,27 @@ export default function FilesView(props: { startAtRoot?: boolean }) {
 
       if (!filesInfo.root) {
         isNewFile.set(true);
-        files.set({ status: "loading", value: null });
+        loadingFiles.set({ status: "loading" });
+
         const newFiles = await TauriRouter.get_template_file_paths(
           newProjectContext.state.initialTemplateInfo.selectedTemplate!
         );
-        const projectData = props.startAtRoot
-          ? newFiles
-          : newFiles.children?.find((x) => x.name === "ProjectData~");
-        files.set({ status: "success", value: projectData ?? newFiles });
+
+        loadingFiles.set({
+          status: "success",
+        });
         newProjectContext.dispatch({
           type: "set_files_root",
           root: newFiles,
         });
+
+        newProjectContext.dispatch({
+          type: "set_files_selected_files",
+          files: [...getAllIds(newFiles)],
+        });
       } else {
         isNewFile.set(false);
-        files.set({ status: "success", value: filesInfo.root });
+        loadingFiles.set({ status: "success" });
       }
 
       newProjectContext.dispatch({
@@ -138,13 +182,42 @@ export default function FilesView(props: { startAtRoot?: boolean }) {
     load();
   }, []);
 
-  useEffect(() => {
-    if (!isNewFile.value) return;
+  // useEffect(() => {
+  //   if (!isNewFile.value) return;
+  //   newProjectContext.dispatch({
+  //     type: "set_files_selected_files",
+  //     files: [...getAllIds(filesInfo.root)],
+  //   });
+  // }, [isNewFile.value, filesInfo.root]);
+
+  function selectAll() {
+    const workingFiles = getAllIds(fileRoot);
+
+    const existingFiles = filesInfo.selectedFiles;
+    const toSelect = existingFiles
+      .concat(workingFiles)
+      .filter((x, i, arr) => arr.indexOf(x) === i);
+
     newProjectContext.dispatch({
       type: "set_files_selected_files",
-      files: [...getAllIds(filesInfo.root)],
+      files: toSelect,
     });
-  }, [isNewFile.value, filesInfo.root]);
+  }
+
+  function deselectAll() {
+    const files = getAllIds(filesInfo.root).slice(1);
+    const workingFiles = getAllIds(fileRoot).slice(1);
+
+    const existingFiles = filesInfo.selectedFiles;
+    const toSelect = existingFiles
+      .filter((x) => files.includes(x) && !workingFiles.includes(x))
+      .filter((x, i, arr) => arr.indexOf(x) === i);
+
+    newProjectContext.dispatch({
+      type: "set_files_selected_files",
+      files: toSelect,
+    });
+  }
 
   return (
     <div className="flex flex-col h-full py-4 overflow-hidden">
@@ -165,54 +238,37 @@ export default function FilesView(props: { startAtRoot?: boolean }) {
       </div>
 
       {/* File tree */}
-      <AsyncLazyValueComponent
+      <AsyncLazyVoidComponent
         loading={
           <div className="w-full h-full flex items-center justify-center">
             <LoadingSpinner />
           </div>
         }
-        value={files.value}
+        value={loadingFiles.value}
       >
-        {(files.value.value?.children?.length ?? 0) === 0 && (
-          <p className="pt-4 select-none">No files</p>
-        )}
-        {(files.value.value?.children?.length ?? 0) > 0 && (
+        {fileCount === 0 && <p className="pt-4 select-none">No files</p>}
+        {fileCount > 0 && (
           <>
             <div className="mb-1">
               <p className="pt-4">
-                {filesInfo.selectedFiles.length.toLocaleString()}/
+                {fileSelectionCount.toLocaleString()}/
                 {fileCount.toLocaleString()} selected
               </p>
 
               <div className="flex gap-1">
-                <Buttons.DefaultButton
-                  title="Select All"
-                  onClick={() => {
-                    newProjectContext.dispatch({
-                      type: "set_files_selected_files",
-                      files: [...getAllIds(files.value.value!)],
-                    });
-                    // selectedFiles.set([...getAllIds(files.value.value!)]);
-                  }}
-                />
+                <Buttons.DefaultButton title="Select All" onClick={selectAll} />
 
                 <Buttons.DefaultButton
                   title="Deselect All"
-                  onClick={() => {
-                    newProjectContext.dispatch({
-                      type: "set_files_selected_files",
-                      files: [],
-                    });
-                    // selectedFiles.set([]);
-                  }}
+                  onClick={deselectAll}
                 />
               </div>
             </div>
 
             <div className="tree-root flex flex-col overflow-y-auto">
               {/* Start inside of /package/ */}
-              {files.value.value &&
-                files.value.value?.children?.map((child) => (
+              {fileRoot &&
+                fileRoot?.children?.map((child) => (
                   <Tree key={child.id} data={child} indent={0} />
                 ))}
               {/* {files.value.value &&
@@ -226,7 +282,7 @@ export default function FilesView(props: { startAtRoot?: boolean }) {
             </div>
           </>
         )}
-      </AsyncLazyValueComponent>
+      </AsyncLazyVoidComponent>
     </div>
   );
 }
