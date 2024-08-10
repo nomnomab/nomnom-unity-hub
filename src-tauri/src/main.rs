@@ -53,7 +53,8 @@ fn main() {
             template::cmd_get_template_information,
             template::cmd_get_template_file_paths,
             // generate
-            generate::cmd_generate_project
+            generate::cmd_generate_project,
+            generate::cmd_generate_template,
         ])
         .setup(|app| {
             let app_handle = app.handle();
@@ -69,9 +70,15 @@ fn main() {
             });
 
             let app_state = app.state::<app::AppState>();
-            let editors = editor::find_editor_installs(&app_state)?;
-            (*app_state.editors.lock().unwrap()).clear();
-            (*app_state.editors.lock().unwrap()).extend(editors);
+            match editor::find_editor_installs(&app_state) {
+                Ok(editors) => {
+                    (*app_state.editors.lock().unwrap()).clear();
+                    (*app_state.editors.lock().unwrap()).extend(editors);
+                },
+                Err(err) => {
+                    println!("{}", err);
+                }
+            }
 
             Ok(())
         })

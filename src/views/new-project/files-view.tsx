@@ -184,27 +184,29 @@ export default function FilesView() {
                 {fileCount.toLocaleString()} selected
               </p>
 
-              <Buttons.DefaultButton
-                title="Select All"
-                onClick={() => {
-                  newProjectContext.dispatch({
-                    type: "set_files_selected_files",
-                    files: [...getAllIds(files.value.value!)],
-                  });
-                  // selectedFiles.set([...getAllIds(files.value.value!)]);
-                }}
-              />
+              <div className="flex gap-1">
+                <Buttons.DefaultButton
+                  title="Select All"
+                  onClick={() => {
+                    newProjectContext.dispatch({
+                      type: "set_files_selected_files",
+                      files: [...getAllIds(files.value.value!)],
+                    });
+                    // selectedFiles.set([...getAllIds(files.value.value!)]);
+                  }}
+                />
 
-              <Buttons.DefaultButton
-                title="Deselect All"
-                onClick={() => {
-                  newProjectContext.dispatch({
-                    type: "set_files_selected_files",
-                    files: [],
-                  });
-                  // selectedFiles.set([]);
-                }}
-              />
+                <Buttons.DefaultButton
+                  title="Deselect All"
+                  onClick={() => {
+                    newProjectContext.dispatch({
+                      type: "set_files_selected_files",
+                      files: [],
+                    });
+                    // selectedFiles.set([]);
+                  }}
+                />
+              </div>
             </div>
 
             <div className="tree-root flex flex-col overflow-y-auto">

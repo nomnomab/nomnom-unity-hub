@@ -76,6 +76,40 @@ export namespace ValidateInputContext {
 
     return null;
   }
+
+  export function hasWhitespace(
+    value: string | null | undefined
+  ): Error | null {
+    if (value === undefined || value === null || value.trim() === "") {
+      return new Error("Value cannot be empty");
+    }
+
+    if (/\s/.test(value)) {
+      return new Error("Value cannot have whitespace");
+    }
+
+    return null;
+  }
+
+  export function isNotComName(
+    value: string | null | undefined,
+    syntax: string
+  ): Error | null {
+    if (value === undefined || value === null || value.trim() === "") {
+      return new Error("Value cannot be empty");
+    }
+
+    const split = value.split(".");
+    if (split.length != 3) {
+      return new Error(`Value must be in the format '${syntax}'`);
+    }
+
+    if (hasWhitespace(value.substring(value.lastIndexOf(".") + 1)) !== null) {
+      return new Error(`Value must be in the format '${syntax}'`);
+    }
+
+    return null;
+  }
 }
 
 type ErrorProps = {
@@ -221,7 +255,7 @@ export function ValidateTextArea({
 
   return (
     <div {...divProps} className={`flex flex-col ${divProps?.className ?? ""}`}>
-      {label && <label className="select-none pb-1">{label}</label>}
+      {label && <label className="select-none">{label}</label>}
       <textarea
         {...(props as React.InputHTMLAttributes<HTMLTextAreaElement>)}
         value={value}

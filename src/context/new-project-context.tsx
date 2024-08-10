@@ -54,6 +54,7 @@ export namespace NewProjectContext {
     packageInfo: PackageInfo;
     filesInfo: FilesInfo;
     basicInfo: BasicInfo;
+    newTemplateInfo: NewTemplateInfo;
     error: LazyVoid;
   }
 
@@ -78,6 +79,13 @@ export namespace NewProjectContext {
     noDeselectFiles: string[];
   }
 
+  interface NewTemplateInfo {
+    name: string;
+    displayName: string;
+    version: string;
+    description: string;
+  }
+
   const initialState = {
     tab: "template" as TabName,
     error: {
@@ -99,6 +107,12 @@ export namespace NewProjectContext {
     basicInfo: {
       name: "New Project",
       path: "",
+    },
+    newTemplateInfo: {
+      name: "com.name.template",
+      displayName: "New Template",
+      version: "1.0.0",
+      description: "A custom template",
     },
   };
 
@@ -132,7 +146,11 @@ export namespace NewProjectContext {
     | { type: "set_files_no_deselect_files"; files: string[] }
     | { type: "reset_files" }
     | { type: "set_basic_info_name"; name: string }
-    | { type: "set_basic_info_path"; path: string };
+    | { type: "set_basic_info_path"; path: string }
+    | { type: "set_new_template_name"; name: string }
+    | { type: "set_new_template_display_name"; displayName: string }
+    | { type: "set_new_template_version"; version: string }
+    | { type: "set_new_template_description"; description: string };
 
   const reducer = (state: State, action: Action): State => {
     switch (action.type) {
@@ -233,6 +251,38 @@ export namespace NewProjectContext {
           basicInfo: {
             ...state.basicInfo,
             path: action.path,
+          },
+        };
+      case "set_new_template_name":
+        return {
+          ...state,
+          newTemplateInfo: {
+            ...state.newTemplateInfo,
+            name: action.name,
+          },
+        };
+      case "set_new_template_display_name":
+        return {
+          ...state,
+          newTemplateInfo: {
+            ...state.newTemplateInfo,
+            displayName: action.displayName,
+          },
+        };
+      case "set_new_template_version":
+        return {
+          ...state,
+          newTemplateInfo: {
+            ...state.newTemplateInfo,
+            version: action.version,
+          },
+        };
+      case "set_new_template_description":
+        return {
+          ...state,
+          newTemplateInfo: {
+            ...state.newTemplateInfo,
+            description: action.description,
           },
         };
       default:

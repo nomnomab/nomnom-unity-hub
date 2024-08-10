@@ -3,7 +3,7 @@ import { LazyVoid } from "../utils";
 
 type Props = {
   loading: React.ReactNode;
-  error?: React.ReactNode;
+  error?: (err: string | Error | null | undefined) => React.ReactNode;
   callback: () => Promise<unknown>;
 } & React.PropsWithChildren;
 export default function AsyncComponent(props: Props) {
@@ -23,7 +23,7 @@ export default function AsyncComponent(props: Props) {
   }
 
   if (state.status === "error") {
-    return props.error ?? <div>{JSON.stringify(state.error)}</div>;
+    return (props.error && props.error(state.error)) ?? null;
   }
 
   return props.children;

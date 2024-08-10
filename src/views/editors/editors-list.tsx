@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useContext, useEffect, useMemo } from "react";
 import useBetterState from "../../hooks/useBetterState";
 import { TauriTypes } from "../../utils/tauri-types";
 import { TauriRouter } from "../../utils/tauri-router";
@@ -9,6 +9,7 @@ import { open } from "@tauri-apps/api/shell";
 import { Menu, Item, useContextMenu, TriggerEvent } from "react-contexify";
 import { convertBytes, groupBy } from "../../utils";
 import AsyncLazyValueComponent from "../../components/async-lazy-value-component";
+import { GlobalContext } from "../../context/global-context";
 
 interface UnityEditorInstallGroup {
   version: string;
@@ -21,6 +22,7 @@ interface EditorListData {
 }
 
 export default function EditorsList() {
+  const globalContext = useContext(GlobalContext.Context);
   const data = useBetterState<EditorListData>({
     selectedGroup: "",
     editorGroups: [],
@@ -109,6 +111,33 @@ export default function EditorsList() {
           </div>
         }
         callback={loadEditors}
+        error={(err) => {
+          if (!err) return null;
+          if ((err as string) && err === "Invalid hub_editors_path") {
+            return (
+              <div className="p-6">
+                <p>An invalid hub editor path was assigned.</p>
+                <p>
+                  Please head over to the{" "}
+                  <span
+                    className="underline underline-offset-2 text-sky-600 cursor-pointer select-none"
+                    onClick={() =>
+                      globalContext.dispatch({
+                        type: "change_tab",
+                        tab: "settings",
+                      })
+                    }
+                  >
+                    settings
+                  </span>{" "}
+                  to assign a new one!
+                </p>
+              </div>
+            );
+          }
+
+          return <div className="p-6">{JSON.stringify(err)}</div>;
+        }}
       >
         <div className="flex h-full">
           <div className="flex flex-col gap-4 border-r px-4 py-4 border-r-stone-700 w-32 flex-shrink-0 overflow-y-auto">

@@ -161,6 +161,12 @@ export namespace TauriRouter {
     return invoke("cmd_generate_project", { projectInfo, templateInfo });
   }
 
+  export async function generate_template(
+    templateInfo: TauriTypes.NewTemplateInfo
+  ): Promise<string> {
+    return invoke("cmd_generate_template", { templateInfo });
+  }
+
   // other
 
   export async function open_unity_hub(): Promise<void> {

@@ -38,7 +38,7 @@ export default function BasicInfoView({
         <Info />
       </ValidateInputContext.User>
 
-      <Overview />
+      <NewProjectOverview />
     </>
   );
 }
@@ -134,7 +134,10 @@ function Info() {
   );
 }
 
-function Overview() {
+export function NewProjectOverview(props: {
+  noOverflow?: boolean;
+  customOutputPath?: string;
+}) {
   const newProjectContext = useContext(NewProjectContext.Context);
   const basicInfo = useMemo(() => {
     return newProjectContext.state.basicInfo;
@@ -150,46 +153,56 @@ function Overview() {
   }, [newProjectContext.state.filesInfo]);
 
   return (
-    <div className="mt-8 select-none border-t border-t-stone-700 overflow-y-auto pb-2">
+    <div
+      className={`mt-8 select-none border-t border-t-stone-700 pb-2 ${
+        props.noOverflow ? "" : "overflow-y-auto"
+      }`}
+    >
       <p className="text-xl pb-1 pt-4">Overview</p>
 
-      <p className="text-stone-400 flex w-full">
-        Editor version
+      <div className="text-stone-400 flex w-full">
+        <p className="flex-shrink-0">Editor version</p>
         <span className="ml-auto">
           {initialTemplateInfo.editorVersion.version}
         </span>
-      </p>
+      </div>
 
-      <p className="text-stone-400 flex w-full">
-        Selected template
+      <div className="text-stone-400 flex w-full">
+        <p className="flex-shrink-0">Selected template</p>
         <span className="ml-auto">
           {initialTemplateInfo.selectedTemplate?.name ?? "N/A"}
           {" @ "}
           <span>{initialTemplateInfo.selectedTemplate?.version ?? "N/A"}</span>
         </span>
-      </p>
+      </div>
 
-      <p className="text-stone-400 flex w-full">
-        Output path
-        <span className="ml-auto">
-          {basicInfo.path}\{basicInfo.name}
-        </span>
-      </p>
+      <div className="text-stone-400 flex w-full">
+        <p className="flex-shrink-0">Output path</p>
+        {props.customOutputPath ? (
+          <span className="ml-auto text-wrap text-right">
+            {props.customOutputPath}
+          </span>
+        ) : (
+          <span className="ml-auto text-wrap text-right">
+            {basicInfo.path}\{basicInfo.name}
+          </span>
+        )}
+      </div>
 
-      <p className="text-stone-400 flex w-full">
-        Packages
+      <div className="text-stone-400 flex w-full">
+        <p className="flex-shrink-0">Packages</p>
         <span className="ml-auto">{packageInfo.selectedPackages.length}</span>
-      </p>
+      </div>
       {packageInfo.selectedPackages.map((p) => (
         <p key={p} className="text-stone-400 w-full pl-4">
           - {p}
         </p>
       ))}
 
-      <p className="text-stone-400 flex w-full">
-        Files
+      <div className="text-stone-400 flex w-full">
+        <p className="flex-shrink-0">Files</p>
         <span className="ml-auto">{filesInfo.selectedFiles.length}</span>
-      </p>
+      </div>
     </div>
   );
 }

@@ -148,6 +148,9 @@ export namespace TauriTypes {
   export interface NewTemplateInfo {
     template: TemplateInfoForGeneration;
     name: string;
+    displayName: string;
+    version: string;
+    description: string;
   }
 }
 
