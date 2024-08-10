@@ -21,7 +21,7 @@ export default function FirstBoot() {
   }
 
   return (
-    <Popup position="center center" modal open>
+    <Popup position="center center" modal open closeOnDocumentClick={false}>
       <div className="bg-[#0c0a09b4] fixed left-0 right-0 top-0 bottom-0 flex justify-center items-center overflow-hidden">
         {stage.value === 0 && <StageIntro nav={{ back, advance }} />}
         {stage.value === 1 && <StagePaths nav={{ back, advance }} />}

@@ -56,6 +56,7 @@ function Pagination({
       return;
     }
 
+    await TauriRouter.remove_missing_projects();
     const allProjects = await TauriRouter.get_projects();
     projectData.set((s) => ({ ...s, allProjects }));
 
