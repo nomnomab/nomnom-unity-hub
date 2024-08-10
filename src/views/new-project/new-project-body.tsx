@@ -11,6 +11,7 @@ import { TauriRouter } from "../../utils/tauri-router";
 import { TauriTypes } from "../../utils/tauri-types";
 import Popup from "reactjs-popup";
 import LoadingSpinner from "../../components/svg/loading-spinner";
+import NewTemplateView from "./new-template-view";
 
 export type NewProjectData = {
   projectName: string;
@@ -132,6 +133,7 @@ export default function NewProjectBody() {
   const selectedTab = newProjectContext.state.tab;
   const onFirstTab = NewProjectContext.onFirstTab(selectedTab);
   const onLastTab = NewProjectContext.onLastTab(selectedTab);
+  const onTemplateTab = selectedTab === "new-template";
 
   // if (isLoading.value) {
   //   <div className="flex flex-col h-full justify-end">
@@ -140,6 +142,13 @@ export default function NewProjectBody() {
   //     </div>
   //   </div>;
   // }
+
+  function gotoNewTemplate() {
+    newProjectContext.dispatch({
+      type: "change_tab",
+      tab: "new-template",
+    });
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -153,6 +162,7 @@ export default function NewProjectBody() {
         {selectedTab === "info" && (
           <BasicInfoView hasFieldError={hasFieldError} />
         )}
+        {selectedTab === "new-template" && <NewTemplateView />}
       </div>
       <div className="flex flex-row justify-between p-4 border-t border-t-stone-700 relative">
         {(selectedTab === "package" || selectedTab === "files") && (
@@ -174,15 +184,21 @@ export default function NewProjectBody() {
             <Buttons.DefaultButton
               title="Save As Template"
               disabled={
-                true ||
                 hasFieldError.value ||
                 newProjectContext.state.error.status === "error"
               }
+              onClick={gotoNewTemplate}
             />
           )}
 
           <Buttons.ActionButton
-            title={onLastTab ? "Create Project" : "Next"}
+            title={
+              onTemplateTab
+                ? "Create Template"
+                : onLastTab
+                ? "Create Project"
+                : "Next"
+            }
             disabled={
               hasFieldError.value ||
               newProjectContext.state.error.status === "error"

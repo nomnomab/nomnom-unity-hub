@@ -8,10 +8,13 @@ export namespace NewProjectContext {
     dispatch: React.Dispatch<Action>;
   }
 
-  type TabName = "template" | "package" | "files" | "info";
+  type TabName = "template" | "package" | "files" | "info" | "new-template";
   const TabNameArray = ["template", "package", "files", "info"];
 
   export const getTabIndex = (tab: TabName): number => {
+    if (tab === "new-template") {
+      return TabNameArray.length;
+    }
     return TabNameArray.indexOf(tab);
   };
 
@@ -20,7 +23,7 @@ export namespace NewProjectContext {
   };
 
   export const getPreviousTab = (tab: TabName): TabName | null => {
-    const index = TabNameArray.indexOf(tab);
+    const index = getTabIndex(tab);
     if (index === 0) {
       return null;
     }
@@ -29,7 +32,7 @@ export namespace NewProjectContext {
   };
 
   export const getNextTab = (tab: TabName): TabName | null => {
-    const index = TabNameArray.indexOf(tab);
+    const index = getTabIndex(tab);
     if (index === TabNameArray.length - 1) {
       return null;
     }
@@ -38,11 +41,11 @@ export namespace NewProjectContext {
   };
 
   export const onFirstTab = (tab: TabName): boolean => {
-    return TabNameArray.indexOf(tab) === 0;
+    return getTabIndex(tab) === 0;
   };
 
   export const onLastTab = (tab: TabName): boolean => {
-    return TabNameArray.indexOf(tab) === TabNameArray.length - 1;
+    return getTabIndex(tab) === TabNameArray.length - 1;
   };
 
   interface State {

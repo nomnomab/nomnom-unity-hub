@@ -52,7 +52,13 @@ export default function NewProjectHeader() {
   }, []);
 
   return (
-    <ViewHeader title="New Project">
+    <ViewHeader
+      title={
+        newProjectContext.state.tab === "new-template"
+          ? "New Template"
+          : "New Project"
+      }
+    >
       <div className="ml-auto" />
       {newProjectContext.state.tab === "template" && (
         <AsyncLazyValueComponent
