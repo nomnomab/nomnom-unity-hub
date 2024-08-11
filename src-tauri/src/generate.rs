@@ -2,7 +2,7 @@ use std::{collections::HashMap, path::PathBuf};
 
 use flate2::{read::GzDecoder, write::GzEncoder};
 
-use crate::{app::{self, AppState}, editor::UnityEditorInstall, errors, io_utils, package::{self, MinimalPackage}, template::SurfaceTemplate};
+use crate::{app::{self, AppState}, editor::{self, UnityEditorInstall}, errors, io_utils, package::{self, MinimalPackage}, template::SurfaceTemplate};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -10,7 +10,8 @@ pub struct TemplateInfoForGeneration {
   template: Option<SurfaceTemplate>,
   editor_version: UnityEditorInstall,
   packages: Vec<MinimalPackage>,
-  selected_files: Vec<PathBuf>
+  selected_files: Vec<PathBuf>,
+  is_empty: bool
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -31,39 +32,74 @@ pub struct NewTemplateInfo {
 }
 
 // generate a new project from a template + info
-pub fn generate_project(app: &tauri::AppHandle, project_info: &ProjectInfoForGeneration, template_info: &TemplateInfoForGeneration) -> Result<PathBuf, errors::AnyError> {
+pub fn generate_project(app: &tauri::AppHandle, app_state: &tauri::State<'_, AppState>, project_info: &ProjectInfoForGeneration, template_info: &TemplateInfoForGeneration) -> Result<PathBuf, errors::AnyError> {
   let package_cache_dir_out = &project_info.path.join(project_info.name.clone());
   if package_cache_dir_out.exists() {
     return Err(errors::str_error(format!("Project already exists at {}", package_cache_dir_out.display()).as_str()));
   }
-  
+
   let package_cache_dir = io_utils::get_cache_appended_dir(app, "new_project_package");
-  unpack_package_into_cache(&package_cache_dir, &template_info)?;
-  modify_package_json(&package_cache_dir, &template_info.packages, &package_cache_dir_out)?;
+  if template_info.is_empty {
+    // make a new project
+    // copy entire project over
+    // modify manifest
+
+    let editor_version = &template_info.editor_version.version;
+    let package_cache_dir_out_str = package_cache_dir_out
+      .to_str()
+      .ok_or(errors::str_error("Failed to convert path to string"))?
+      .to_string();
+    // let tmp_path = package_cache_dir
+    //   .join("project")
+    //   .join("ProjectData~")
+    //   .to_str()
+    //   .ok_or(errors::str_error("Failed to convert path to string"))?
+    //   .to_string();
+    let args = vec!["-createProject".to_string(), package_cache_dir_out_str, "-quit".to_string()];
+    editor::open(editor_version.clone(), args, &app_state, true)?;
+
+    let packages_dir = package_cache_dir_out
+      .join("Packages");
+    modify_package_json(&packages_dir, &template_info.packages, &package_cache_dir_out)?;
+  } else {
+    let packages_dir = package_cache_dir
+      .join("package")
+      .join("ProjectData~")
+      .join("Packages");
+    
+    unpack_package_into_cache(&package_cache_dir, &template_info)?;
+    modify_package_json(&packages_dir, &template_info.packages, &package_cache_dir_out)?;
+  }
 
   // create project directory
-  std::fs::create_dir(&package_cache_dir_out)?;
-  std::fs::create_dir(&package_cache_dir_out.join("Assets"))?;
+  std::fs::create_dir_all(&package_cache_dir_out.join("Assets"))?;
+  std::fs::create_dir_all(&package_cache_dir_out.join("ProjectSettings"))?;
+  std::fs::create_dir_all(&package_cache_dir_out.join("Packages"))?;
 
   // copy contents from ProjectData~ to output
   let project_data_root = PathBuf::from("package").join("ProjectData~");
-  for file in template_info.selected_files.iter().filter(|x| x.starts_with(&project_data_root)) {
-    let trimmed_file = file.strip_prefix(&project_data_root)
-      .map_err(|_| errors::str_error("Failed to strip prefix"))?;
-    let from = package_cache_dir.join(file);
-    let dest = package_cache_dir_out.join(trimmed_file);
-    println!("Copying {} to {}", from.display(), dest.display());
-    
-    if dest.extension().is_none() {
-      println!("Creating directory dest: {}", dest.display());
+
+  if !template_info.is_empty {
+    for file in template_info.selected_files.iter().filter(|x| x.starts_with(&project_data_root)) {
+      let trimmed_file = file.strip_prefix(&project_data_root)
+        .map_err(|_| errors::str_error("Failed to strip prefix"))?;
+      let from = package_cache_dir.join(file);
+      let dest = package_cache_dir_out.join(trimmed_file);
+      println!("Copying {} to {}", from.display(), dest.display());
+
       std::fs::create_dir_all(&dest)?;
-    } else {
-      println!("Creating directory parent: {} for {}", dest.parent().unwrap().display(), dest.display());
-      std::fs::create_dir_all(dest.parent().unwrap())?;
-      if let Err(err) = std::fs::copy(&from, &dest) {
-        println!("Failed to copy from {} to {}: {}", from.display(), dest.display(), err);
+      
+      if dest.extension().is_none() {
+        println!("Creating directory dest: {}", dest.display());
+        // std::fs::create_dir_all(&dest)?;
+      } else {
+        println!("Creating directory parent: {} for {}", dest.parent().unwrap().display(), dest.display());
+        // std::fs::create_dir_all(dest.parent().unwrap())?;
+        if let Err(err) = std::fs::copy(&from, &dest) {
+          println!("Failed to copy from {} to {}: {}", from.display(), dest.display(), err);
+        }
       }
-    }
+    } 
   }
 
   // remove cache
@@ -201,6 +237,13 @@ pub fn generate_template(app: &tauri::AppHandle, app_state: &tauri::State<AppSta
 }
 
 fn unpack_package_into_cache(output: &PathBuf, template_info: &TemplateInfoForGeneration) -> Result<(), errors::AnyError> {
+  if template_info.template.is_none() {
+    let package_path = output.join("package");
+    std::fs::create_dir_all(&package_path)?;
+    
+    return Ok(());
+  }
+  
   let template = template_info.template
     .as_ref()
     .ok_or(errors::str_error("Template not found"))?
@@ -217,17 +260,15 @@ fn unpack_package_into_cache(output: &PathBuf, template_info: &TemplateInfoForGe
   Ok(())
 }
 
-fn modify_package_json(package_cache_dir: &PathBuf, packages: &Vec<MinimalPackage>, output_path: &PathBuf) -> Result<(), errors::AnyError> {
+fn modify_package_json(json_root: &PathBuf, packages: &Vec<MinimalPackage>, output_path: &PathBuf) -> Result<(), errors::AnyError> {
   // modify package.json for dependencies
-  let packages_dir = package_cache_dir
-    .join("package")
-    .join("ProjectData~")
-    .join("Packages");
-  let manifest_json = packages_dir
+  std::fs::create_dir_all(&json_root)?;
+  
+  let manifest_json = json_root
     .join("manifest")
     .with_extension("json");
 
-  let packages_lock_json = packages_dir
+  let packages_lock_json = json_root
     .join("packages-lock")
     .with_extension("json");
 
@@ -249,7 +290,13 @@ fn modify_package_json(package_cache_dir: &PathBuf, packages: &Vec<MinimalPackag
   println!("Local packages: {:?}", local_packages);
   println!("Rest packages: {:?}", rest_packages);
 
-  let manifest_json_contents = std::fs::read_to_string(&manifest_json)?;
+  let manifest_json_contents = {
+    if !manifest_json.exists() {
+      "{}".to_string()
+    } else {
+      std::fs::read_to_string(&manifest_json)?
+    }
+  };
   let mut manifest_json_contents: HashMap<String, serde_json::Value> 
     = serde_json::from_str(&manifest_json_contents)?;
   
@@ -309,8 +356,8 @@ fn modify_package_json(package_cache_dir: &PathBuf, packages: &Vec<MinimalPackag
 // commands
 
 #[tauri::command]
-pub async fn cmd_generate_project(app: tauri::AppHandle, project_info: ProjectInfoForGeneration, template_info: TemplateInfoForGeneration) -> Result<PathBuf, errors::AnyError> {
-  let output = generate_project(&app, &project_info, &template_info)?;
+pub async fn cmd_generate_project(app: tauri::AppHandle, app_state: tauri::State<'_, AppState>, project_info: ProjectInfoForGeneration, template_info: TemplateInfoForGeneration) -> Result<PathBuf, errors::AnyError> {
+  let output = generate_project(&app, &app_state, &project_info, &template_info)?;
   Ok(output)
 }
 

@@ -193,8 +193,8 @@ export function NewProjectOverview(props: {
         <span className="ml-auto">{packageInfo.selectedPackages.length}</span>
       </div>
       {packageInfo.selectedPackages.map((p) => (
-        <p key={p} className="text-stone-400 w-full pl-4">
-          - {p}
+        <p key={p.name + p.version} className="text-stone-400 w-full pl-4">
+          - {p.name} @ {p.version}
         </p>
       ))}
 

@@ -175,7 +175,7 @@ pub fn cmd_open_project_in_editor(app_state: tauri::State<AppState>, project_pat
         .to_string();
 
     let args = vec!["-projectPath".to_string(), project_path_str];
-    crate::editor::open(editor_version, args, &app_state)?;
+    crate::editor::open(editor_version, args, &app_state, false)?;
 
     Ok(())
 }

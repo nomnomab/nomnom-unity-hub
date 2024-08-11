@@ -40,27 +40,34 @@ export default function PackageView() {
           }))
         )
         .then(async (x) => {
-          const p = await TauriRouter.get_user_cache();
-          const gitPackages = p.gitPackages.map((x) => ({
-            package_: x,
-            category: "Git",
-          }));
-
-          const localPackages = p.localPackages.map((x) => ({
-            package_: x,
-            category: "Local",
-          }));
-          return [...x, ...gitPackages, ...localPackages];
+          return [...x];
         });
 
       minimalPackages.set({
         status: "success",
-        // value: newMinimalPackages.filter((x) => x.isFile),
-        // value: newMinimalPackages.map((x) => ({
-        //   package_: x,
-        //   category: "Internal",
-        // })),
         value: newMinimalPackages,
+      });
+
+      const p = await TauriRouter.get_user_cache();
+
+      const gitPackages = p.gitPackages.map((x) => ({
+        package_: x,
+        category: "Git",
+      }));
+
+      const localPackages = p.localPackages.map((x) => ({
+        package_: x,
+        category: "Local",
+      }));
+
+      newProjectContext.dispatch({
+        type: "set_git_packages",
+        packages: gitPackages.map((x) => x.package_),
+      });
+
+      newProjectContext.dispatch({
+        type: "set_local_packages",
+        packages: localPackages.map((x) => x.package_),
       });
     };
     load();
@@ -96,12 +103,6 @@ export default function PackageView() {
     } else {
       selectPackage(name, version);
     }
-
-    // if (packages.includes(x)) {
-    //   removePackage(x);
-    // } else {
-    //   selectPackage(x);
-    // }
   }
 
   const queriedPackages = useMemo(() => {
@@ -335,12 +336,12 @@ function GitAdd(props: {
         });
 
         props.selectPackage(name, version);
+
+        gitPackageJson.set("");
       } catch (e) {
         console.error(e);
         return;
       }
-
-      gitPackageJson.set("");
     }
   }
 
@@ -587,7 +588,7 @@ function Package({
           <p className="flex basis-full text-stone-50 select-none">
             {package_.package_.name}{" "}
             <span
-              className={`ml-auto ${
+              className={`ml-auto text-right ${
                 selected ? "text-stone-50" : "text-stone-400"
               }`}
             >
