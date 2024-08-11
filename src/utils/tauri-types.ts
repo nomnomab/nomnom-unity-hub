@@ -155,6 +155,7 @@ export namespace TauriTypes {
     editorVersion: UnityEditorInstall;
     packages: MinimalPackage[];
     selectedFiles: string[]; // PathBuf is usually represented as a string in TS
+    isEmpty: boolean;
   }
 
   export interface ProjectInfoForGeneration {

@@ -78,6 +78,7 @@ export default function NewProjectBody() {
           "package/package.json.meta",
           ...trimmedPaths,
         ],
+        isEmpty: false,
       };
       const template: TauriTypes.NewTemplateInfo = {
         template: templateInfo,
@@ -141,6 +142,7 @@ export default function NewProjectBody() {
           )
         ),
         selectedFiles: trimmedPaths,
+        isEmpty: template.selectedTemplate === undefined,
       };
       const projectInfo: TauriTypes.ProjectInfoForGeneration = {
         name: basicInfo.name,

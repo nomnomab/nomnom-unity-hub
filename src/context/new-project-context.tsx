@@ -163,7 +163,9 @@ export namespace NewProjectContext {
     | { type: "add_git_package"; package: { id: string; url: string } }
     | { type: "add_local_package"; package: { path: string } }
     | { type: "remove_git_package"; package: TauriTypes.MinimalPackage }
-    | { type: "remove_local_package"; package: TauriTypes.MinimalPackage };
+    | { type: "remove_local_package"; package: TauriTypes.MinimalPackage }
+    | { type: "set_git_packages"; packages: TauriTypes.MinimalPackage[] }
+    | { type: "set_local_packages"; packages: TauriTypes.MinimalPackage[] };
 
   const reducer = (state: State, action: Action): State => {
     switch (action.type) {
@@ -296,6 +298,22 @@ export namespace NewProjectContext {
           newTemplateInfo: {
             ...state.newTemplateInfo,
             description: action.description,
+          },
+        };
+      case "set_git_packages":
+        return {
+          ...state,
+          packageInfo: {
+            ...state.packageInfo,
+            gitPackages: action.packages,
+          },
+        };
+      case "set_local_packages":
+        return {
+          ...state,
+          packageInfo: {
+            ...state.packageInfo,
+            localPackages: action.packages,
           },
         };
       case "add_git_package":

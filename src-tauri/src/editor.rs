@@ -141,7 +141,7 @@ pub fn find_editor_installs(app_state: &tauri::State<AppState>) -> anyhow::Resul
     Ok(editors)
 }
 
-pub fn open(editor_version: String, arguments: Vec<String>, app_state: &tauri::State<AppState>) -> anyhow::Result<(), errors::AnyError> {
+pub fn open(editor_version: String, arguments: Vec<String>, app_state: &tauri::State<AppState>, wait: bool) -> anyhow::Result<(), errors::AnyError> {
     let editor = app_state.editors.lock()
         .map_err(|_| errors::str_error("Failed to get editors. Is it locked?"))?
         .iter()
@@ -151,9 +151,15 @@ pub fn open(editor_version: String, arguments: Vec<String>, app_state: &tauri::S
 
     let exe_path = editor.exe_path;
 
-    std::process::Command::new(&exe_path)
-        .args(arguments)
-        .spawn()?;
+    if wait {
+        std::process::Command::new(&exe_path)
+            .args(arguments)
+            .output()?;
+    } else {
+        std::process::Command::new(&exe_path)
+            .args(arguments)
+            .spawn()?;
+    }
 
     Ok(())
 }
