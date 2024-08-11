@@ -3,6 +3,7 @@
 ## Features
 
 - Written in React + Tauri + Rust
+- Low memory usage
 - Paginated project list
 - Project creation
   - Select a template to start from, or start from scratch
@@ -20,6 +21,8 @@
   - Can open a version's changelog
   - Can open the version's folder on disk
   - Can see what modules are installed
+
+![Hub Preview](.github/assets/preview.png)
 
 ## Building
 

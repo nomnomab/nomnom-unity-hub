@@ -1,7 +1,7 @@
 [package]
 name = "nomnom-unity-hub"
 version = "0.0.0"
-description = "A Tauri App"
+description = "Nomnoms Unity Hub"
 authors = ["you"]
 edition = "2021"
 

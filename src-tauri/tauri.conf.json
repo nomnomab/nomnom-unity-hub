@@ -6,8 +6,8 @@
     "distDir": "../dist"
   },
   "package": {
-    "productName": "nomnom-unity-hub",
-    "version": "1.0.0"
+    "productName": "Nomnoms Unity Hub",
+    "version": "1.0.1"
   },
   "tauri": {
     "allowlist": {
