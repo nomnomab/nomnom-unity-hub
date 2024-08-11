@@ -1,10 +1,9 @@
-import { ButtonHTMLAttributes, useContext } from "react";
+import { ButtonHTMLAttributes, useContext, useEffect } from "react";
 import { open } from "@tauri-apps/api/shell";
 import { GlobalContext } from "../context/global-context";
 import { getVersion } from "@tauri-apps/api/app";
-import AsyncComponent from "./async-component";
-
-const appVersion = await getVersion();
+import useBetterState from "../hooks/useBetterState";
+import { LazyValue } from "../utils";
 
 export default function MainSidebar() {
   return (
@@ -17,6 +16,21 @@ export default function MainSidebar() {
 
 function Options() {
   const globalContext = useContext(GlobalContext.Context);
+  const appVersion = useBetterState<LazyValue<string>>({
+    status: "loading",
+    value: null,
+  });
+
+  useEffect(() => {
+    getVersion()
+      .then((v) => {
+        appVersion.set({ status: "success", value: v });
+      })
+      .catch((e) => {
+        appVersion.set({ status: "error", value: e.message });
+      });
+  }, []);
+
   return (
     <>
       <div className="px-4 gap-3 flex flex-col flex-grow pb-3">
@@ -56,7 +70,9 @@ function Options() {
           </span>
         </p>
 
-        <p className="text-xs text-stone-400 select-none px-3">v{appVersion}</p>
+        <p className="text-xs text-stone-400 select-none px-3">
+          v{appVersion.value.value ?? "???"}
+        </p>
       </div>
     </>
   );
