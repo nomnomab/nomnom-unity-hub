@@ -12,4 +12,30 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   </React.StrictMode>
 );
 
-appWindow.show().then(() => {});
+appWindow.show().then(() => {
+  const disableMenu = () => {
+    if (window.location.hostname !== "tauri.localhost") {
+      return;
+    }
+
+    document.addEventListener(
+      "contextmenu",
+      (e) => {
+        e.preventDefault();
+        return false;
+      },
+      { capture: true }
+    );
+
+    document.addEventListener(
+      "selectstart",
+      (e) => {
+        e.preventDefault();
+        return false;
+      },
+      { capture: true }
+    );
+  };
+
+  disableMenu();
+});
