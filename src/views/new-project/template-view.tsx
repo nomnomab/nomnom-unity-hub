@@ -217,7 +217,6 @@ export default function TemplateView() {
     });
 
     const p = tryGetDefaultUnityTemplate(selectedTemplate.name);
-    console.log("p", p);
     return {
       _template: selectedTemplate!,
       name: p?.name,
@@ -543,19 +542,25 @@ function TemplateInfo({
               <>
                 {tgzJson.value?.value?.tgzPackage?.dependencies && (
                   <div>
-                    {Object.keys(
-                      tgzJson.value?.value?.tgzPackage?.dependencies
-                    ).map((x) => (
-                      <div
-                        key={x}
-                        className="flex justify-between text-sm leading-6"
-                      >
-                        <span className="w-10/12 overflow-hidden">{x}</span>{" "}
-                        <span className="text-stone-400">
-                          {tgzJson.value?.value?.tgzPackage?.dependencies?.[x]}
-                        </span>
-                      </div>
-                    ))}
+                    {Object.keys(tgzJson.value?.value?.tgzPackage?.dependencies)
+                      .sort()
+                      .map((x) => (
+                        <div
+                          key={x}
+                          className="flex justify-between text-sm leading-6 overflow-hidden"
+                        >
+                          <span className="w-10/12 overflow-hidden flex-shrink-0">
+                            {x}
+                          </span>{" "}
+                          <span className="text-stone-400">
+                            {
+                              tgzJson.value?.value?.tgzPackage?.dependencies?.[
+                                x
+                              ]
+                            }
+                          </span>
+                        </div>
+                      ))}
                   </div>
                 )}
               </>
