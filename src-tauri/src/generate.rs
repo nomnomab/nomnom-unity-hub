@@ -87,14 +87,14 @@ pub fn generate_project(app: &tauri::AppHandle, app_state: &tauri::State<'_, App
       let dest = package_cache_dir_out.join(trimmed_file);
       println!("Copying {} to {}", from.display(), dest.display());
 
-      std::fs::create_dir_all(&dest)?;
+      // std::fs::create_dir_all(&dest)?;
       
       if dest.extension().is_none() {
         println!("Creating directory dest: {}", dest.display());
-        // std::fs::create_dir_all(&dest)?;
+        std::fs::create_dir_all(&dest)?;
       } else {
         println!("Creating directory parent: {} for {}", dest.parent().unwrap().display(), dest.display());
-        // std::fs::create_dir_all(dest.parent().unwrap())?;
+        std::fs::create_dir_all(dest.parent().unwrap())?;
         if let Err(err) = std::fs::copy(&from, &dest) {
           println!("Failed to copy from {} to {}: {}", from.display(), dest.display(), err);
         }
