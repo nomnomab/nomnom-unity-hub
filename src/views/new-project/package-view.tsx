@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo } from "react";
+import { useCallback, useContext, useEffect, useMemo } from "react";
 import { LazyValue, LazyVoid, UseState } from "../../utils";
 import { NewProjectContext } from "../../context/new-project-context";
 import useBetterState from "../../hooks/useBetterState";
@@ -37,6 +37,25 @@ export default function PackageView() {
     value: [],
   });
 
+  useEffect(() => {
+    const load = async () => {
+      // populate git and local packages
+      const p = await TauriRouter.get_user_cache();
+
+      newProjectContext.dispatch({
+        type: "set_git_packages",
+        packages: [...p.gitPackages],
+      });
+
+      newProjectContext.dispatch({
+        type: "set_local_packages",
+        packages: [...p.localPackages],
+      });
+    };
+
+    load();
+  }, [packageInfo.gitPackages, packageInfo.localPackages]);
+
   const validPackages = useMemo(() => {
     const packages: CategoryPackage[] = (corePackages.value.value ?? [])
       .map((x) => {
@@ -60,7 +79,7 @@ export default function PackageView() {
         }))
       );
     return packages;
-  }, [corePackages.value]);
+  }, [corePackages.value, packageInfo.gitPackages, packageInfo.localPackages]);
 
   const queriedPackages = useMemo(() => {
     const searchPackages = validPackages
@@ -108,34 +127,11 @@ export default function PackageView() {
         });
 
       corePackages.set({ status: "success", value: newCorePackages });
-
-      // populate git and local packages
-      const p = await TauriRouter.get_user_cache();
-      const gitPackages = p.gitPackages.map((x) => ({
-        package_: x,
-        category: "Git",
-      }));
-
-      const localPackages = p.localPackages.map((x) => ({
-        package_: x,
-        category: "Local",
-      }));
-
-      newProjectContext.dispatch({
-        type: "set_git_packages",
-        packages: gitPackages.map((x) => x.package_),
-      });
-
-      newProjectContext.dispatch({
-        type: "set_local_packages",
-        packages: localPackages.map((x) => x.package_),
-      });
     };
     load();
   }, []);
 
   function selectPackage(name: string, version?: string) {
-    console.log("selectPackage", name, version);
     const packages = packageInfo.selectedPackages;
     const filtered = packages.filter((y) => y.name !== name);
 
@@ -146,12 +142,8 @@ export default function PackageView() {
   }
 
   function removePackage(name: string, version: string) {
-    console.log("removePackage", name, version);
     const packages = packageInfo.selectedPackages;
     const filtered = packages.filter((y) => y.name !== name);
-
-    console.log("packages", packages);
-    console.log("filtered", filtered);
 
     newProjectContext.dispatch({
       type: "set_selected_packages",
@@ -160,7 +152,6 @@ export default function PackageView() {
   }
 
   function togglePackage(name: string, version: string) {
-    console.log("togglePackage", name, version);
     const selected = packageInfo.selectedPackages;
     if (selected.find((x) => x.name === name)) {
       removePackage(name, version);
@@ -197,7 +188,11 @@ export default function PackageView() {
 
   return (
     <div className="flex h-full">
-      <Sidebar categories={categories} selectedCategory={selectedCategory} />
+      <Sidebar
+        categories={categories}
+        selectedCategory={selectedCategory}
+        allPackages={validPackages}
+      />
       <div className="px-4 pt-4 w-full flex flex-col overflow-y-auto">
         <AsyncLazyValueComponent
           loading={<LoadingSpinner />}
@@ -530,9 +525,11 @@ function LocalAdd(props: {
 function Sidebar({
   categories,
   selectedCategory,
+  allPackages,
 }: {
   categories: string[];
   selectedCategory: UseState<string>;
+  allPackages: CategoryPackage[];
 }) {
   const newProjectContext = useContext(NewProjectContext.Context);
 
@@ -549,6 +546,10 @@ function Sidebar({
           onClick={() => selectedCategory.set(x)}
         >
           {x}
+          <span>
+            {" "}
+            {allPackages.filter((y) => x === "All" || y.category === x).length}
+          </span>
         </button>
       ))}
 
@@ -606,12 +607,12 @@ function Package({
               }`}
             >
               <span>
-                {package_.package_.version !== otherVersion && (
+                {otherVersion && package_.package_.version !== otherVersion && (
                   <span className="line-through text-stone-500 pr-1">
                     {package_.package_.version}
                   </span>
                 )}
-                <span>{otherVersion}</span>
+                <span>{otherVersion ?? package_.package_.version}</span>
                 {/* {otherVersion && package_.package_.version !== otherVersion && (
                   <>
                     <span className="line-through text-stone-500 pr-2">
@@ -635,15 +636,15 @@ function Package({
         )}
       </button>
 
-      {package_.package_.type === TauriTypes.PackageType.Local ||
-        (package_.package_.type === TauriTypes.PackageType.Git && (
-          <button
-            className="w-10 p-2 bg-red-900 border-l border-stone-600 rounded-md rounded-tl-none rounded-bl-none hover:bg-red-800"
-            onClick={() => destroyPackage(package_.package_)}
-          >
-            <Delete />
-          </button>
-        ))}
+      {(package_.package_.type === TauriTypes.PackageType.Local ||
+        package_.package_.type === TauriTypes.PackageType.Git) && (
+        <button
+          className="w-10 p-2 bg-red-900 border-l border-stone-600 rounded-md rounded-tl-none rounded-bl-none hover:bg-red-800"
+          onClick={() => destroyPackage(package_.package_)}
+        >
+          <Delete />
+        </button>
+      )}
     </div>
   );
 }
