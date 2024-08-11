@@ -47,6 +47,7 @@ pub struct MinimalPackage {
   pub name: String,
   pub version: String,
   pub is_file: bool,
+  pub is_discoverable: bool,
   pub _type: PackageType
 }
 
@@ -101,16 +102,18 @@ pub fn get_editor_package_manager_manifest(editor_version: String, app_state: &t
 
 // commands
 
+// need to override versions with current template versions
 #[tauri::command]
 pub fn cmd_get_default_editor_packages(editor_version: String, app_state: tauri::State<AppState>) -> Result<Vec<MinimalPackage>, errors::AnyError> {
   let manifest = get_editor_package_manager_manifest(editor_version, &app_state)?;
   let mut manifest_packages = manifest.packages
     .iter()
-    .filter(|x| x.1.is_discoverable == Some(true))
+    // .filter(|x| x.1.is_discoverable == Some(true))
     .map(|x| MinimalPackage {
       name: x.0.clone(),
       version: x.1.version.clone().unwrap_or_default(),
       is_file: x.1.is_file.unwrap_or(false),
+      is_discoverable: x.1.is_discoverable.unwrap_or(false),
       _type: PackageType::Internal
     })
     .collect::<Vec<_>>();

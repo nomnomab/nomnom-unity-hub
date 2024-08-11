@@ -138,9 +138,7 @@ export default function PackageView() {
     const packages = newProjectContext.state.packageInfo.selectedPackages;
     return (
       validPackages.filter((x) =>
-        packages.find(
-          (y) => y.name === x.package_.name && y.version === x.package_.version
-        )
+        packages.find((y) => y.name === x.package_.name)
       ) ?? []
     );
   }, [
@@ -236,21 +234,24 @@ export default function PackageView() {
           )}
 
           <div className="flex flex-col gap-2 py-3 w-full">
-            {queriedPackages?.map((x, i) => (
-              <Package
-                key={i}
-                package_={x}
-                onClick={() =>
-                  togglePackage(x.package_.name, x.package_.version)
-                }
-                destroyPackage={destroyPackage}
-                selected={newProjectContext.state.packageInfo.selectedPackages.some(
-                  (y) =>
-                    y.name === x.package_.name &&
-                    y.version === x.package_.version
-                )}
-              />
-            ))}
+            {queriedPackages?.map((x, i) => {
+              const existingPackage =
+                newProjectContext.state.packageInfo.selectedPackages.find(
+                  (y) => y.name === x.package_.name
+                );
+              return (
+                <Package
+                  key={i}
+                  package_={x}
+                  onClick={() =>
+                    togglePackage(x.package_.name, x.package_.version)
+                  }
+                  destroyPackage={destroyPackage}
+                  selected={!!existingPackage}
+                  otherVersion={existingPackage?.version}
+                />
+              );
+            })}
           </div>
         </AsyncLazyValueComponent>
       </div>
@@ -285,6 +286,7 @@ function GitAdd(props: {
         name: gitPackageId.value,
         version: gitPackageUrl.value,
         isFile: false,
+        isDiscoverable: true,
         type: TauriTypes.PackageType.Git,
       });
 
@@ -324,6 +326,7 @@ function GitAdd(props: {
           name,
           version,
           isFile: false,
+          isDiscoverable: true,
           type: TauriTypes.PackageType.Git,
         });
 
@@ -449,6 +452,7 @@ function LocalAdd(props: {
       name: localPackage.value,
       version: "",
       isFile: false,
+      isDiscoverable: true,
       type: TauriTypes.PackageType.Local,
     });
 
@@ -558,6 +562,7 @@ function Package({
   onClick,
   selected,
   destroyPackage,
+  otherVersion,
 }: {
   package_: {
     package_: TauriTypes.MinimalPackage;
@@ -566,6 +571,7 @@ function Package({
   onClick?: () => void;
   selected: boolean;
   destroyPackage: (package_: TauriTypes.MinimalPackage) => void;
+  otherVersion?: string;
 }) {
   return (
     <div
@@ -592,9 +598,21 @@ function Package({
                 selected ? "text-stone-50" : "text-stone-400"
               }`}
             >
-              {package_.package_.version === ""
-                ? "N/A"
-                : package_.package_.version}
+              <span>
+                {otherVersion && package_.package_.version !== otherVersion && (
+                  <>
+                    <span className="line-through text-stone-500 pr-2">
+                      {package_.package_.version}
+                    </span>
+                    {otherVersion === "" ? "N/A" : otherVersion}
+                  </>
+                )}
+
+                {!otherVersion &&
+                  (package_.package_.version === ""
+                    ? "N/A"
+                    : package_.package_.version)}
+              </span>
             </span>
           </p>
           {/* {value.isPinned && <p>Pinned</p>} */}

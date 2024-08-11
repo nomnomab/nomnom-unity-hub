@@ -327,6 +327,7 @@ export namespace NewProjectContext {
                 name: action.package.id,
                 version: action.package.url,
                 isFile: false,
+                isDiscoverable: true,
                 type: TauriTypes.PackageType.Git,
               },
             ],
@@ -343,6 +344,7 @@ export namespace NewProjectContext {
                 name: action.package.path,
                 version: "", // will get turned into file:../id
                 isFile: false,
+                isDiscoverable: true,
                 type: TauriTypes.PackageType.Local,
               },
             ],

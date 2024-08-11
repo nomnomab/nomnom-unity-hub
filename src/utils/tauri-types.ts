@@ -115,6 +115,7 @@ export namespace TauriTypes {
     name: string;
     version: string;
     isFile: boolean;
+    isDiscoverable: boolean;
     type: PackageType;
   }
 
