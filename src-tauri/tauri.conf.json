@@ -18,6 +18,9 @@
       },
       "dialog": {
         "all": true
+      },
+      "window": {
+        "show": true
       }
     },
     "windows": [
@@ -28,7 +31,8 @@
         "minWidth": 1024,
         "minHeight": 568,
         "resizable": true,
-        "theme": "Dark"
+        "theme": "Dark",
+        "visible": false
       }
     ],
     "security": {

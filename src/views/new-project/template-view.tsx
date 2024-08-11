@@ -390,7 +390,14 @@ function TemplateInfo({
       tgzJson.set({ status: "success", value: json });
       newProjectContext.dispatch({
         type: "set_packages",
-        packages: Object.keys(json.tgzPackage.dependencies ?? {}) ?? [],
+        packages: Object.entries(json.tgzPackage.dependencies ?? {}).map(
+          ([k, v]) => {
+            return {
+              name: k,
+              version: (v as string) ?? undefined,
+            };
+          }
+        ),
       });
 
       newProjectContext.dispatch({
