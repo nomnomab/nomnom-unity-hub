@@ -14,7 +14,7 @@ import EllipsisVertical from "../../components/svg/ellipsis-vertical";
 import { Item, Menu, useContextMenu } from "react-contexify";
 
 const categories = ["All", "Core", "Sample", "Learning", "Custom"];
-const defaultUnityPackages = [
+const defaultUnityTemplates = [
   // Core
   {
     id: "com.unity.template.2d",
@@ -120,14 +120,14 @@ const defaultUnityPackages = [
   },
 ];
 
-function tryGetDefaultUnityPackage(name: string):
+function tryGetDefaultUnityTemplate(name: string):
   | {
       id: string;
       name: string;
       category: string;
     }
   | undefined {
-  return defaultUnityPackages.find((x) => x.id == name);
+  return defaultUnityTemplates.find((x) => x.id == name);
 }
 
 export default function TemplateView() {
@@ -148,25 +148,32 @@ export default function TemplateView() {
   });
 
   useEffect(() => {
-    newProjectContext.dispatch({
-      type: "set_initial_template",
-      template: undefined,
-    });
+    if (
+      !initialTemplateInfo.selectedTemplate ||
+      initialTemplateInfo.editorVersion.version !==
+        initialTemplateInfo.selectedTemplate?.editorVersion
+    ) {
+      console.log("initialTemplateInfo", initialTemplateInfo);
+      newProjectContext.dispatch({
+        type: "set_initial_template",
+        template: undefined,
+      });
+    }
   }, [initialTemplateInfo.editorVersion]);
 
-  const loadSurfacePackages = useCallback(async () => {
+  const loadSurfaceTemplates = useCallback(async () => {
     const editorVersion = initialTemplateInfo.editorVersion;
     const templates = await TauriRouter.get_surface_templates(
       editorVersion.version
     );
-    selectTemplate(undefined);
+    // selectTemplate(undefined);
     surfaceTemplates.set(templates);
   }, [initialTemplateInfo.editorVersion]);
 
-  const queriedPackages = useMemo(() => {
+  const queriedTemplates = useMemo(() => {
     return surfaceTemplates.value
       .map((x) => ({
-        found: tryGetDefaultUnityPackage(x.name),
+        found: tryGetDefaultUnityTemplate(x.name),
         x,
       }))
       .filter((x) =>
@@ -194,7 +201,7 @@ export default function TemplateView() {
       });
   }, [surfaceTemplates.value, searchQuery.value, selectedCategory.value]);
 
-  const selectedPackageWrapper = useMemo(() => {
+  const selectedTemplateWrapper = useMemo(() => {
     const selectedTemplate = initialTemplateInfo.selectedTemplate;
     if (!selectedTemplate) {
       newProjectContext.dispatch({
@@ -209,7 +216,8 @@ export default function TemplateView() {
       hasError: false,
     });
 
-    const p = tryGetDefaultUnityPackage(selectedTemplate.name);
+    const p = tryGetDefaultUnityTemplate(selectedTemplate.name);
+    console.log("p", p);
     return {
       _template: selectedTemplate!,
       name: p?.name,
@@ -227,10 +235,12 @@ export default function TemplateView() {
       template: x,
     });
 
-    newProjectContext.dispatch({
-      type: "set_packages",
-      packages: [],
-    });
+    console.log("selectTemplate", x);
+
+    // newProjectContext.dispatch({
+    //   type: "set_selected_packages",
+    //   packages: [],
+    // });
   }
 
   return (
@@ -239,7 +249,7 @@ export default function TemplateView() {
       <div className="px-4 pt-4 w-full flex flex-col overflow-y-auto">
         <AsyncComponent
           loading={<LoadingSpinner />}
-          callback={loadSurfacePackages}
+          callback={loadSurfaceTemplates}
         >
           <input
             type="search"
@@ -250,7 +260,7 @@ export default function TemplateView() {
           />
 
           <div className="flex flex-col gap-2 py-3 w-full">
-            {queriedPackages.map((x, i) => (
+            {queriedTemplates.map((x, i) => (
               <Template
                 key={i}
                 value={x}
@@ -264,11 +274,11 @@ export default function TemplateView() {
           </div>
         </AsyncComponent>
       </div>
-      {selectedPackageWrapper && (
+      {selectedTemplateWrapper && (
         <TemplateInfo
-          value={selectedPackageWrapper}
+          value={selectedTemplateWrapper}
           tgzJson={selectedTgzJson}
-          loadSurfacePackages={loadSurfacePackages}
+          loadSurfacePackages={loadSurfaceTemplates}
         />
       )}
     </div>
@@ -291,7 +301,12 @@ function Sidebar({
     });
 
     newProjectContext.dispatch({
-      type: "set_packages",
+      type: "set_template_packages",
+      packages: [],
+    });
+
+    newProjectContext.dispatch({
+      type: "set_selected_packages",
       packages: [],
     });
 
@@ -388,16 +403,27 @@ function TemplateInfo({
       tgzJson.set({ status: "loading", value: null });
       const json = await TauriRouter.get_template_information(value._template);
       tgzJson.set({ status: "success", value: json });
+
+      const packages = Object.entries(json.tgzPackage.dependencies ?? {}).map(
+        ([k, v]) => {
+          return {
+            name: k,
+            version: (v as string) ?? undefined,
+            isDiscoverable: true,
+            isFile: false,
+            type: TauriTypes.PackageType.Internal,
+          };
+        }
+      );
+
       newProjectContext.dispatch({
-        type: "set_packages",
-        packages: Object.entries(json.tgzPackage.dependencies ?? {}).map(
-          ([k, v]) => {
-            return {
-              name: k,
-              version: (v as string) ?? undefined,
-            };
-          }
-        ),
+        type: "set_template_packages",
+        packages,
+      });
+
+      newProjectContext.dispatch({
+        type: "set_selected_packages",
+        packages: [...packages],
       });
 
       newProjectContext.dispatch({

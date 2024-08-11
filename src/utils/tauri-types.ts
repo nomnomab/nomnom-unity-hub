@@ -58,6 +58,7 @@ export namespace TauriTypes {
     name: string;
     version: string;
     path: string;
+    editorVersion: string;
   }
 
   export interface TgzPackageJson {

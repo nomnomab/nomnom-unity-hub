@@ -9,10 +9,14 @@ import { TauriRouter } from "../../utils/tauri-router";
 import Checkmark from "../../components/svg/checkmark";
 import FolderOpen from "../../components/svg/folder-open";
 import { open } from "@tauri-apps/api/dialog";
-import { Buttons } from "../../components/parts/buttons";
 import Delete from "../../components/svg/delete";
 
-const categories = ["All", "Internal", "Git", "Local"];
+const categories = ["All", "Internal", "In Package", "Git", "Local"];
+
+type CategoryPackage = {
+  package_: TauriTypes.MinimalPackage;
+  category: string;
+};
 
 export default function PackageView() {
   const newProjectContext = useContext(NewProjectContext.Context);
@@ -20,18 +24,78 @@ export default function PackageView() {
   const onlyShowSelectedPackages = useBetterState<boolean>(false);
   const searchQuery = useBetterState("");
 
-  const minimalPackages = useBetterState<
-    LazyValue<{ package_: TauriTypes.MinimalPackage; category: string }[]>
-  >({
-    status: "loading",
-    value: null,
+  const initialTemplateInfo = useMemo(() => {
+    return newProjectContext.state.initialTemplateInfo;
+  }, [newProjectContext.state.initialTemplateInfo]);
+
+  const packageInfo = useMemo(() => {
+    return newProjectContext.state.packageInfo;
+  }, [newProjectContext.state.packageInfo]);
+
+  const corePackages = useBetterState<LazyValue<CategoryPackage[]>>({
+    status: "idle",
+    value: [],
   });
+
+  const validPackages = useMemo(() => {
+    const packages: CategoryPackage[] = (corePackages.value.value ?? [])
+      .map((x) => {
+        const templatePackage = packageInfo.templatePackages.find(
+          (y) => y.name === x.package_.name
+        );
+
+        // const sameVersion = templatePackage?.version === x.package_.version;
+        return {
+          package_: x.package_,
+          category: templatePackage ? "In Package" : x.category,
+        };
+      })
+      .concat(
+        packageInfo.gitPackages.map((x) => ({ package_: x, category: "Git" }))
+      )
+      .concat(
+        packageInfo.localPackages.map((x) => ({
+          package_: x,
+          category: "Local",
+        }))
+      );
+    return packages;
+  }, [corePackages.value]);
+
+  const queriedPackages = useMemo(() => {
+    const searchPackages = validPackages
+      .filter((x) =>
+        x.package_.name.toLowerCase().includes(searchQuery.value.toLowerCase())
+      )
+      .filter(
+        (x) =>
+          selectedCategory.value === "All" ||
+          x.category === selectedCategory.value
+      );
+
+    if (!onlyShowSelectedPackages.value) {
+      return searchPackages;
+    }
+
+    return searchPackages.filter((x) =>
+      newProjectContext.state.packageInfo.selectedPackages.some(
+        (y) => y.name === x.package_.name
+      )
+    );
+  }, [
+    validPackages,
+    searchQuery.value,
+    selectedCategory.value,
+    onlyShowSelectedPackages.value,
+    packageInfo.selectedPackages,
+  ]);
 
   useEffect(() => {
     const load = async () => {
-      minimalPackages.set({ status: "loading", value: null });
-      const newMinimalPackages = await TauriRouter.get_default_editor_packages(
-        newProjectContext.state.initialTemplateInfo.editorVersion.version
+      corePackages.set({ status: "loading", value: null });
+
+      const newCorePackages = await TauriRouter.get_default_editor_packages(
+        initialTemplateInfo.editorVersion.version
       )
         .then((x) =>
           x.map((x) => ({
@@ -43,13 +107,10 @@ export default function PackageView() {
           return [...x];
         });
 
-      minimalPackages.set({
-        status: "success",
-        value: newMinimalPackages,
-      });
+      corePackages.set({ status: "success", value: newCorePackages });
 
+      // populate git and local packages
       const p = await TauriRouter.get_user_cache();
-
       const gitPackages = p.gitPackages.map((x) => ({
         package_: x,
         category: "Git",
@@ -74,122 +135,62 @@ export default function PackageView() {
   }, []);
 
   function selectPackage(name: string, version?: string) {
-    const packages = newProjectContext.state.packageInfo.selectedPackages;
-    const filtered = packages.filter(
-      (y) => y.name !== name && y.version !== version
-    );
+    console.log("selectPackage", name, version);
+    const packages = packageInfo.selectedPackages;
+    const filtered = packages.filter((y) => y.name !== name);
+
     newProjectContext.dispatch({
-      type: "set_packages",
+      type: "set_selected_packages",
       packages: [...filtered, { name, version }],
     });
   }
 
   function removePackage(name: string, version: string) {
-    const packages = newProjectContext.state.packageInfo.selectedPackages;
-    const filtered = packages.filter(
-      (y) => y.name !== name || y.version !== version
-    );
+    console.log("removePackage", name, version);
+    const packages = packageInfo.selectedPackages;
+    const filtered = packages.filter((y) => y.name !== name);
+
+    console.log("packages", packages);
+    console.log("filtered", filtered);
 
     newProjectContext.dispatch({
-      type: "set_packages",
+      type: "set_selected_packages",
       packages: filtered,
     });
   }
 
   function togglePackage(name: string, version: string) {
-    const packages = newProjectContext.state.packageInfo.selectedPackages;
-    if (packages.find((x) => x.name === name && x.version === version)) {
+    console.log("togglePackage", name, version);
+    const selected = packageInfo.selectedPackages;
+    if (selected.find((x) => x.name === name)) {
       removePackage(name, version);
     } else {
       selectPackage(name, version);
     }
   }
 
-  const queriedPackages = useMemo(() => {
-    const gitPackages = newProjectContext.state.packageInfo.gitPackages.map(
-      (x) => ({
-        package_: x,
-        category: "Git",
-      })
-    );
-    const localPackages = newProjectContext.state.packageInfo.localPackages.map(
-      (x) => ({
-        package_: x,
-        category: "Local",
-      })
-    );
-
-    const validPackages = (minimalPackages.value.value ?? [])
-      .concat(gitPackages)
-      .concat(localPackages)
-      .filter((x) =>
-        x.package_.name.toLowerCase().includes(searchQuery.value.toLowerCase())
-      )
-      .filter(
-        (x) =>
-          selectedCategory.value === "All" ||
-          x.category === selectedCategory.value
-      );
-
-    if (!onlyShowSelectedPackages.value) {
-      return validPackages;
-    }
-
-    const packages = newProjectContext.state.packageInfo.selectedPackages;
-    return (
-      validPackages.filter((x) =>
-        packages.find((y) => y.name === x.package_.name)
-      ) ?? []
-    );
-  }, [
-    minimalPackages.value,
-    onlyShowSelectedPackages.value,
-    searchQuery.value,
-    selectedCategory.value,
-    newProjectContext.state.packageInfo.gitPackages,
-    newProjectContext.state.packageInfo.localPackages,
-  ]);
-
   async function destroyPackage(package_: TauriTypes.MinimalPackage) {
     if (package_.type === TauriTypes.PackageType.Local) {
       await TauriRouter.remove_local_package_from_cache(package_);
       newProjectContext.dispatch({
-        type: "set_packages",
-        packages: newProjectContext.state.packageInfo.selectedPackages.filter(
-          (x) => x.name !== package_.name && x.version !== package_.version
-        ),
+        type: "destroy_package",
+        package: package_,
       });
+
       newProjectContext.dispatch({
         type: "remove_local_package",
         package: package_,
       });
-      minimalPackages.set({
-        ...minimalPackages.value,
-        value: minimalPackages.value.value!.filter(
-          (x) =>
-            x.package_.name !== package_.name &&
-            x.package_.version !== package_.version
-        ),
-      });
     } else if (package_.type === TauriTypes.PackageType.Git) {
       await TauriRouter.remove_git_package_from_cache(package_);
       newProjectContext.dispatch({
-        type: "set_packages",
-        packages: newProjectContext.state.packageInfo.selectedPackages.filter(
-          (x) => x.name !== package_.name && x.version !== package_.version
-        ),
+        type: "destroy_package",
+        package: package_,
       });
+
       newProjectContext.dispatch({
         type: "remove_git_package",
         package: package_,
-      });
-      minimalPackages.set({
-        ...minimalPackages.value,
-        value: minimalPackages.value.value!.filter(
-          (x) =>
-            x.package_.name !== package_.name &&
-            x.package_.version !== package_.version
-        ),
       });
     }
   }
@@ -200,7 +201,7 @@ export default function PackageView() {
       <div className="px-4 pt-4 w-full flex flex-col overflow-y-auto">
         <AsyncLazyValueComponent
           loading={<LoadingSpinner />}
-          value={minimalPackages.value}
+          value={corePackages.value}
         >
           <input
             type="search"
@@ -235,19 +236,25 @@ export default function PackageView() {
 
           <div className="flex flex-col gap-2 py-3 w-full">
             {queriedPackages?.map((x, i) => {
-              const existingPackage =
-                newProjectContext.state.packageInfo.selectedPackages.find(
-                  (y) => y.name === x.package_.name
-                );
+              const existingPackage = packageInfo.templatePackages.find(
+                (y) => y.name === x.package_.name
+              );
+              const isSelected = packageInfo.selectedPackages.some(
+                (y) => y.name === x.package_.name
+              );
+
               return (
                 <Package
                   key={i}
                   package_={x}
                   onClick={() =>
-                    togglePackage(x.package_.name, x.package_.version)
+                    togglePackage(
+                      x.package_.name,
+                      existingPackage?.version ?? x.package_.version
+                    )
                   }
                   destroyPackage={destroyPackage}
-                  selected={!!existingPackage}
+                  selected={isSelected}
                   otherVersion={existingPackage?.version}
                 />
               );
@@ -599,7 +606,13 @@ function Package({
               }`}
             >
               <span>
-                {otherVersion && package_.package_.version !== otherVersion && (
+                {package_.package_.version !== otherVersion && (
+                  <span className="line-through text-stone-500 pr-1">
+                    {package_.package_.version}
+                  </span>
+                )}
+                <span>{otherVersion}</span>
+                {/* {otherVersion && package_.package_.version !== otherVersion && (
                   <>
                     <span className="line-through text-stone-500 pr-2">
                       {package_.package_.version}
@@ -611,7 +624,7 @@ function Package({
                 {!otherVersion &&
                   (package_.package_.version === ""
                     ? "N/A"
-                    : package_.package_.version)}
+                    : package_.package_.version)} */}
               </span>
             </span>
           </p>

@@ -8,6 +8,7 @@ pub struct SurfaceTemplate {
   pub name: String,
   pub version: String,
   pub path: PathBuf,
+  pub editor_version: String
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -98,7 +99,7 @@ pub fn get_core_templates_path(editor_version: String, app_state: &tauri::State<
 }
 
 pub fn get_core_templates(editor_version: String, app_state: &tauri::State<AppState>) -> Result<Vec<SurfaceTemplate>, errors::AnyError> {
-  let core_template_path = get_core_templates_path(editor_version, &app_state)?;
+  let core_template_path = get_core_templates_path(editor_version.clone(), &app_state)?;
   let files = std::fs::read_dir(&core_template_path)
     .map_err(|_| errors::io_not_found("Invalid core template path"))?
     .filter_map(|x| x.ok())
@@ -106,7 +107,7 @@ pub fn get_core_templates(editor_version: String, app_state: &tauri::State<AppSt
     .filter_map(|x| {
       let (name, version) = get_info_from_file_name(x.path())
         .ok()?;
-      Some(SurfaceTemplate { name, version, path: x.path() })
+      Some(SurfaceTemplate { name, version, path: x.path(), editor_version: editor_version.clone() })
     })
     .collect::<Vec<_>>();
   
@@ -173,7 +174,7 @@ pub fn read_user_templates_manifest(editor_version: String, app_state: &tauri::S
 }
 
 pub fn get_user_templates(editor_version: String, app_state: &tauri::State<AppState>) -> Result<Vec<SurfaceTemplate>, errors::AnyError> {
-  let templates = read_user_templates_manifest(editor_version, &app_state)?;
+  let templates = read_user_templates_manifest(editor_version.clone(), &app_state)?;
 
   let user_templates_path = get_user_templates_path(&app_state)?;
   let files = std::fs::read_dir(&user_templates_path)
@@ -183,7 +184,7 @@ pub fn get_user_templates(editor_version: String, app_state: &tauri::State<AppSt
     .filter_map(|x| {
       let (name, version) = get_info_from_file_name(x.path())
         .ok()?;
-      Some(SurfaceTemplate { name, version, path: x.path() })
+      Some(SurfaceTemplate { name, version, path: x.path(), editor_version: editor_version.clone() })
     })
     .filter(|x| {
       let value = templates.get(&x.name);
