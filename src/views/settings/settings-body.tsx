@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
 import {
   ValidateInputContext,
   ValidateInputWithButton,
@@ -24,6 +24,8 @@ export default function SettingsBody(props: {
     value: null,
   });
 
+  const clearingCache = useBetterState(false);
+
   useEffect(() => {
     props.onBadPref?.(true);
 
@@ -36,8 +38,20 @@ export default function SettingsBody(props: {
     load();
   }, []);
 
+  async function clearCache() {
+    clearingCache.set(true);
+    await TauriRouter.delete_template_cache();
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    clearingCache.set(false);
+  }
+
   return (
-    <div className={props.overrideClassName ?? "flex flex-col px-8 py-4 gap-4"}>
+    <div
+      className={
+        props.overrideClassName ??
+        "flex flex-col px-8 py-4 gap-4 overflow-y-auto h-full"
+      }
+    >
       <ValidateInputContext.User>
         <AsyncLazyValueComponent
           loading={<LoadingSpinner />}
@@ -50,15 +64,26 @@ export default function SettingsBody(props: {
       </ValidateInputContext.User>
 
       {globalContext.state.currentTab === "settings" && (
-        <p
-          className="text-sm text-red-400 underline-offset-4 select-none cursor-pointer hover:underline transition-all"
-          title="https://github.com/nomnomab/nomnom-unity-hub/issues"
-          onClick={() =>
-            shell.open("https://github.com/nomnomab/nomnom-unity-hub/issues")
-          }
-        >
-          Report an issue
-        </p>
+        <>
+          <div className="mt-2">
+            <button
+              className="rounded-md text-stone-50 bg-sky-600 px-3 py-1 select-none disabled:cursor-not-allowed disabled:opacity-50 hover:bg-sky-700 transition-colors"
+              onClick={clearCache}
+              disabled={clearingCache.value}
+            >
+              {clearingCache.value ? "Clearing..." : "Clear Cache"}
+            </button>
+          </div>
+          <p
+            className="text-sm text-red-400 underline-offset-4 select-none cursor-pointer hover:underline transition-all"
+            title="https://github.com/nomnomab/nomnom-unity-hub/issues"
+            onClick={() =>
+              shell.open("https://github.com/nomnomab/nomnom-unity-hub/issues")
+            }
+          >
+            Report an issue
+          </p>
+        </>
       )}
     </div>
   );

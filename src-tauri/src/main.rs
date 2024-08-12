@@ -38,6 +38,7 @@ fn main() {
             cache::cmd_add_local_package_to_cache,
             cache::cmd_remove_git_package_from_cache,
             cache::cmd_remove_local_package_from_cache,
+            cache::cmd_delete_template_cache,
             // project
             project::cmd_get_default_project_path,
             project::cmd_remove_missing_projects,

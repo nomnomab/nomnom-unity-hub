@@ -28,6 +28,20 @@ pub struct TgzPackageJson {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct PackageLockJson {
+    dependencies: HashMap<String, PackageLockJsonDependency>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct PackageLockJsonDependency {
+    version: String,
+    depth: u32,
+    source: String,
+    dependencies: HashMap<String, String>,
+    url: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UPM {
     changelog: Option<String>,
@@ -208,12 +222,15 @@ pub fn extract_template_information(app: &tauri::AppHandle, surface_template: &S
     .join("package")
     .with_extension("json");
 
-  let mut contents = None;
+  let mut package_json_contents = None;
+  let mut package_lock_json_contents = None;
+
   if package_json_path.exists() {
     // no need to extract tgz file!
-    contents = Some(std::fs::read_to_string(&package_json_path)?);
+    package_json_contents = Some(std::fs::read_to_string(&package_json_path)?);
   } else {
     // need to extract tgz file, so dumb
+    println!("Extracting {:?}", surface_template.path);
     let tar_gz = std::fs::File::open(&surface_template.path)?;
     let tar_decoder = GzDecoder::new(tar_gz);
     let mut tar = tar::Archive::new(tar_decoder);
@@ -222,25 +239,68 @@ pub fn extract_template_information(app: &tauri::AppHandle, surface_template: &S
       .join("package")
       .with_extension("json");
 
+    let package_lock_path = std::path::Path::new("package")
+      .join("ProjectData~")
+      .join("Packages")
+      .join("packages-lock")
+      .with_extension("json");
+
     let mut new_contents = String::new();
+    let mut new_lock_contents = String::new();
+
     tar
       .entries()
       .map_err(|_| errors::str_error("Invalid template tgz"))?
       .filter_map(|x| x.ok())
-      .find(|x| x.path().is_ok_and(|x| &*x == package_path))
-      .iter_mut()
-      .next()
-      .ok_or(errors::str_error("Could not find package.json in template tgz"))?
-      .read_to_string(&mut new_contents)
-      .map_err(|_| errors::str_error("Could not read template.tgz"))?;
+      .filter(|x| x.path().is_ok_and(|x| &*x == package_path) || x.path().is_ok_and(|x| &*x == package_lock_path))
+      .for_each(|mut x| {
+        if x.path().is_ok_and(|x| &*x == package_path) {
+          x
+            .read_to_string(&mut new_contents)
+            .map_err(|_| errors::str_error("Could not read template.tgz"))
+            .unwrap();
+        } else if x.path().is_ok_and(|x| &*x == package_lock_path) {
+          x
+            .read_to_string(&mut new_lock_contents)
+            .map_err(|_| errors::str_error("Could not read template.tgz"))
+            .unwrap();
+        }
+      });
+      // .next()
+      // .ok_or(errors::str_error("Could not find package.json in template tgz"))?
+      // .read_to_string(&mut new_contents)
+      // .map_err(|_| errors::str_error("Could not read template.tgz"))?;
 
-    contents = Some(new_contents);
+    package_json_contents = Some(new_contents);
+    package_lock_json_contents = Some(new_lock_contents);
   }
 
-  if let Some(contents) = contents {
+  if let Some(package_json_contents) = package_json_contents {
     // load json contents then save to disk
-    let package_json: TgzPackageJson = serde_json::from_str(&contents)
+    let mut package_json: TgzPackageJson = serde_json::from_str(&package_json_contents)
       .map_err(|_| errors::str_error("Invalid package.json"))?;
+
+    if let Some(package_lock_json_contents) = package_lock_json_contents {
+      let package_lock_json: PackageLockJson = serde_json::from_str(&package_lock_json_contents)
+        .map_err(|_| errors::str_error("Invalid package-lock.json"))?;
+
+      // extract all of the dependencies + subdepdependencies
+      let mut found_deps = HashMap::new();
+
+      for (key, value) in package_lock_json.dependencies {
+        if &value.source != "builtin" {
+          continue;
+        }
+
+        found_deps.insert(key, value.version);
+
+        for (subkey, subvalue) in value.dependencies {
+          found_deps.insert(subkey, subvalue);
+        }
+      }
+
+      package_json.dependencies = Some(found_deps);
+    }
 
     let package_record = TgzPackageJsonRecord {
       tgz_package: package_json.clone(),

@@ -90,6 +90,10 @@ export namespace TauriRouter {
     });
   }
 
+  export async function delete_template_cache() {
+    return invoke("cmd_delete_template_cache");
+  }
+
   // project
 
   export async function get_default_project_path(): Promise<string> {

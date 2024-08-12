@@ -552,7 +552,7 @@ function TemplateInfo({
                           <span className="w-10/12 overflow-hidden flex-shrink-0">
                             {x}
                           </span>{" "}
-                          <span className="text-stone-400">
+                          <span className="text-stone-400 text-right">
                             {
                               tgzJson.value?.value?.tgzPackage?.dependencies?.[
                                 x

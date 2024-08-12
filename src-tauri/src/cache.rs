@@ -95,3 +95,13 @@ pub fn cmd_remove_local_package_from_cache(app_handle: tauri::AppHandle, app_sta
   app::save_user_cache_to_disk(&user_cache, &app_handle)?;
   Ok(())
 }
+
+#[tauri::command]
+pub fn cmd_delete_template_cache(app_handle: tauri::AppHandle) -> Result<(), errors::AnyError> {
+  let cache_dir = app_handle.path_resolver().app_cache_dir()
+    .ok_or(errors::str_error("Invalid app cache dir"))?
+    .join("templates");
+
+  std::fs::remove_dir_all(&cache_dir)?;
+  Ok(())
+}
