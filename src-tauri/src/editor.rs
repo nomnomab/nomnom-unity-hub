@@ -51,43 +51,43 @@ impl Default for UnityEditorModule {
 }
 
 pub fn get_root_folder(editor_path: impl Into<PathBuf>) -> Option<std::path::PathBuf> {
-  let path: PathBuf = editor_path.into();
-  // path is to exe, so go up two folders
-  let path = {
-    if cfg!(target_os = "windows") {
-      path.parent().and_then(|p| p.parent())
-    } else if cfg!(target_family = "unix") {
-      path.parent()
-    } else {
-      None
+    let path: PathBuf = editor_path.into();
+    // path is to exe, so go up two folders
+    let path = {
+        if cfg!(target_os = "windows") {
+            path.parent().and_then(|p| p.parent())
+        } else if cfg!(target_family = "unix") {
+            path.parent()
+        } else {
+            None
+        }
+    };
+    if !path.is_some() {
+        return None;
     }
-  };
-  if !path.is_some() {
-      return None;
-  }
 
-  let path = path.unwrap().to_path_buf();
-  Some(path)
+    let path = path.unwrap().to_path_buf();
+    Some(path)
 }
 
 pub fn get_working_root_folder(editor_path: impl Into<PathBuf>) -> Option<std::path::PathBuf> {
-  let path: PathBuf = editor_path.into();
-  // path is to exe, so go up two folders
-  let path = {
-    if cfg!(target_os = "windows") {
-        path.parent().and_then(|p| p.parent())
-    } else if cfg!(target_family = "unix") {
-        Some(path.as_path())
-    } else {
-        None
+    let path: PathBuf = editor_path.into();
+    // path is to exe, so go up two folders
+    let path = {
+        if cfg!(target_os = "windows") {
+            path.parent().and_then(|p| p.parent())
+        } else if cfg!(target_family = "unix") {
+            Some(path.as_path())
+        } else {
+            None
+        }
+    };
+    if !path.is_some() {
+        return None;
     }
-  };
-  if !path.is_some() {
-      return None;
-  }
 
-  let path = path.unwrap().to_path_buf();
-  Some(path)
+    let path = path.unwrap().to_path_buf();
+    Some(path)
 }
 
 pub fn get_package_manager_folder(
@@ -124,8 +124,7 @@ pub fn get_package_manager_folder(
 
 pub fn load_modules(editor_path: impl Into<PathBuf>) -> anyhow::Result<Vec<UnityEditorModule>> {
     let path = editor_path.into();
-    let editor_root = get_root_folder(path)
-      .ok_or(errors::io_not_found("Invalid editor path"))?;
+    let editor_root = get_root_folder(path).ok_or(errors::io_not_found("Invalid editor path"))?;
 
     let json_path = editor_root.join("modules").with_extension("json");
     let json_content = std::fs::read_to_string(&json_path)?;
@@ -140,8 +139,6 @@ pub fn find_editor_installs(
     let hub_editors_path = prefs
         .hub_editors_path
         .ok_or(errors::str_error("hub_editors_path not set"))?;
-
-    println!("hub_editors_path: {}", hub_editors_path.display());
 
     if !hub_editors_path.exists() {
         return Err(errors::io_not_found("Invalid hub_editors_path"));
@@ -174,8 +171,6 @@ pub fn find_editor_installs(
             .to_str()?
             .to_string();
 
-            println!("Editor path: {}", exe_path);
-
             let modules = load_modules(&exe_path).ok()?;
 
             let editor = UnityEditorInstall {
@@ -185,10 +180,8 @@ pub fn find_editor_installs(
             };
 
             if path.is_dir() {
-                println!("Found editor: {}", editor.version);
                 Some(editor)
             } else {
-                println!("Skipping editor: {}", editor.version);
                 None
             }
         })
@@ -220,8 +213,6 @@ pub fn find_editor_installs(
             .then_with(|| nums_a[3].cmp(&nums_b[3]))
     });
     editors.reverse();
-
-    println!("Found editors: {:?}", editors);
 
     Ok(editors)
 }
@@ -292,9 +283,6 @@ pub fn estimate_size(
     let root_path = crate::editor::get_root_folder(&editor.exe_path)
         .ok_or(errors::str_error("Invalid editor root path"))?;
     let disk_size = io_utils::dir_size(root_path).unwrap_or(0u64);
-
-    println!("{}: {}", exe_path, disk_size);
-
     map.insert(exe_path, serde_json::Value::from(disk_size));
     std::fs::write(&tmp_json_path, serde_json::to_string_pretty(&map)?)?;
 

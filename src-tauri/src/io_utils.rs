@@ -21,9 +21,10 @@ pub fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> io::Result<
 pub fn get_cache_dir(app: &tauri::AppHandle) -> Result<std::path::PathBuf, errors::AnyError> {
     let cache_dir = app.path_resolver().app_cache_dir()
         .ok_or(errors::str_error("Failed to get cache dir"))?;
-    if cache_dir.exists() {
-        std::fs::remove_dir_all(&cache_dir)?;
-    }
+      
+    // if cache_dir.exists() {
+    //     std::fs::remove_dir_all(&cache_dir)?;
+    // }
     
     std::fs::create_dir_all(&cache_dir)?;
     Ok(cache_dir)
@@ -45,16 +46,6 @@ pub fn get_cache_appended_dir(app: &tauri::AppHandle, name: &str) -> Result<std:
 pub fn dir_size(path: impl Into<std::path::PathBuf>) -> Result<u64, errors::AnyError> {
     let path: std::path::PathBuf = path.into();
 
-    // if path.is_file() {
-    //     return Ok(file_size(path)?);
-    // }
-
-    // unix
-    // if cfg!(target_family = "unix") {
-    //     return Ok(path.size_on_disk()
-    //         .map_err(|_| errors::str_error("Failed to get dir size"))?);
-    // }
-
     fn dir_size(mut dir: std::fs::ReadDir) -> std::io::Result<u64> {
         dir.try_fold(0, |acc, file| {
             let file = file?;
@@ -68,8 +59,9 @@ pub fn dir_size(path: impl Into<std::path::PathBuf>) -> Result<u64, errors::AnyE
     }
 
     let next_path = std::fs::read_dir(path)?;
-    let result = dir_size(next_path)?;
-    Ok(result)
+    let size = dir_size(next_path)?;
+    
+    Ok(size)
 }
 
 pub fn file_size(path: impl Into<std::path::PathBuf>) -> Result<u64, errors::AnyError> {
