@@ -25,6 +25,7 @@ flate2 = "1.0.30"
 tar = "0.4.41"
 dirs-next = "2.0.0"
 filesize = "0.2.0" # or "postgres", or "mysql"
+tauri-plugin-single-instance = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "v1" }
 
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!
