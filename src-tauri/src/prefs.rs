@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::{app::{self, AppState}, errors, project::Project};
+use crate::{app::{self, AppState}, errors};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum PrefsKey {
@@ -100,7 +100,7 @@ pub fn cmd_set_pref_value(app_state: tauri::State<'_, AppState>, key: PrefsKey, 
         PrefsKey::HubAppDataPath => {
             prefs.hub_appdata_path = serde_json::from_value(value)?;
         },
-        _ => return Err(errors::str_error("Invalid key")),
+        // _ => return Err(errors::str_error("Invalid key")),
     }
     Ok(())
 }

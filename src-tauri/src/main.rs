@@ -1,5 +1,7 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+#![allow(dead_code)]
+#![allow(unused, unused_imports, unused_allocation, unused_assignments, unused_results, unused_variables)]
 
 use std::sync::Mutex;
 
