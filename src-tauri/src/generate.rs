@@ -114,9 +114,9 @@ pub fn generate_project(app: &tauri::AppHandle, app_state: &tauri::State<'_, App
 
   let editor_version = template_info.editor_version.version.clone();
   let editor_version = format!("m_EditorVersion: {}", editor_version);
-  println!("EditorVersion: {}", editor_version);
-  println!("EditorVersion path: {}", editor_version_path.display());
   std::fs::write(&editor_version_path, editor_version)?;
+
+  create_gitignore(package_cache_dir_out)?;
   
   Ok(package_cache_dir_out.clone())
 }
@@ -287,9 +287,6 @@ fn modify_package_json(json_root: &PathBuf, packages: &Vec<MinimalPackage>, outp
     .filter(|x| x._type != package::PackageType::Local)
     .collect::<Vec<_>>();
 
-  println!("Local packages: {:?}", local_packages);
-  println!("Rest packages: {:?}", rest_packages);
-
   let manifest_json_contents = {
     if !manifest_json.exists() {
       "{}".to_string()
@@ -350,6 +347,15 @@ fn modify_package_json(json_root: &PathBuf, packages: &Vec<MinimalPackage>, outp
   let manifest_json_contents = serde_json::to_string_pretty(&manifest_json_contents)?;
   std::fs::write(&manifest_json, manifest_json_contents)?;
 
+  Ok(())
+}
+
+fn create_gitignore(output_path: &PathBuf) -> Result<(), errors::AnyError> {
+  let embedded_gitignore = include_str!("assets/unity.gitignore");
+  let gitignore_path = output_path.join(".gitignore");
+  if !gitignore_path.exists() {
+    std::fs::write(&gitignore_path, embedded_gitignore)?;
+  }
   Ok(())
 }
 
