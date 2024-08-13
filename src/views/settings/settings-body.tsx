@@ -116,9 +116,9 @@ function Inputs({
     lazyPrefs.set({ ...lazyPrefs.value, value: prefs });
   }
 
-  async function selectProjectFolder(key: string) {
+  async function selectProjectFolder(key: string, dir: boolean) {
     const path = await open({
-      directory: true,
+      directory: dir,
       multiple: false,
       // @ts-ignore
       defaultPath: prefs[key],
@@ -185,7 +185,7 @@ function Inputs({
       >
         <button
           className="hover:text-stone-50 border-stone-600 w-[40px] flex items-center justify-center aspect-square rounded-md rounded-tl-none rounded-bl-none text-stone-50 hover:bg-stone-500 p-2 border"
-          onClick={() => selectProjectFolder("newProjectPath")}
+          onClick={() => selectProjectFolder("newProjectPath", true)}
         >
           <FolderOpen />
         </button>
@@ -209,7 +209,7 @@ function Inputs({
       >
         <button
           className="hover:text-stone-50 border-stone-600 w-[40px] flex items-center justify-center aspect-square rounded-md rounded-tl-none rounded-bl-none text-stone-50 hover:bg-stone-500 p-2 border"
-          onClick={() => selectProjectFolder("hubPath")}
+          onClick={() => selectProjectFolder("hubPath", false)}
         >
           <FolderOpen />
         </button>
@@ -233,7 +233,7 @@ function Inputs({
       >
         <button
           className="hover:text-stone-50 border-stone-600 w-[40px] flex items-center justify-center aspect-square rounded-md rounded-tl-none rounded-bl-none text-stone-50 hover:bg-stone-500 p-2 border"
-          onClick={() => selectProjectFolder("hubEditorsPath")}
+          onClick={() => selectProjectFolder("hubEditorsPath", true)}
         >
           <FolderOpen />
         </button>
@@ -257,7 +257,7 @@ function Inputs({
       >
         <button
           className="hover:text-stone-50 border-stone-600 w-[40px] flex items-center justify-center aspect-square rounded-md rounded-tl-none rounded-bl-none text-stone-50 hover:bg-stone-500 p-2 border"
-          onClick={() => selectProjectFolder("hubAppdataPath")}
+          onClick={() => selectProjectFolder("hubAppdataPath", true)}
         >
           <FolderOpen />
         </button>
