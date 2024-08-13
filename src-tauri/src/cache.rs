@@ -1,4 +1,4 @@
-use crate::{app::{self, AppState}, errors, package};
+use crate::{app::{self, AppState}, errors, io_utils, package};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum UserCacheKey {
@@ -98,9 +98,7 @@ pub fn cmd_remove_local_package_from_cache(app_handle: tauri::AppHandle, app_sta
 
 #[tauri::command]
 pub fn cmd_delete_template_cache(app_handle: tauri::AppHandle) -> Result<(), errors::AnyError> {
-  let cache_dir = app_handle.path_resolver().app_cache_dir()
-    .ok_or(errors::str_error("Invalid app cache dir"))?
-    .join("templates");
+  let cache_dir = io_utils::get_cache_appended_dir(&app_handle, "templates")?;
 
   std::fs::remove_dir_all(&cache_dir)?;
   Ok(())

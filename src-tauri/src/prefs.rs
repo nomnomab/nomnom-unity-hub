@@ -31,7 +31,7 @@ impl Default for Prefs {
             #[cfg(target_os = "windows")]
             hub_path: Some(PathBuf::from("C:").join("Program Files").join("Unity Hub").join("Unity Hub").with_extension("exe")),
             #[cfg(target_os = "macos")]
-            hub_path: Some(PathBuf::from("/Applications/Unity/Unity Hub.app/Contents/Unity Hub")),
+            hub_path: Some(PathBuf::from("/Applications/Unity Hub.app")),
             #[cfg(target_os = "linux")]
             hub_path: Some(PathBuf::from("~/Applications/Unity/Hub.AppImage")),
             #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]

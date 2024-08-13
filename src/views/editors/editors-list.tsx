@@ -85,10 +85,16 @@ export default function EditorsList() {
             };
 
             const size = await TauriRouter.estimate_editor_size(editor.version);
+            console.log("size:", size);
             editor.diskSize = {
               status: "success",
               value: size,
             };
+
+            data.set((s) => ({
+              ...s,
+              editorGroups: [...s.editorGroups],
+            }))
           } catch (e) {
             console.error(e);
           }
@@ -97,6 +103,7 @@ export default function EditorsList() {
 
       await new Promise((resolve) => setTimeout(resolve, 100));
       calculatingEditorSize.set(false);
+      console.log("calculatingEditorSize:", calculatingEditorSize.value);
     };
 
     calculateDiskSizes();
@@ -269,9 +276,9 @@ function Editor({ editor }: { editor: TauriTypes.UnityEditorInstall }) {
           loading={<LoadingSpinner width={18} height={18} />}
           value={editor.diskSize}
         >
-          {!editor.diskSize?.value && <span>- MB</span>}
-          {editor.diskSize?.value &&
-            convertBytes(editor.diskSize.value, {
+          {(editor.diskSize?.value ?? 0) === 0 && <span>??? MB</span>}
+          {(editor.diskSize?.value ?? 0) > 0 &&
+            convertBytes(editor.diskSize?.value ?? 0, {
               useBinaryUnits: true,
               decimals: 2,
             })}

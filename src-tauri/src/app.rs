@@ -17,6 +17,7 @@ pub fn get_save_path(name: &str, app_handle: &tauri::AppHandle) -> anyhow::Resul
     std::fs::create_dir_all(&config_dir)?;
 
     let path = config_dir.join(name).with_extension("json");
+    // println!("{} path: {:?}", name, path);
     Ok(path)
 }
 

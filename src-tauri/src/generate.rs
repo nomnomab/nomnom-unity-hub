@@ -38,7 +38,7 @@ pub fn generate_project(app: &tauri::AppHandle, app_state: &tauri::State<'_, App
     return Err(errors::str_error(format!("Project already exists at {}", package_cache_dir_out.display()).as_str()));
   }
 
-  let package_cache_dir = io_utils::get_cache_appended_dir(app, "new_project_package");
+  let package_cache_dir = io_utils::get_cache_appended_dir(app, "new_project_package")?;
   if template_info.is_empty {
     // make a new project
     // copy entire project over
@@ -123,8 +123,8 @@ pub fn generate_project(app: &tauri::AppHandle, app_state: &tauri::State<'_, App
 
 // generate a new template file
 pub fn generate_template(app: &tauri::AppHandle, app_state: &tauri::State<AppState>, template_info: &NewTemplateInfo) -> Result<PathBuf, errors::AnyError> {
-  let package_cache_dir = io_utils::get_cache_appended_dir(app, "new_template_package");
-  let package_cache_dir_out = io_utils::get_cache_appended_dir(app, "new_template_package_output");
+  let package_cache_dir = io_utils::get_cache_appended_dir(app, "new_template_package")?;
+  let package_cache_dir_out = io_utils::get_cache_appended_dir(app, "new_template_package_output")?;
 
   unpack_package_into_cache(&package_cache_dir, &template_info.template)?;
   modify_package_json(&package_cache_dir, &template_info.template.packages, &package_cache_dir_out)?;

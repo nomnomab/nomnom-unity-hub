@@ -48,12 +48,25 @@ impl Default for UnityEditorModule {
 }
 
 pub fn get_root_folder(editor_path: impl Into<PathBuf>) -> Option<std::path::PathBuf> {
-    let path = editor_path.into();
+    let path: PathBuf = editor_path.into();
     // path is to exe, so go up two folders
-    let path = path
-        .parent()?
-        .parent()?
-        .to_path_buf();
+    let path = {
+        if cfg!(target_os = "windows") {
+            path.parent().and_then(|p| p.parent())
+        } else if cfg!(target_os = "linux") {
+            path.parent()
+        } else if cfg!(target_os = "macos") {
+            path.parent()
+        } else {
+            None
+        }
+    };
+
+    if !path.is_some() {
+        return None;
+    }
+
+    let path = path.unwrap().to_path_buf();
     Some(path)
 }
 
@@ -87,14 +100,22 @@ pub fn find_editor_installs(app_state: &tauri::State<AppState>) -> anyhow::Resul
             let version_name = &path.file_name()?
                 .to_str()?
                 .to_string();
-            let exe_path = &path
-                .join("Editor")
-                .join("Unity")
-                .with_extension("exe")
-                .to_str()?
-                .to_string();
+
+            let exe_path = {
+                if cfg!(target_os = "windows") {
+                    Some(path.join("Editor").join("Unity").with_extension("exe"))
+                } else if cfg!(target_os = "linux") {
+                    Some(path.join("Unity").with_extension("app"))
+                } else if cfg!(target_os = "macos") {
+                    Some(path.join("Unity").with_extension("app"))
+                } else {
+                    None
+                }
+            }?
+            .to_str()?
+            .to_string();
             
-            let modules = load_modules(exe_path)
+            let modules = load_modules(&exe_path)
                 .ok()?;
 
             let editor = UnityEditorInstall {
@@ -165,14 +186,15 @@ pub fn open(editor_version: String, arguments: Vec<String>, app_state: &tauri::S
 }
 
 pub fn estimate_size(editor: &UnityEditorInstall, app: &tauri::AppHandle) -> anyhow::Result<u64, errors::AnyError> {
-    let tmp_json_path = io_utils::get_cache_dir(&app)
+    let tmp_json_path = io_utils::get_cache_dir(&app)?
         .join("editors")
         .with_extension("json");
 
     if !tmp_json_path.exists() {
         // write a new json to disk
         let map: HashMap<String, serde_json::Value> = HashMap::new();
-        std::fs::write(&tmp_json_path, serde_json::to_string_pretty(&map).unwrap()).unwrap();
+        let json_str = serde_json::to_string_pretty(&map)?;
+        std::fs::write(&tmp_json_path, json_str)?;
     }
 
     let map = std::fs::read_to_string(&tmp_json_path)?;
@@ -199,6 +221,8 @@ pub fn estimate_size(editor: &UnityEditorInstall, app: &tauri::AppHandle) -> any
         .ok_or(errors::str_error("Invalid editor root path"))?;
     let disk_size = io_utils::dir_size(root_path)
         .unwrap_or(0u64);
+
+    println!("{}: {}", exe_path, disk_size);
 
     map.insert(exe_path, serde_json::Value::from(disk_size));
     std::fs::write(&tmp_json_path, serde_json::to_string_pretty(&map)?)?;
