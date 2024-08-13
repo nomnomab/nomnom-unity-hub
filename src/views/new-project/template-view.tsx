@@ -153,7 +153,6 @@ export default function TemplateView() {
       initialTemplateInfo.editorVersion.version !==
         initialTemplateInfo.selectedTemplate?.editorVersion
     ) {
-      console.log("initialTemplateInfo", initialTemplateInfo);
       newProjectContext.dispatch({
         type: "set_initial_template",
         template: undefined,
@@ -184,8 +183,6 @@ export default function TemplateView() {
         },
       }));
   }, [surfaceTemplates.value]);
-
-  console.log(categoryTemplates);
 
   const queriedTemplates = useMemo(() => {
     return categoryTemplates
@@ -260,8 +257,6 @@ export default function TemplateView() {
       type: "set_initial_template",
       template: x,
     });
-
-    console.log("selectTemplate", x);
 
     // newProjectContext.dispatch({
     //   type: "set_selected_packages",

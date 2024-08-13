@@ -102,7 +102,7 @@ export default function NewProjectBody() {
       try {
         const output = await TauriRouter.generate_template(template);
 
-        console.log(output);
+        // console.log(output);
 
         // await TauriRouter.add_project(output);
         await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -176,7 +176,7 @@ export default function NewProjectBody() {
           templateInfo
         );
 
-        console.log(output);
+        // console.log(output);
 
         await TauriRouter.add_project(output);
         await new Promise((resolve) => setTimeout(resolve, 1000));
