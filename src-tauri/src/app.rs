@@ -24,8 +24,7 @@ pub fn get_save_path(name: &str, app_handle: &tauri::AppHandle) -> anyhow::Resul
 pub fn load_from_disk<T>(path: impl Into<PathBuf>) -> anyhow::Result<T>
     where T: Default + serde::Serialize + serde::de::DeserializeOwned {
     let path = path.into();
-    let json = std::fs::read_to_string(&path)
-        .unwrap_or("{}".to_string());
+    let json = std::fs::read_to_string(&path) .unwrap_or("{}".to_string());
     let (exists, field) = match serde_json::from_str(&json) {
         Ok(field) => (true, field),
         Err(_) => (false, T::default()),
@@ -174,7 +173,16 @@ pub fn get_editors(app_state: &tauri::State<AppState>) -> anyhow::Result<Vec<edi
 
 #[tauri::command]
 pub fn cmd_show_path_in_file_manager(path: String) {
-    showfile::show_path_in_file_manager(path);
+    #[cfg(not(target_os = "macos"))]
+    showfile::show_path_in_file_manager(&path);
+
+    #[cfg(target_os = "macos")]
+    {
+        let _ = std::process::Command::new("open")
+            .args(["-R", path.as_str()])
+            .spawn()
+            .unwrap();
+    }
 }
 
 #[tauri::command]
