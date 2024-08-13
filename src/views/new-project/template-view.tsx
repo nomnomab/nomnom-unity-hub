@@ -170,12 +170,25 @@ export default function TemplateView() {
     surfaceTemplates.set(templates);
   }, [initialTemplateInfo.editorVersion]);
 
-  const queriedTemplates = useMemo(() => {
+  const categoryTemplates = useMemo(() => {
     return surfaceTemplates.value
       .map((x) => ({
         found: tryGetDefaultUnityTemplate(x.name),
         x,
       }))
+      .map((x) => ({
+        ...x,
+        found: {
+          ...x.found,
+          category: x.found?.category ?? "Custom",
+        },
+      }));
+  }, [surfaceTemplates.value]);
+
+  console.log(categoryTemplates);
+
+  const queriedTemplates = useMemo(() => {
+    return categoryTemplates
       .filter((x) =>
         (x.found?.name ?? x.x.name)
           .toLowerCase()
@@ -184,13 +197,13 @@ export default function TemplateView() {
       .filter(
         (x) =>
           selectedCategory.value === "All" ||
-          (x.found?.category ?? "Custom") === selectedCategory.value
+          x.found?.category === selectedCategory.value
       )
       .map((x) => {
         return {
           _template: x.x,
           name: x.found?.name,
-          category: x.found?.category ?? "Custom",
+          category: x.found?.category,
         };
       })
       .sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""))
@@ -199,7 +212,12 @@ export default function TemplateView() {
         if (b.category === "Custom") return -1;
         return 0;
       });
-  }, [surfaceTemplates.value, searchQuery.value, selectedCategory.value]);
+  }, [
+    surfaceTemplates.value,
+    searchQuery.value,
+    selectedCategory.value,
+    categoryTemplates,
+  ]);
 
   const selectedTemplateWrapper = useMemo(() => {
     const selectedTemplate = initialTemplateInfo.selectedTemplate;
@@ -225,6 +243,15 @@ export default function TemplateView() {
   }, [initialTemplateInfo.selectedTemplate]);
 
   useEffect(() => {
+    if (selectedTemplateWrapper) {
+      newProjectContext.dispatch({
+        type: "set_has_error",
+        hasError: selectedTgzJson.value?.status !== "success",
+      });
+    }
+  }, [selectedTgzJson.value]);
+
+  useEffect(() => {
     selectedCategory.set(categories[0]);
   }, []);
 
@@ -244,7 +271,11 @@ export default function TemplateView() {
 
   return (
     <div className="flex h-full">
-      <Sidebar categories={categories} selectedCategory={selectedCategory} />
+      <Sidebar
+        categories={categories}
+        selectedCategory={selectedCategory}
+        categoryTemplates={categoryTemplates}
+      />
       <div className="px-4 pt-4 w-full flex flex-col overflow-y-auto">
         <AsyncComponent
           loading={<LoadingSpinner />}
@@ -287,9 +318,11 @@ export default function TemplateView() {
 function Sidebar({
   categories,
   selectedCategory,
+  categoryTemplates,
 }: {
   categories: string[];
   selectedCategory: UseState<string>;
+  categoryTemplates: any[];
 }) {
   const newProjectContext = useContext(NewProjectContext.Context);
 
@@ -336,7 +369,14 @@ function Sidebar({
           key={i}
           onClick={() => selectedCategory.set(x)}
         >
-          {x}
+          {x}{" "}
+          <span>
+            {
+              categoryTemplates.filter(
+                (y) => x === "All" || y.found?.category === x
+              ).length
+            }
+          </span>
         </button>
       ))}
     </div>

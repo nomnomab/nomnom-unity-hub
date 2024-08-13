@@ -281,25 +281,27 @@ pub fn extract_template_information(app: &tauri::AppHandle, surface_template: &S
       .map_err(|_| errors::str_error("Invalid package.json"))?;
 
     if let Some(package_lock_json_contents) = package_lock_json_contents {
-      let package_lock_json: PackageLockJson = serde_json::from_str(&package_lock_json_contents)
-        .map_err(|_| errors::str_error("Invalid package-lock.json"))?;
+      if !package_lock_json_contents.is_empty() {
+        let package_lock_json: PackageLockJson = serde_json::from_str(&package_lock_json_contents)
+          .map_err(|_| errors::str_error("Invalid package-lock.json"))?;
 
-      // extract all of the dependencies + subdepdependencies
-      let mut found_deps = HashMap::new();
+        // extract all of the dependencies + subdepdependencies
+        let mut found_deps = HashMap::new();
 
-      for (key, value) in package_lock_json.dependencies {
-        if &value.source != "builtin" {
-          continue;
+        for (key, value) in package_lock_json.dependencies {
+          if &value.source != "builtin" {
+            continue;
+          }
+
+          found_deps.insert(key, value.version);
+
+          for (subkey, subvalue) in value.dependencies {
+            found_deps.insert(subkey, subvalue);
+          }
         }
 
-        found_deps.insert(key, value.version);
-
-        for (subkey, subvalue) in value.dependencies {
-          found_deps.insert(subkey, subvalue);
-        }
+        package_json.dependencies = Some(found_deps);
       }
-
-      package_json.dependencies = Some(found_deps);
     }
 
     let package_record = TgzPackageJsonRecord {
