@@ -100,37 +100,9 @@ pub fn get_core_templates_path(editor_version: String, app_state: &tauri::State<
     .ok_or(errors::str_error("Invalid editor version"))?
     .clone();
 
-  let root_path = {
-    if cfg!(target_os = "windows") {
-      crate::editor::get_root_folder(editor.exe_path.clone())
-    } else if cfg!(target_family = "unix") {
-      Some(editor.exe_path.clone())
-    } else {
-      None
-    }
-  }
-  .ok_or(errors::io_not_found("Invalid editor path"))?;
-
-  let templates_path = root_path;
-  let templates_path = {
-    if cfg!(target_os = "windows") {
-      Some(templates_path
-        .join("Editor")
-        .join("Data")
-        .join("Resources")
-        .join("PackageManager")
-        .join("ProjectTemplates"))
-    } else if cfg!(target_family = "unix") {
-      Some(templates_path
-        .join("Contents")
-        .join("Resources")
-        .join("PackageManager")
-        .join("ProjectTemplates"))
-    } else {
-      None
-    }
-  }.ok_or(errors::io_not_found("Invalid editor path"))?;
-
+  let templates_path = crate::editor::get_package_manager_folder(&editor)?
+    .join("ProjectTemplates");
+  println!("Templates path: {}", templates_path.display());
   Ok(templates_path)
 }
 

@@ -1,6 +1,9 @@
 use std::{collections::HashMap, path::PathBuf};
 
-use crate::{app::{self, AppState}, errors, io_utils};
+use crate::{
+    app::{self, AppState},
+    errors, io_utils,
+};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -48,44 +51,97 @@ impl Default for UnityEditorModule {
 }
 
 pub fn get_root_folder(editor_path: impl Into<PathBuf>) -> Option<std::path::PathBuf> {
-    let path: PathBuf = editor_path.into();
-    // path is to exe, so go up two folders
-    let path = {
+  let path: PathBuf = editor_path.into();
+  // path is to exe, so go up two folders
+  let path = {
+    if cfg!(target_os = "windows") {
+      path.parent().and_then(|p| p.parent())
+    } else if cfg!(target_family = "unix") {
+      path.parent()
+    } else {
+      None
+    }
+  };
+  if !path.is_some() {
+      return None;
+  }
+
+  let path = path.unwrap().to_path_buf();
+  Some(path)
+}
+
+pub fn get_working_root_folder(editor_path: impl Into<PathBuf>) -> Option<std::path::PathBuf> {
+  let path: PathBuf = editor_path.into();
+  // path is to exe, so go up two folders
+  let path = {
+    if cfg!(target_os = "windows") {
+        path.parent().and_then(|p| p.parent())
+    } else if cfg!(target_family = "unix") {
+        Some(path.as_path())
+    } else {
+        None
+    }
+  };
+  if !path.is_some() {
+      return None;
+  }
+
+  let path = path.unwrap().to_path_buf();
+  Some(path)
+}
+
+pub fn get_package_manager_folder(
+    editor: &UnityEditorInstall,
+) -> Result<PathBuf, errors::AnyError> {
+    let root_path = crate::editor::get_working_root_folder(editor.exe_path.clone())
+        .ok_or(errors::io_not_found("Invalid editor path"))?;
+
+    let templates_path = root_path;
+    let templates_path = {
         if cfg!(target_os = "windows") {
-            path.parent().and_then(|p| p.parent())
-        } else if cfg!(target_os = "linux") {
-            path.parent()
-        } else if cfg!(target_os = "macos") {
-            path.parent()
+            Some(
+                templates_path
+                    .join("Editor")
+                    .join("Data")
+                    .join("Resources")
+                    .join("PackageManager"),
+            )
+        } else if cfg!(target_family = "unix") {
+            Some(
+                templates_path
+                    .join("Contents")
+                    .join("Resources")
+                    .join("PackageManager"),
+            )
         } else {
             None
         }
-    };
-
-    if !path.is_some() {
-        return None;
     }
+    .ok_or(errors::io_not_found("Invalid editor path"))?;
 
-    let path = path.unwrap().to_path_buf();
-    Some(path)
+    Ok(templates_path)
 }
 
 pub fn load_modules(editor_path: impl Into<PathBuf>) -> anyhow::Result<Vec<UnityEditorModule>> {
     let path = editor_path.into();
     let editor_root = get_root_folder(path)
-        .ok_or(errors::io_not_found("Invalid editor path"))?;
-    let json_path = editor_root
-        .join("modules")
-        .with_extension("json");
+      .ok_or(errors::io_not_found("Invalid editor path"))?;
+
+    let json_path = editor_root.join("modules").with_extension("json");
     let json_content = std::fs::read_to_string(&json_path)?;
     let modules: Vec<UnityEditorModule> = serde_json::from_str(&json_content)?;
     Ok(modules)
 }
 
-pub fn find_editor_installs(app_state: &tauri::State<AppState>) -> anyhow::Result<Vec<UnityEditorInstall>, errors::AnyError> {
+pub fn find_editor_installs(
+    app_state: &tauri::State<AppState>,
+) -> anyhow::Result<Vec<UnityEditorInstall>, errors::AnyError> {
     let prefs = app::get_prefs(app_state)?;
-    let hub_editors_path = prefs.hub_editors_path
+    let hub_editors_path = prefs
+        .hub_editors_path
         .ok_or(errors::str_error("hub_editors_path not set"))?;
+
+    println!("hub_editors_path: {}", hub_editors_path.display());
 
     if !hub_editors_path.exists() {
         return Err(errors::io_not_found("Invalid hub_editors_path"));
@@ -97,16 +153,19 @@ pub fn find_editor_installs(app_state: &tauri::State<AppState>) -> anyhow::Resul
             let entry = entry.ok()?;
             let path = entry.path();
 
-            let version_name = &path.file_name()?
-                .to_str()?
-                .to_string();
+            if path
+                .file_name()
+                .is_some_and(|x| x.to_str().is_some_and(|y| y.starts_with(".")))
+            {
+                return None;
+            }
+
+            let version_name = &path.file_name()?.to_str()?.to_string();
 
             let exe_path = {
                 if cfg!(target_os = "windows") {
                     Some(path.join("Editor").join("Unity").with_extension("exe"))
-                } else if cfg!(target_os = "linux") {
-                    Some(path.join("Unity").with_extension("app"))
-                } else if cfg!(target_os = "macos") {
+                } else if cfg!(target_family = "unix") {
                     Some(path.join("Unity").with_extension("app"))
                 } else {
                     None
@@ -114,19 +173,22 @@ pub fn find_editor_installs(app_state: &tauri::State<AppState>) -> anyhow::Resul
             }?
             .to_str()?
             .to_string();
-            
-            let modules = load_modules(&exe_path)
-                .ok()?;
+
+            println!("Editor path: {}", exe_path);
+
+            let modules = load_modules(&exe_path).ok()?;
 
             let editor = UnityEditorInstall {
                 exe_path: PathBuf::from(exe_path),
                 version: version_name.clone(),
                 modules,
             };
-            
+
             if path.is_dir() {
+                println!("Found editor: {}", editor.version);
                 Some(editor)
             } else {
+                println!("Skipping editor: {}", editor.version);
                 None
             }
         })
@@ -158,12 +220,21 @@ pub fn find_editor_installs(app_state: &tauri::State<AppState>) -> anyhow::Resul
             .then_with(|| nums_a[3].cmp(&nums_b[3]))
     });
     editors.reverse();
-    
+
+    println!("Found editors: {:?}", editors);
+
     Ok(editors)
 }
 
-pub fn open(editor_version: String, arguments: Vec<String>, app_state: &tauri::State<AppState>, wait: bool) -> anyhow::Result<(), errors::AnyError> {
-    let editor = app_state.editors.lock()
+pub fn open(
+    editor_version: String,
+    arguments: Vec<String>,
+    app_state: &tauri::State<AppState>,
+    wait: bool,
+) -> anyhow::Result<(), errors::AnyError> {
+    let editor = app_state
+        .editors
+        .lock()
         .map_err(|_| errors::str_error("Failed to get editors. Is it locked?"))?
         .iter()
         .find(|x| x.version == editor_version)
@@ -185,7 +256,10 @@ pub fn open(editor_version: String, arguments: Vec<String>, app_state: &tauri::S
     Ok(())
 }
 
-pub fn estimate_size(editor: &UnityEditorInstall, app: &tauri::AppHandle) -> anyhow::Result<u64, errors::AnyError> {
+pub fn estimate_size(
+    editor: &UnityEditorInstall,
+    app: &tauri::AppHandle,
+) -> anyhow::Result<u64, errors::AnyError> {
     let tmp_json_path = io_utils::get_cache_dir(&app)?
         .join("editors")
         .with_extension("json");
@@ -200,17 +274,15 @@ pub fn estimate_size(editor: &UnityEditorInstall, app: &tauri::AppHandle) -> any
     let map = std::fs::read_to_string(&tmp_json_path)?;
     let mut map = serde_json::from_str::<HashMap<String, serde_json::Value>>(&map)?;
 
-    let exe_path = editor.exe_path
+    let exe_path = editor
+        .exe_path
         .clone()
         .to_str()
         .ok_or(errors::str_error("Invalid editor path"))?
         .to_string();
 
     if map.contains_key(&exe_path) {
-        let disk_size = {
-            map.get(&exe_path)
-                .and_then(|x| x.as_u64())
-        };
+        let disk_size = { map.get(&exe_path).and_then(|x| x.as_u64()) };
 
         if let Some(disk_size) = disk_size {
             return Ok(disk_size);
@@ -219,22 +291,25 @@ pub fn estimate_size(editor: &UnityEditorInstall, app: &tauri::AppHandle) -> any
 
     let root_path = crate::editor::get_root_folder(&editor.exe_path)
         .ok_or(errors::str_error("Invalid editor root path"))?;
-    let disk_size = io_utils::dir_size(root_path)
-        .unwrap_or(0u64);
+    let disk_size = io_utils::dir_size(root_path).unwrap_or(0u64);
 
     println!("{}: {}", exe_path, disk_size);
 
     map.insert(exe_path, serde_json::Value::from(disk_size));
     std::fs::write(&tmp_json_path, serde_json::to_string_pretty(&map)?)?;
-    
+
     Ok(disk_size)
 }
 
 // commands
 
 #[tauri::command]
-pub fn cmd_get_editors(app_state: tauri::State<AppState>) -> Result<Vec<UnityEditorInstall>, errors::AnyError> {
-    let mut stored_editors = app_state.editors.lock()
+pub fn cmd_get_editors(
+    app_state: tauri::State<AppState>,
+) -> Result<Vec<UnityEditorInstall>, errors::AnyError> {
+    let mut stored_editors = app_state
+        .editors
+        .lock()
         .map_err(|_| errors::str_error("Failed to get editors. Is it locked?"))?;
     let editors = find_editor_installs(&app_state)?;
     *stored_editors = editors.clone();
@@ -244,22 +319,28 @@ pub fn cmd_get_editors(app_state: tauri::State<AppState>) -> Result<Vec<UnityEdi
 #[tauri::command]
 pub fn cmd_open_unity_hub(app_state: tauri::State<AppState>) -> Result<(), errors::AnyError> {
     let prefs = app::get_prefs(&app_state)?;
-    let unity_hub_path = prefs.hub_path
+    let unity_hub_path = prefs
+        .hub_path
         .ok_or(errors::str_error("unity_hub_path not set"))?;
 
     if !unity_hub_path.exists() {
         return Err(errors::io_not_found("Invalid unity_hub_path"));
     }
 
-    std::process::Command::new(&unity_hub_path)
-        .spawn()?;
+    std::process::Command::new(&unity_hub_path).spawn()?;
 
     Ok(())
 }
 
 #[tauri::command]
-pub fn cmd_estimate_editor_size(editor_version: String, app_handle: tauri::AppHandle, app_state: tauri::State<AppState>) -> Result<u64, errors::AnyError> {
-    let editors = app_state.editors.lock()
+pub fn cmd_estimate_editor_size(
+    editor_version: String,
+    app_handle: tauri::AppHandle,
+    app_state: tauri::State<AppState>,
+) -> Result<u64, errors::AnyError> {
+    let editors = app_state
+        .editors
+        .lock()
         .map_err(|_| errors::str_error("Failed to get editors. Is it locked?"))?;
     let editor = editors
         .iter()

@@ -60,12 +60,8 @@ pub fn get_editor_package_manager_manifest(editor_version: String, app_state: &t
     .clone();
 
   let root_path = crate::editor::get_root_folder(editor.exe_path.clone());
-  let manifest_folder_path = root_path
-    .ok_or(errors::io_not_found("Invalid editor path"))?
-    .join("Editor")
-    .join("Data")
-    .join("Resources")
-    .join("PackageManager")
+  let manifest_folder_path = crate::editor::get_package_manager_folder(&editor)?;
+  let manifest_folder_path = manifest_folder_path
     .join("Editor");
 
   let manifest_path = manifest_folder_path
