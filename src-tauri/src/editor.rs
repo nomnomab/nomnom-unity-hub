@@ -122,6 +122,18 @@ pub fn get_package_manager_folder(
     Ok(templates_path)
 }
 
+pub fn get_real_exe_path(editor: &UnityEditorInstall) -> Result<PathBuf, errors::AnyError> {
+  if cfg!(target_os = "windows") {
+    Ok(editor.exe_path.clone())
+  } else if cfg!(target_os = "macos") {
+    Ok(editor.exe_path.join("Contents").join("MacOS").join("Unity"))
+  } else if cfg!(target_os = "linux") {
+    Ok(editor.exe_path.join("Contents").join("Linux").join("Unity"))
+  } else {
+    Err(errors::io_not_found("Invalid editor path"))
+  }
+}
+
 pub fn load_modules(editor_path: impl Into<PathBuf>) -> anyhow::Result<Vec<UnityEditorModule>> {
     let path = editor_path.into();
     let editor_root = get_root_folder(path).ok_or(errors::io_not_found("Invalid editor path"))?;
@@ -232,7 +244,7 @@ pub fn open(
         .ok_or(errors::str_error("Invalid editor version"))?
         .clone();
 
-    let exe_path = editor.exe_path;
+    let exe_path = get_real_exe_path(&editor)?;
 
     if wait {
         std::process::Command::new(&exe_path)
