@@ -25,7 +25,10 @@
       "protocol": {
         "all": true,
         "asset": true,
-        "assetScope": ["**"]
+        "assetScope": ["**", "**/*"]
+      },
+      "path": {
+        "all": true
       }
     },
     "windows": [
@@ -41,7 +44,11 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; media-src 'self' asset: https://asset.localhost;"
+      "csp": {
+        "default-src": "'self'",
+        "media-src": "'self' asset: https://asset.localhost",
+        "img-src": "'self' asset: https://asset.localhost"
+      }
     },
     "bundle": {
       "active": true,
