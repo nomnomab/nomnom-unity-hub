@@ -5,6 +5,7 @@
 - Written in React + Tauri + Rust
 - Low memory usage
 - Paginated project list
+  - thumbnail.png discovery in project root
 - Project creation
   - Select a template to start from, or start from scratch
   - Select the specific packages you want
