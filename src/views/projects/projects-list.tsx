@@ -323,9 +323,9 @@ function Project({
       onClick={openProject}
     >
       {isOpening && <LoadingSpinner />}
-      <div className="h-[42px] aspect-square select-none">
+      <div className="h-[42px] aspect-square select-none bg-stone-800 rounded-md">
         {!thumbnailPath.value && (
-          <div className="flex items-center justify-center aspect-square p-2 bg-stone-800 rounded-md">
+          <div className="flex items-center justify-center aspect-square p-2 w-full h-full">
             <Box />
           </div>
         )}
@@ -333,6 +333,7 @@ function Project({
           <img
             className="rounded-md object-cover h-full w-full"
             src={thumbnailPath.value}
+            alt="N/A"
             loading="lazy"
           />
         )}
