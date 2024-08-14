@@ -15,7 +15,7 @@ export default function EditorsHeader() {
 
   return (
     <ViewHeader title="Editors">
-      <div className="ml-auto" />
+      {/* <div className="ml-auto" />
       {isOpeningHub.waiting && <LoadingSpinner />}
       {!isOpeningHub.waiting && (
         <button
@@ -25,7 +25,7 @@ export default function EditorsHeader() {
         >
           Install From Hub
         </button>
-      )}
+      )} */}
     </ViewHeader>
   );
 }
