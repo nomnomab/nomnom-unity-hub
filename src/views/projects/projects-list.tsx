@@ -309,7 +309,9 @@ function Project({
       .then((path) => {
         thumbnailPath.set(path);
       })
-      .catch(() => {
+      .catch(err => {
+        console.error(err);
+        console.log("path:", project.path);
         thumbnailPath.set(null);
       });
   }, [project.path]);
@@ -323,13 +325,13 @@ function Project({
       {isOpening && <LoadingSpinner />}
       <div className="h-[42px] aspect-square">
         {!thumbnailPath.value && (
-          <div className="p-2 bg-stone-800 rounded-md">
+          <div className="flex items-center justify-center aspect-square p-2 bg-stone-800 rounded-md">
             <Box />
           </div>
         )}
         {thumbnailPath.value && (
           <img
-            className="rounded-md"
+            className="rounded-md object-cover h-full w-full"
             src={thumbnailPath.value}
             loading="lazy"
           />
