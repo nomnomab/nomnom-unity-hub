@@ -10,6 +10,7 @@ import Checkmark from "../../components/svg/checkmark";
 import FolderOpen from "../../components/svg/folder-open";
 import { open } from "@tauri-apps/api/dialog";
 import Delete from "../../components/svg/delete";
+import { Buttons } from "../../components/parts/buttons";
 
 const categories = ["All", "In Package", "Default", "Internal", "Git", "Local"];
 
@@ -127,8 +128,6 @@ export default function PackageView() {
         initialTemplateInfo.editorVersion.version
       )
         .then((x) => {
-          console.log(x);
-
           return x.map((x) => {
             const templatePackage = packageInfo.templatePackages.find(
               (y) => y.name === x.name
@@ -167,6 +166,34 @@ export default function PackageView() {
     newProjectContext.dispatch({
       type: "set_selected_packages",
       packages: filtered,
+    });
+  }
+
+  function selectAll() {
+    const packages = queriedPackages;
+    newProjectContext.dispatch({
+      type: "set_selected_packages",
+      packages: [
+        ...newProjectContext.state.packageInfo.selectedPackages,
+        ...packages
+          .filter(
+            (x) =>
+              !newProjectContext.state.packageInfo.selectedPackages.some(
+                (y) => y.name === x.package_.name
+              )
+          )
+          .map((x) => ({ name: x.package_.name, version: x.package_.version })),
+      ],
+    });
+  }
+
+  function deselectAll() {
+    const packages = queriedPackages;
+    newProjectContext.dispatch({
+      type: "set_selected_packages",
+      packages: [
+        ...newProjectContext.state.packageInfo.selectedPackages,
+      ].filter((x) => !packages.some((y) => y.package_.name === x.name)),
     });
   }
 
@@ -227,9 +254,9 @@ export default function PackageView() {
             spellCheck="false"
           />
 
-          <div>
+          <div className="flex justify-between items-center pt-2">
             <button
-              className="flex gap-2 pt-2"
+              className="flex gap-2"
               onClick={() => onlyShowSelectedPackages.set((s) => !s)}
             >
               <div className="w-7 aspect-square border rounded-md border-stone-600 select-none">
@@ -242,6 +269,14 @@ export default function PackageView() {
                 {packageInfo.selectedPackages.length === 1 ? "" : "s"}
               </p>
             </button>
+
+            <div className="flex gap-1">
+              <Buttons.DefaultButton title="Select All" onClick={selectAll} />
+              <Buttons.DefaultButton
+                title="Deselect All"
+                onClick={deselectAll}
+              />
+            </div>
           </div>
 
           {selectedCategory.value === "Git" && (
