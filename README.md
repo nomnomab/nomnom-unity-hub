@@ -13,7 +13,7 @@
     - Supports git packages
     - Supports local file packages
   - Select the files/folders you want from the template
-  - Can override the template's internal project entirely
+  <!-- - Can override the template's internal project entirely -->
 - Template creation
   - Integrated into the project creation
   - The final template file will also be discoverable by the Unity Hub
