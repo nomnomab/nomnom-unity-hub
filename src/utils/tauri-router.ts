@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/tauri";
 import { TauriTypes } from "./tauri-types";
+import { convertFileSrc } from "@tauri-apps/api/tauri";
 
 export namespace TauriRouter {
   // app
@@ -143,6 +144,16 @@ export namespace TauriRouter {
       projectPath,
       editorVersion,
     });
+  }
+
+  export async function fetch_project_thumbnail(
+    projectPath: string
+  ): Promise<string> {
+    return invoke("cmd_fetch_project_thumbnail", { projectPath }).then(
+      (path) => {
+        return convertFileSrc(path as string);
+      }
+    );
   }
 
   // editor

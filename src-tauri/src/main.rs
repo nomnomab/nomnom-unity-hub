@@ -63,6 +63,7 @@ fn main() {
       project::cmd_get_projects_on_page,
       project::cmd_open_project_in_editor,
       project::cmd_change_project_editor_version,
+      project::cmd_fetch_project_thumbnail,
       // editors
       editor::cmd_get_editors,
       editor::cmd_open_unity_hub,

@@ -22,8 +22,6 @@
   - Can open the version's folder on disk
   - Can see what modules are installed
 
-![Hub Preview](.github/assets/preview.png)
-
 ## Building
 
 ```bash

@@ -294,6 +294,10 @@ pub fn extract_template_information(app: &tauri::AppHandle, surface_template: &S
           }
         }
 
+        let default_deps = [
+          ()
+        ];
+
         package_json.dependencies = Some(found_deps);
       }
     }
