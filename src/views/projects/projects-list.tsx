@@ -310,8 +310,6 @@ function Project({
         thumbnailPath.set(path);
       })
       .catch((err) => {
-        console.error(err);
-        console.log("path:", project.path);
         thumbnailPath.set(null);
       });
   }, [project.path]);
