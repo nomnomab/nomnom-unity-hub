@@ -87,6 +87,25 @@ pub enum UnityPipeline {
   Custom,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct EditorPackageManagerManifestPackage {
+  is_discoverable: Option<bool>,
+  must_be_bundled: Option<bool>,
+  version: Option<String>,
+  minimum_version: Option<String>,
+  deprecated: Option<String>,
+  remove_on_project_upgrade: Option<bool>,
+  is_default: Option<bool>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EditorPackageManagerManifest {
+  schema_version: u32,
+  packages: HashMap<String, EditorPackageManagerManifestPackage>,
+}
+
 // pub struct SurfaceTemplateRecord {
 //   pub template: SurfaceTemplate,
 //   pub category: String,
@@ -202,7 +221,27 @@ pub fn get_user_templates(editor_version: String, app_state: &tauri::State<AppSt
   Ok(files.collect())
 }
 
-pub fn extract_template_information(app: &tauri::AppHandle, surface_template: &SurfaceTemplate) -> Result<TgzPackageJsonRecord, errors::AnyError> {
+pub fn read_package_manager_manifest(editor_version: String, app_state: &tauri::State<AppState>) -> Result<EditorPackageManagerManifest, errors::AnyError> {
+  let editor = app_state.editors.lock()
+    .map_err(|_| errors::str_error("Failed to get editors. Is it locked?"))?
+    .iter()
+    .find(|x| x.version == editor_version)
+    .ok_or(errors::str_error("Invalid editor version"))?
+    .clone();
+  let root_dir = crate::editor::get_package_manager_folder(&editor)?;
+  let manifest_path = root_dir
+    .join("Editor")
+    .join("manifest")
+    .with_extension("json");
+
+  let json = std::fs::read_to_string(&manifest_path)
+    .map_err(|_| errors::io_not_found("Invalid package manager manifest"))?;
+  let manifest: EditorPackageManagerManifest = serde_json::from_str(&json)
+    .map_err(|_| errors::str_error("Invalid package manager manifest"))?;
+  Ok(manifest)
+}
+
+pub fn extract_template_information(app: &tauri::AppHandle, app_state: &tauri::State<AppState>, surface_template: &SurfaceTemplate) -> Result<TgzPackageJsonRecord, errors::AnyError> {
   let file_name = surface_template.path.file_name()
     .ok_or(errors::str_error("Invalid template file name"))?;
 
@@ -275,31 +314,53 @@ pub fn extract_template_information(app: &tauri::AppHandle, surface_template: &S
       .map_err(|_| errors::str_error("Invalid package.json"))?;
 
     if let Some(package_lock_json_contents) = package_lock_json_contents {
+      let mut found_deps = HashMap::new();
+      
+      if let Some(dependencies) = package_json.dependencies {
+        for (key, value) in dependencies {
+          found_deps.insert(key, value);
+        }
+      }
+
       if !package_lock_json_contents.is_empty() {
         let package_lock_json: PackageLockJson = serde_json::from_str(&package_lock_json_contents)
           .map_err(|_| errors::str_error("Invalid package-lock.json"))?;
 
         // extract all of the dependencies + subdepdependencies
-        let mut found_deps = HashMap::new();
-
         for (key, value) in package_lock_json.dependencies {
-          if &value.source != "builtin" {
-            continue;
-          }
+          // if &value.source != "builtin" {
+          //   continue;
+          // }
 
-          found_deps.insert(key, value.version);
+          if !found_deps.contains_key(&key) {
+            found_deps.insert(key, value.version);
+          }
 
           for (subkey, subvalue) in value.dependencies {
-            found_deps.insert(subkey, subvalue);
+            if !found_deps.contains_key(&subkey) {
+              found_deps.insert(subkey, subvalue);
+            }
           }
         }
-
-        let default_deps = [
-          ()
-        ];
-
-        package_json.dependencies = Some(found_deps);
+      } else {
+        if let Ok(manifest) = read_package_manager_manifest(surface_template.editor_version.clone(), &app_state) {
+          manifest
+            .packages
+            .iter()
+            .filter(|x| x.1.deprecated.is_none() && x.1.is_default.is_some_and(|x| x) && x.1.version.is_some())
+            .for_each(|(key, value)| {
+              if !found_deps.contains_key(key) {
+                found_deps.insert(key.clone(), value.version.as_ref().unwrap().clone());
+              }
+            });
+        }
       }
+
+      // if !found_deps.is_empty() {
+      //   package_json.dependencies = Some(found_deps); 
+      // }
+
+      package_json.dependencies = Some(found_deps);
     }
 
     let package_record = TgzPackageJsonRecord {
@@ -441,8 +502,8 @@ pub async fn cmd_get_surface_templates(editor_version: String, app_state: tauri:
 }
 
 #[tauri::command]
-pub async fn cmd_get_template_information(app_handle: tauri::AppHandle, surface_template: SurfaceTemplate) -> Result<TgzPackageJsonRecord, errors::AnyError> {
-  let template = extract_template_information(&app_handle, &surface_template)?;
+pub async fn cmd_get_template_information(app_handle: tauri::AppHandle, app_state: tauri::State<'_, AppState>, surface_template: SurfaceTemplate) -> Result<TgzPackageJsonRecord, errors::AnyError> {
+  let template = extract_template_information(&app_handle, &app_state, &surface_template)?;
   Ok(template)
 }
 

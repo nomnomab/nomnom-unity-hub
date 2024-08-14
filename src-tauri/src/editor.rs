@@ -304,8 +304,8 @@ pub fn estimate_size(
 // commands
 
 #[tauri::command]
-pub fn cmd_get_editors(
-  app_state: tauri::State<AppState>,
+pub async fn cmd_get_editors(
+  app_state: tauri::State<'_, AppState>,
 ) -> Result<Vec<UnityEditorInstall>, errors::AnyError> {
   let mut stored_editors = app_state
     .editors
@@ -333,10 +333,10 @@ pub fn cmd_open_unity_hub(app_state: tauri::State<AppState>) -> Result<(), error
 }
 
 #[tauri::command]
-pub fn cmd_estimate_editor_size(
+pub async fn cmd_estimate_editor_size(
   editor_version: String,
   app_handle: tauri::AppHandle,
-  app_state: tauri::State<AppState>,
+  app_state: tauri::State<'_, AppState>,
 ) -> Result<u64, errors::AnyError> {
   let editors = app_state
   .editors

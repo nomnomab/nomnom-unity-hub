@@ -99,7 +99,14 @@ pub fn cmd_remove_local_package_from_cache(app_handle: tauri::AppHandle, app_sta
 #[tauri::command]
 pub fn cmd_delete_template_cache(app_handle: tauri::AppHandle) -> Result<(), errors::AnyError> {
   let cache_dir = io_utils::get_cache_appended_dir(&app_handle, "templates")?;
-
   std::fs::remove_dir_all(&cache_dir)?;
+
+  let cache_dir = io_utils::get_cache_dir(&app_handle)?
+    .join("editors")
+    .with_extension("json");
+
+  if cache_dir.exists() {
+    std::fs::remove_file(&cache_dir)?;
+  }
   Ok(())
 }
