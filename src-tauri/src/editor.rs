@@ -50,6 +50,25 @@ impl Default for UnityEditorModule {
   }
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EditorPackageManagerManifestPackage {
+  pub is_discoverable: Option<bool>,
+  pub must_be_bundled: Option<bool>,
+  pub version: Option<String>,
+  pub minimum_version: Option<String>,
+  pub deprecated: Option<String>,
+  pub remove_on_project_upgrade: Option<bool>,
+  pub is_default: Option<bool>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EditorPackageManagerManifest {
+  schema_version: u32,
+  pub packages: HashMap<String, EditorPackageManagerManifestPackage>,
+}
+
 pub fn get_root_folder(editor_path: impl Into<PathBuf>) -> Option<std::path::PathBuf> {
   let path: PathBuf = editor_path.into();
   // path is to exe, so go up two folders
@@ -299,6 +318,26 @@ pub fn estimate_size(
   std::fs::write(&tmp_json_path, serde_json::to_string_pretty(&map)?)?;
   
   Ok(disk_size)
+}
+
+pub fn read_package_manager_manifest(editor_version: String, app_state: &tauri::State<AppState>) -> Result<EditorPackageManagerManifest, errors::AnyError> {
+  let editor = app_state.editors.lock()
+    .map_err(|_| errors::str_error("Failed to get editors. Is it locked?"))?
+    .iter()
+    .find(|x| x.version == editor_version)
+    .ok_or(errors::str_error("Invalid editor version"))?
+    .clone();
+  let root_dir = crate::editor::get_package_manager_folder(&editor)?;
+  let manifest_path = root_dir
+    .join("Editor")
+    .join("manifest")
+    .with_extension("json");
+
+  let json = std::fs::read_to_string(&manifest_path)
+    .map_err(|_| errors::io_not_found("Invalid package manager manifest"))?;
+  let manifest: EditorPackageManagerManifest = serde_json::from_str(&json)
+    .map_err(|_| errors::str_error("Invalid package manager manifest"))?;
+  Ok(manifest)
 }
 
 // commands

@@ -122,6 +122,7 @@ export namespace TauriTypes {
 
   export enum PackageType {
     Internal = "internal",
+    Default = "default",
     Git = "git",
     Local = "local",
   }

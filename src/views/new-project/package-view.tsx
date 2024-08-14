@@ -11,11 +11,12 @@ import FolderOpen from "../../components/svg/folder-open";
 import { open } from "@tauri-apps/api/dialog";
 import Delete from "../../components/svg/delete";
 
-const categories = ["All", "Internal", "In Package", "Git", "Local"];
+const categories = ["All", "In Package", "Default", "Internal", "Git", "Local"];
 
 type CategoryPackage = {
   package_: TauriTypes.MinimalPackage;
   category: string;
+  inPackage: boolean;
 };
 
 export default function PackageView() {
@@ -66,16 +67,24 @@ export default function PackageView() {
         // const sameVersion = templatePackage?.version === x.package_.version;
         return {
           package_: x.package_,
-          category: templatePackage ? "In Package" : x.category,
+          category: x.category,
+          inPackage:
+            !!templatePackage &&
+            x.package_.type === TauriTypes.PackageType.Internal,
         };
       })
       .concat(
-        packageInfo.gitPackages.map((x) => ({ package_: x, category: "Git" }))
+        packageInfo.gitPackages.map((x) => ({
+          package_: x,
+          category: "Git",
+          inPackage: false,
+        }))
       )
       .concat(
         packageInfo.localPackages.map((x) => ({
           package_: x,
           category: "Local",
+          inPackage: false,
         }))
       );
     return packages;
@@ -89,7 +98,8 @@ export default function PackageView() {
       .filter(
         (x) =>
           selectedCategory.value === "All" ||
-          x.category === selectedCategory.value
+          (selectedCategory.value === "In Package" && x.inPackage) ||
+          x.category.toLowerCase() === selectedCategory.value.toLowerCase()
       );
 
     if (!onlyShowSelectedPackages.value) {
@@ -116,12 +126,21 @@ export default function PackageView() {
       const newCorePackages = await TauriRouter.get_default_editor_packages(
         initialTemplateInfo.editorVersion.version
       )
-        .then((x) =>
-          x.map((x) => ({
-            package_: x,
-            category: "Internal",
-          }))
-        )
+        .then((x) => {
+          console.log(x);
+
+          return x.map((x) => {
+            const templatePackage = packageInfo.templatePackages.find(
+              (y) => y.name === x.name
+            );
+            return {
+              package_: x,
+              category: x.type,
+              inPackage:
+                !!templatePackage && x.type === TauriTypes.PackageType.Internal,
+            };
+          });
+        })
         .then(async (x) => {
           return [...x];
         });
@@ -218,7 +237,10 @@ export default function PackageView() {
                   {onlyShowSelectedPackages.value && <Checkmark />}
                 </div>
               </div>
-              <p className="select-none">Only show selected packages</p>
+              <p className="select-none">
+                Only show {packageInfo.selectedPackages.length} selected package
+                {packageInfo.selectedPackages.length === 1 ? "" : "s"}
+              </p>
             </button>
           </div>
 
@@ -538,7 +560,7 @@ function Sidebar({
       {categories.map((x, i) => (
         <button
           className={`flex justify-between border border-stone-700 px-3 py-2 rounded-md hover:bg-stone-700 select-none cursor-pointer box-border ${
-            selectedCategory.value === x
+            selectedCategory.value.toLowerCase() === x.toLowerCase()
               ? "bg-sky-600 text-stone-50 border-stone-900"
               : "text-stone-300"
           }`}
@@ -548,13 +570,20 @@ function Sidebar({
           {x}
           <span>
             {" "}
-            {allPackages.filter((y) => x === "All" || y.category === x).length}
+            {
+              allPackages.filter(
+                (y) =>
+                  x === "All" ||
+                  (x === "In Package" && y.inPackage) ||
+                  y.category.toLowerCase() === x.toLowerCase()
+              ).length
+            }
           </span>
         </button>
       ))}
 
       {newProjectContext.state.initialTemplateInfo.selectedTemplate && (
-        <div className="flex border p-2 text-sm leading-[1.35rem] border-yellow-300 rounded-md mt-auto mb-4 select-none">
+        <div className="flex border p-2 text-sm leading-[1.15rem] border-yellow-300 rounded-md mt-auto mb-4 select-none">
           <p>
             Changing the package list of a provided template can make assets no
             longer compile or function properly!
