@@ -309,7 +309,7 @@ function Project({
       .then((path) => {
         thumbnailPath.set(path);
       })
-      .catch(err => {
+      .catch((err) => {
         console.error(err);
         console.log("path:", project.path);
         thumbnailPath.set(null);
@@ -323,7 +323,7 @@ function Project({
       onClick={openProject}
     >
       {isOpening && <LoadingSpinner />}
-      <div className="h-[42px] aspect-square">
+      <div className="h-[42px] aspect-square select-none">
         {!thumbnailPath.value && (
           <div className="flex items-center justify-center aspect-square p-2 bg-stone-800 rounded-md">
             <Box />
