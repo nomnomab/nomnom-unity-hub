@@ -38,7 +38,7 @@ pub fn generate_project(app: &tauri::AppHandle, app_state: &tauri::State<'_, App
     return Err(errors::str_error(format!("Project already exists at {}", package_cache_dir_out.display()).as_str()));
   }
 
-  let package_cache_dir = io_utils::get_cache_appended_dir(app, "new_project_package");
+  let package_cache_dir = io_utils::get_cache_appended_dir(app, "new_project_package")?;
   if template_info.is_empty {
     // make a new project
     // copy entire project over
@@ -87,14 +87,14 @@ pub fn generate_project(app: &tauri::AppHandle, app_state: &tauri::State<'_, App
       let dest = package_cache_dir_out.join(trimmed_file);
       println!("Copying {} to {}", from.display(), dest.display());
 
-      std::fs::create_dir_all(&dest)?;
+      // std::fs::create_dir_all(&dest)?;
       
       if dest.extension().is_none() {
         println!("Creating directory dest: {}", dest.display());
-        // std::fs::create_dir_all(&dest)?;
+        std::fs::create_dir_all(&dest)?;
       } else {
         println!("Creating directory parent: {} for {}", dest.parent().unwrap().display(), dest.display());
-        // std::fs::create_dir_all(dest.parent().unwrap())?;
+        std::fs::create_dir_all(dest.parent().unwrap())?;
         if let Err(err) = std::fs::copy(&from, &dest) {
           println!("Failed to copy from {} to {}: {}", from.display(), dest.display(), err);
         }
@@ -114,17 +114,17 @@ pub fn generate_project(app: &tauri::AppHandle, app_state: &tauri::State<'_, App
 
   let editor_version = template_info.editor_version.version.clone();
   let editor_version = format!("m_EditorVersion: {}", editor_version);
-  println!("EditorVersion: {}", editor_version);
-  println!("EditorVersion path: {}", editor_version_path.display());
   std::fs::write(&editor_version_path, editor_version)?;
+
+  create_gitignore(package_cache_dir_out)?;
   
   Ok(package_cache_dir_out.clone())
 }
 
 // generate a new template file
 pub fn generate_template(app: &tauri::AppHandle, app_state: &tauri::State<AppState>, template_info: &NewTemplateInfo) -> Result<PathBuf, errors::AnyError> {
-  let package_cache_dir = io_utils::get_cache_appended_dir(app, "new_template_package");
-  let package_cache_dir_out = io_utils::get_cache_appended_dir(app, "new_template_package_output");
+  let package_cache_dir = io_utils::get_cache_appended_dir(app, "new_template_package")?;
+  let package_cache_dir_out = io_utils::get_cache_appended_dir(app, "new_template_package_output")?;
 
   unpack_package_into_cache(&package_cache_dir, &template_info.template)?;
   modify_package_json(&package_cache_dir, &template_info.template.packages, &package_cache_dir_out)?;
@@ -287,9 +287,6 @@ fn modify_package_json(json_root: &PathBuf, packages: &Vec<MinimalPackage>, outp
     .filter(|x| x._type != package::PackageType::Local)
     .collect::<Vec<_>>();
 
-  println!("Local packages: {:?}", local_packages);
-  println!("Rest packages: {:?}", rest_packages);
-
   let manifest_json_contents = {
     if !manifest_json.exists() {
       "{}".to_string()
@@ -350,6 +347,15 @@ fn modify_package_json(json_root: &PathBuf, packages: &Vec<MinimalPackage>, outp
   let manifest_json_contents = serde_json::to_string_pretty(&manifest_json_contents)?;
   std::fs::write(&manifest_json, manifest_json_contents)?;
 
+  Ok(())
+}
+
+fn create_gitignore(output_path: &PathBuf) -> Result<(), errors::AnyError> {
+  let embedded_gitignore = include_str!("assets/unity.gitignore");
+  let gitignore_path = output_path.join(".gitignore");
+  if !gitignore_path.exists() {
+    std::fs::write(&gitignore_path, embedded_gitignore)?;
+  }
   Ok(())
 }
 

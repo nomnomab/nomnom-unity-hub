@@ -58,6 +58,7 @@ export namespace TauriTypes {
     name: string;
     version: string;
     path: string;
+    editorVersion: string;
   }
 
   export interface TgzPackageJson {
@@ -121,6 +122,7 @@ export namespace TauriTypes {
 
   export enum PackageType {
     Internal = "internal",
+    Default = "default",
     Git = "git",
     Local = "local",
   }

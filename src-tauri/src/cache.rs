@@ -1,4 +1,4 @@
-use crate::{app::{self, AppState}, errors, package};
+use crate::{app::{self, AppState}, errors, io_utils, package};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum UserCacheKey {
@@ -93,5 +93,20 @@ pub fn cmd_remove_local_package_from_cache(app_handle: tauri::AppHandle, app_sta
     .map_err(|_| errors::str_error("Failed to get user_cache. Is it locked?"))?;
   user_cache.local_packages.retain(|p| p.name != package.name);
   app::save_user_cache_to_disk(&user_cache, &app_handle)?;
+  Ok(())
+}
+
+#[tauri::command]
+pub fn cmd_delete_template_cache(app_handle: tauri::AppHandle) -> Result<(), errors::AnyError> {
+  let cache_dir = io_utils::get_cache_appended_dir(&app_handle, "templates")?;
+  std::fs::remove_dir_all(&cache_dir)?;
+
+  let cache_dir = io_utils::get_cache_dir(&app_handle)?
+    .join("editors")
+    .with_extension("json");
+
+  if cache_dir.exists() {
+    std::fs::remove_file(&cache_dir)?;
+  }
   Ok(())
 }

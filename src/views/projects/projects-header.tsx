@@ -22,10 +22,10 @@ export default function ProjectsHeader({
     if (!folder) return;
 
     const project = await TauriRouter.add_project(folder as string);
-    console.log("project:", project);
+    // console.log("project:", project);
 
     const results = await TauriRouter.get_projects();
-    console.log("projects:", results);
+    // console.log("projects:", results);
 
     projectData.set((s) => ({ ...s, projects: results }));
     // dispatch({ type: "set_projects", projects: results });

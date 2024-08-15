@@ -1,6 +1,6 @@
 use std::{fs, path::{Path, PathBuf}};
 
-use crate::{app::{self, AppState}, errors, prefs};
+use crate::{app::{self, AppState}, errors};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(default, rename_all = "camelCase")]
@@ -194,4 +194,14 @@ pub fn cmd_change_project_editor_version(app_handle: tauri::AppHandle, app_state
     app::save_projects_to_disk(&projects, &app_handle)?;
         
     Ok(())
+}
+
+#[tauri::command]
+pub fn cmd_fetch_project_thumbnail(project_path: PathBuf) -> Result<String, errors::AnyError> {
+  let thumbnail_path = project_path.join("thumbnail").with_extension("png");
+  if !thumbnail_path.exists() {
+    return Err(errors::io_not_found("Thumbnail not found"));
+  }
+
+  Ok(thumbnail_path.to_str().unwrap().to_string())
 }

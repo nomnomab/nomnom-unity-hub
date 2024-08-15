@@ -222,7 +222,7 @@ export default function FilesView(props: { startAtRoot?: boolean }) {
   return (
     <div className="flex flex-col h-full py-4 overflow-hidden">
       {/* Browse */}
-      <div className="flex justify-center border-b border-stone-700 pb-4">
+      {/* <div className="flex justify-center border-b border-stone-700 pb-4">
         <div
           className="border border-stone-600 border-dashed px-8 py-4 flex flex-col gap-4 items-center cursor-pointer hover:bg-stone-800 opacity-20"
           tabIndex={0}
@@ -235,7 +235,7 @@ export default function FilesView(props: { startAtRoot?: boolean }) {
             Browse
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* File tree */}
       <AsyncLazyVoidComponent
@@ -246,11 +246,11 @@ export default function FilesView(props: { startAtRoot?: boolean }) {
         }
         value={loadingFiles.value}
       >
-        {fileCount === 0 && <p className="pt-4 select-none">No files</p>}
+        {fileCount === 0 && <p className="select-none">No files</p>}
         {fileCount > 0 && (
           <>
             <div className="mb-1">
-              <p className="pt-4">
+              <p>
                 {fileSelectionCount.toLocaleString()}/
                 {fileCount.toLocaleString()} selected
               </p>

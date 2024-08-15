@@ -71,6 +71,7 @@ export namespace NewProjectContext {
   interface PackageInfo {
     gitPackages: TauriTypes.MinimalPackage[];
     localPackages: TauriTypes.MinimalPackage[];
+    templatePackages: TauriTypes.MinimalPackage[];
     selectedPackages: SelectedPackage[];
   }
 
@@ -106,6 +107,7 @@ export namespace NewProjectContext {
       selectedPackages: [],
       gitPackages: [],
       localPackages: [],
+      templatePackages: [],
     },
     filesInfo: {
       root: null,
@@ -146,7 +148,11 @@ export namespace NewProjectContext {
         template?: TauriTypes.SurfaceTemplate;
       }
     | {
-        type: "set_packages";
+        type: "set_template_packages";
+        packages: TauriTypes.MinimalPackage[];
+      }
+    | {
+        type: "set_selected_packages";
         packages: SelectedPackage[];
       }
     | { type: "set_files_root"; root: TauriTypes.FileDir }
@@ -165,7 +171,8 @@ export namespace NewProjectContext {
     | { type: "remove_git_package"; package: TauriTypes.MinimalPackage }
     | { type: "remove_local_package"; package: TauriTypes.MinimalPackage }
     | { type: "set_git_packages"; packages: TauriTypes.MinimalPackage[] }
-    | { type: "set_local_packages"; packages: TauriTypes.MinimalPackage[] };
+    | { type: "set_local_packages"; packages: TauriTypes.MinimalPackage[] }
+    | { type: "destroy_package"; package: TauriTypes.MinimalPackage };
 
   const reducer = (state: State, action: Action): State => {
     switch (action.type) {
@@ -201,7 +208,15 @@ export namespace NewProjectContext {
             selectedTemplate: action.template,
           },
         };
-      case "set_packages":
+      case "set_template_packages":
+        return {
+          ...state,
+          packageInfo: {
+            ...state.packageInfo,
+            templatePackages: action.packages,
+          },
+        };
+      case "set_selected_packages":
         return {
           ...state,
           packageInfo: {
@@ -368,6 +383,23 @@ export namespace NewProjectContext {
           packageInfo: {
             ...state.packageInfo,
             localPackages: state.packageInfo.localPackages.filter(
+              (x) =>
+                x.name !== action.package.name &&
+                x.version !== action.package.version
+            ),
+          },
+        };
+      case "destroy_package":
+        return {
+          ...state,
+          packageInfo: {
+            ...state.packageInfo,
+            templatePackages: state.packageInfo.templatePackages.filter(
+              (x) =>
+                x.name !== action.package.name &&
+                x.version !== action.package.version
+            ),
+            selectedPackages: state.packageInfo.selectedPackages.filter(
               (x) =>
                 x.name !== action.package.name &&
                 x.version !== action.package.version

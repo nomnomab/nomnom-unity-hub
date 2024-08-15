@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::{app::{self, AppState}, errors, project::Project};
+use crate::{app::{self, AppState}, errors};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum PrefsKey {
@@ -27,10 +27,25 @@ impl Default for Prefs {
     fn default() -> Self {
         Self {
             new_project_path: Some(dirs_next::document_dir().unwrap()),
-            // hub_path: Some(PathBuf::from(r#"C:\Program Files\Unity Hub\Unity Hub.exe"#)),
+
+            #[cfg(target_os = "windows")]
             hub_path: Some(PathBuf::from("C:").join("Program Files").join("Unity Hub").join("Unity Hub").with_extension("exe")),
-            // hub_editors_path: Some(PathBuf::from(r#"C:\Program Files\Unity\Hub\Editor"#)),
+            #[cfg(target_os = "macos")]
+            hub_path: Some(PathBuf::from("/Applications/Unity Hub.app")),
+            #[cfg(target_os = "linux")]
+            hub_path: Some(PathBuf::from("~/Applications/Unity/Hub.AppImage")),
+            #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+            hub_path: None,
+
+            #[cfg(target_os = "windows")]
             hub_editors_path: Some(PathBuf::from("C:").join("Program Files").join("Unity").join("Hub").join("Editor")),
+            #[cfg(target_os = "macos")]
+            hub_editors_path: Some(PathBuf::from("/Applications/Unity/Hub/Editor")),
+            #[cfg(target_os = "linux")]
+            hub_editors_path: Some(PathBuf::from("/Applications/Unity/Hub/Editor/")),
+            #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+            hub_editors_path: None,
+
             hub_appdata_path: Some(dirs_next::config_dir().unwrap().join("UnityHub")),
         }
     }
@@ -85,7 +100,7 @@ pub fn cmd_set_pref_value(app_state: tauri::State<'_, AppState>, key: PrefsKey, 
         PrefsKey::HubAppDataPath => {
             prefs.hub_appdata_path = serde_json::from_value(value)?;
         },
-        _ => return Err(errors::str_error("Invalid key")),
+        // _ => return Err(errors::str_error("Invalid key")),
     }
     Ok(())
 }

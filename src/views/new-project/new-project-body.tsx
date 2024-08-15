@@ -64,15 +64,29 @@ export default function NewProjectBody() {
         fileDirToPaths(files.selectedFiles, files.root, "", paths, rootMap);
       }
 
+      // isLoading.set(false);
+      // console.log("packages", packages);
+      // console.log("selectedPackages", pack.selectedPackages);
+      // console.log("templatePackages", pack.templatePackages);
+      // console.log("gitPackages", pack.gitPackages);
+      // console.log("localPackages", pack.localPackages);
+
+      const finalPackages: TauriTypes.MinimalPackage[] =
+        pack.selectedPackages.map((x) => ({
+          name: x.name,
+          version: x.version ?? "",
+          isDiscoverable: true,
+          isFile: false,
+          type:
+            packages.find((y) => y.name === x.name)?.type ??
+            TauriTypes.PackageType.Internal,
+        }));
+
       const trimmedPaths = paths.filter((path) => rootMap.get(path) === 1);
       const templateInfo: TauriTypes.TemplateInfoForGeneration = {
         template: initialTemplateInfo.selectedTemplate,
         editorVersion: initialTemplateInfo.editorVersion,
-        packages: packages.filter((x) =>
-          pack.selectedPackages.some(
-            (y) => y.name === x.name && y.version === x.version
-          )
-        ),
+        packages: finalPackages,
         selectedFiles: [
           "package/package.json",
           "package/package.json.meta",
@@ -88,7 +102,7 @@ export default function NewProjectBody() {
       try {
         const output = await TauriRouter.generate_template(template);
 
-        console.log(output);
+        // console.log(output);
 
         // await TauriRouter.add_project(output);
         await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -132,15 +146,22 @@ export default function NewProjectBody() {
         fileDirToPaths(files.selectedFiles, files.root, "", paths, rootMap);
       }
 
+      const finalPackages: TauriTypes.MinimalPackage[] =
+        pack.selectedPackages.map((x) => ({
+          name: x.name,
+          version: x.version ?? "",
+          isDiscoverable: true,
+          isFile: false,
+          type:
+            packages.find((y) => y.name === x.name)?.type ??
+            TauriTypes.PackageType.Internal,
+        }));
+
       const trimmedPaths = paths.filter((path) => rootMap.get(path) === 1);
       const templateInfo: TauriTypes.TemplateInfoForGeneration = {
         template: template.selectedTemplate,
         editorVersion: template.editorVersion,
-        packages: packages.filter((x) =>
-          pack.selectedPackages.some(
-            (y) => y.name === x.name && y.version === x.version
-          )
-        ),
+        packages: finalPackages,
         selectedFiles: trimmedPaths,
         isEmpty: template.selectedTemplate === undefined,
       };
@@ -155,7 +176,7 @@ export default function NewProjectBody() {
           templateInfo
         );
 
-        console.log(output);
+        // console.log(output);
 
         await TauriRouter.add_project(output);
         await new Promise((resolve) => setTimeout(resolve, 1000));

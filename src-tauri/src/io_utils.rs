@@ -1,6 +1,9 @@
 use std::path::Path;
 use std::{io, fs};
 
+use crate::errors;
+use filesize::PathExt;
+
 pub fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> io::Result<()> {
     fs::create_dir_all(&dst)?;
     for entry in fs::read_dir(src)? {
@@ -15,28 +18,38 @@ pub fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> io::Result<
     Ok(())
 }
 
-pub fn get_cache_dir(app: &tauri::AppHandle) -> std::path::PathBuf {
-    let cache_dir = app.path_resolver().app_cache_dir().unwrap();
-    cache_dir
+pub fn get_cache_dir(app: &tauri::AppHandle) -> Result<std::path::PathBuf, errors::AnyError> {
+    let cache_dir = app.path_resolver().app_cache_dir()
+        .ok_or(errors::str_error("Failed to get cache dir"))?;
+      
+    // if cache_dir.exists() {
+    //     std::fs::remove_dir_all(&cache_dir)?;
+    // }
+    
+    std::fs::create_dir_all(&cache_dir)?;
+    Ok(cache_dir)
 }
 
-pub fn get_cache_appended_dir(app: &tauri::AppHandle, name: &str) -> std::path::PathBuf {
-    let cache_dir = app.path_resolver().app_cache_dir().unwrap();
+pub fn get_cache_appended_dir(app: &tauri::AppHandle, name: &str) -> Result<std::path::PathBuf, errors::AnyError> {
+    let cache_dir = get_cache_dir(app)?;
     let cache_path = cache_dir.join(name);
 
     if cache_path.exists() {
-        std::fs::remove_dir_all(&cache_path).unwrap();
+        std::fs::remove_dir_all(&cache_path)?;
     }
     
-    std::fs::create_dir_all(&cache_path).unwrap();
+    std::fs::create_dir_all(&cache_path)?;
 
-    cache_path
+    Ok(cache_path)
 }
 
-pub fn dir_size(path: impl Into<std::path::PathBuf>) -> std::io::Result<u64> {
+pub fn dir_size(path: impl Into<std::path::PathBuf>) -> Result<u64, errors::AnyError> {
+    let path: std::path::PathBuf = path.into();
+
     fn dir_size(mut dir: std::fs::ReadDir) -> std::io::Result<u64> {
         dir.try_fold(0, |acc, file| {
             let file = file?;
+            // println!("{}: {}", file.path().display(), file.metadata()?.len());
             let size = match file.metadata()? {
                 data if data.is_dir() => dir_size(std::fs::read_dir(file.path())?)?,
                 data => data.len(),
@@ -45,10 +58,13 @@ pub fn dir_size(path: impl Into<std::path::PathBuf>) -> std::io::Result<u64> {
         })
     }
 
-    dir_size(std::fs::read_dir(path.into())?)
+    let next_path = std::fs::read_dir(path)?;
+    let size = dir_size(next_path)?;
+    
+    Ok(size)
 }
 
-pub fn file_size(path: impl Into<std::path::PathBuf>) -> std::io::Result<u64> {
+pub fn file_size(path: impl Into<std::path::PathBuf>) -> Result<u64, errors::AnyError> {
     let size = std::fs::metadata(path.into())?
         .len();
     Ok(size)

@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo } from "react";
+import { useCallback, useContext, useEffect, useMemo } from "react";
 import { LazyValue, LazyVoid, UseState } from "../../utils";
 import { NewProjectContext } from "../../context/new-project-context";
 import useBetterState from "../../hooks/useBetterState";
@@ -9,10 +9,16 @@ import { TauriRouter } from "../../utils/tauri-router";
 import Checkmark from "../../components/svg/checkmark";
 import FolderOpen from "../../components/svg/folder-open";
 import { open } from "@tauri-apps/api/dialog";
-import { Buttons } from "../../components/parts/buttons";
 import Delete from "../../components/svg/delete";
+import { Buttons } from "../../components/parts/buttons";
 
-const categories = ["All", "Internal", "Git", "Local"];
+const categories = ["All", "In Package", "Default", "Internal", "Git", "Local"];
+
+type CategoryPackage = {
+  package_: TauriTypes.MinimalPackage;
+  category: string;
+  inPackage: boolean;
+};
 
 export default function PackageView() {
   const newProjectContext = useContext(NewProjectContext.Context);
@@ -20,187 +26,223 @@ export default function PackageView() {
   const onlyShowSelectedPackages = useBetterState<boolean>(false);
   const searchQuery = useBetterState("");
 
-  const minimalPackages = useBetterState<
-    LazyValue<{ package_: TauriTypes.MinimalPackage; category: string }[]>
-  >({
-    status: "loading",
-    value: null,
+  const initialTemplateInfo = useMemo(() => {
+    return newProjectContext.state.initialTemplateInfo;
+  }, [newProjectContext.state.initialTemplateInfo]);
+
+  const packageInfo = useMemo(() => {
+    return newProjectContext.state.packageInfo;
+  }, [newProjectContext.state.packageInfo]);
+
+  const corePackages = useBetterState<LazyValue<CategoryPackage[]>>({
+    status: "idle",
+    value: [],
   });
 
   useEffect(() => {
     const load = async () => {
-      minimalPackages.set({ status: "loading", value: null });
-      const newMinimalPackages = await TauriRouter.get_default_editor_packages(
-        newProjectContext.state.initialTemplateInfo.editorVersion.version
-      )
-        .then((x) =>
-          x.map((x) => ({
-            package_: x,
-            category: "Internal",
-          }))
-        )
-        .then(async (x) => {
-          return [...x];
-        });
-
-      minimalPackages.set({
-        status: "success",
-        value: newMinimalPackages,
-      });
-
+      // populate git and local packages
       const p = await TauriRouter.get_user_cache();
-
-      const gitPackages = p.gitPackages.map((x) => ({
-        package_: x,
-        category: "Git",
-      }));
-
-      const localPackages = p.localPackages.map((x) => ({
-        package_: x,
-        category: "Local",
-      }));
 
       newProjectContext.dispatch({
         type: "set_git_packages",
-        packages: gitPackages.map((x) => x.package_),
+        packages: [...p.gitPackages],
       });
 
       newProjectContext.dispatch({
         type: "set_local_packages",
-        packages: localPackages.map((x) => x.package_),
+        packages: [...p.localPackages],
       });
     };
+
     load();
-  }, []);
+  }, [packageInfo.gitPackages, packageInfo.localPackages]);
 
-  function selectPackage(name: string, version?: string) {
-    const packages = newProjectContext.state.packageInfo.selectedPackages;
-    const filtered = packages.filter(
-      (y) => y.name !== name && y.version !== version
-    );
-    newProjectContext.dispatch({
-      type: "set_packages",
-      packages: [...filtered, { name, version }],
-    });
-  }
+  const validPackages = useMemo(() => {
+    const packages: CategoryPackage[] = (corePackages.value.value ?? [])
+      .map((x) => {
+        const templatePackage = packageInfo.templatePackages.find(
+          (y) => y.name === x.package_.name
+        );
 
-  function removePackage(name: string, version: string) {
-    const packages = newProjectContext.state.packageInfo.selectedPackages;
-    const filtered = packages.filter(
-      (y) => y.name !== name || y.version !== version
-    );
-
-    newProjectContext.dispatch({
-      type: "set_packages",
-      packages: filtered,
-    });
-  }
-
-  function togglePackage(name: string, version: string) {
-    const packages = newProjectContext.state.packageInfo.selectedPackages;
-    if (packages.find((x) => x.name === name && x.version === version)) {
-      removePackage(name, version);
-    } else {
-      selectPackage(name, version);
-    }
-  }
+        // const sameVersion = templatePackage?.version === x.package_.version;
+        return {
+          package_: x.package_,
+          category: x.category,
+          inPackage:
+            !!templatePackage &&
+            x.package_.type === TauriTypes.PackageType.Internal,
+        };
+      })
+      .concat(
+        packageInfo.gitPackages.map((x) => ({
+          package_: x,
+          category: "Git",
+          inPackage: false,
+        }))
+      )
+      .concat(
+        packageInfo.localPackages.map((x) => ({
+          package_: x,
+          category: "Local",
+          inPackage: false,
+        }))
+      );
+    return packages;
+  }, [corePackages.value, packageInfo.gitPackages, packageInfo.localPackages]);
 
   const queriedPackages = useMemo(() => {
-    const gitPackages = newProjectContext.state.packageInfo.gitPackages.map(
-      (x) => ({
-        package_: x,
-        category: "Git",
-      })
-    );
-    const localPackages = newProjectContext.state.packageInfo.localPackages.map(
-      (x) => ({
-        package_: x,
-        category: "Local",
-      })
-    );
-
-    const validPackages = (minimalPackages.value.value ?? [])
-      .concat(gitPackages)
-      .concat(localPackages)
+    const searchPackages = validPackages
       .filter((x) =>
         x.package_.name.toLowerCase().includes(searchQuery.value.toLowerCase())
       )
       .filter(
         (x) =>
           selectedCategory.value === "All" ||
-          x.category === selectedCategory.value
+          (selectedCategory.value === "In Package" && x.inPackage) ||
+          x.category.toLowerCase() === selectedCategory.value.toLowerCase()
       );
 
     if (!onlyShowSelectedPackages.value) {
-      return validPackages;
+      return searchPackages;
     }
 
-    const packages = newProjectContext.state.packageInfo.selectedPackages;
-    return (
-      validPackages.filter((x) =>
-        packages.find((y) => y.name === x.package_.name)
-      ) ?? []
+    return searchPackages.filter((x) =>
+      newProjectContext.state.packageInfo.selectedPackages.some(
+        (y) => y.name === x.package_.name
+      )
     );
   }, [
-    minimalPackages.value,
-    onlyShowSelectedPackages.value,
+    validPackages,
     searchQuery.value,
     selectedCategory.value,
-    newProjectContext.state.packageInfo.gitPackages,
-    newProjectContext.state.packageInfo.localPackages,
+    onlyShowSelectedPackages.value,
+    packageInfo.selectedPackages,
   ]);
+
+  useEffect(() => {
+    const load = async () => {
+      corePackages.set({ status: "loading", value: null });
+
+      const newCorePackages = await TauriRouter.get_default_editor_packages(
+        initialTemplateInfo.editorVersion.version
+      )
+        .then((x) => {
+          return x.map((x) => {
+            const templatePackage = packageInfo.templatePackages.find(
+              (y) => y.name === x.name
+            );
+            return {
+              package_: x,
+              category: x.type,
+              inPackage:
+                !!templatePackage && x.type === TauriTypes.PackageType.Internal,
+            };
+          });
+        })
+        .then(async (x) => {
+          return [...x];
+        });
+
+      corePackages.set({ status: "success", value: newCorePackages });
+    };
+    load();
+  }, []);
+
+  function selectPackage(name: string, version?: string) {
+    const packages = packageInfo.selectedPackages;
+    const filtered = packages.filter((y) => y.name !== name);
+
+    newProjectContext.dispatch({
+      type: "set_selected_packages",
+      packages: [...filtered, { name, version }],
+    });
+  }
+
+  function removePackage(name: string, version: string) {
+    const packages = packageInfo.selectedPackages;
+    const filtered = packages.filter((y) => y.name !== name);
+
+    newProjectContext.dispatch({
+      type: "set_selected_packages",
+      packages: filtered,
+    });
+  }
+
+  function selectAll() {
+    const packages = queriedPackages;
+    newProjectContext.dispatch({
+      type: "set_selected_packages",
+      packages: [
+        ...newProjectContext.state.packageInfo.selectedPackages,
+        ...packages
+          .filter(
+            (x) =>
+              !newProjectContext.state.packageInfo.selectedPackages.some(
+                (y) => y.name === x.package_.name
+              )
+          )
+          .map((x) => ({ name: x.package_.name, version: x.package_.version })),
+      ],
+    });
+  }
+
+  function deselectAll() {
+    const packages = queriedPackages;
+    newProjectContext.dispatch({
+      type: "set_selected_packages",
+      packages: [
+        ...newProjectContext.state.packageInfo.selectedPackages,
+      ].filter((x) => !packages.some((y) => y.package_.name === x.name)),
+    });
+  }
+
+  function togglePackage(name: string, version: string) {
+    const selected = packageInfo.selectedPackages;
+    if (selected.find((x) => x.name === name)) {
+      removePackage(name, version);
+    } else {
+      selectPackage(name, version);
+    }
+  }
 
   async function destroyPackage(package_: TauriTypes.MinimalPackage) {
     if (package_.type === TauriTypes.PackageType.Local) {
       await TauriRouter.remove_local_package_from_cache(package_);
       newProjectContext.dispatch({
-        type: "set_packages",
-        packages: newProjectContext.state.packageInfo.selectedPackages.filter(
-          (x) => x.name !== package_.name && x.version !== package_.version
-        ),
+        type: "destroy_package",
+        package: package_,
       });
+
       newProjectContext.dispatch({
         type: "remove_local_package",
         package: package_,
       });
-      minimalPackages.set({
-        ...minimalPackages.value,
-        value: minimalPackages.value.value!.filter(
-          (x) =>
-            x.package_.name !== package_.name &&
-            x.package_.version !== package_.version
-        ),
-      });
     } else if (package_.type === TauriTypes.PackageType.Git) {
       await TauriRouter.remove_git_package_from_cache(package_);
       newProjectContext.dispatch({
-        type: "set_packages",
-        packages: newProjectContext.state.packageInfo.selectedPackages.filter(
-          (x) => x.name !== package_.name && x.version !== package_.version
-        ),
+        type: "destroy_package",
+        package: package_,
       });
+
       newProjectContext.dispatch({
         type: "remove_git_package",
         package: package_,
-      });
-      minimalPackages.set({
-        ...minimalPackages.value,
-        value: minimalPackages.value.value!.filter(
-          (x) =>
-            x.package_.name !== package_.name &&
-            x.package_.version !== package_.version
-        ),
       });
     }
   }
 
   return (
     <div className="flex h-full">
-      <Sidebar categories={categories} selectedCategory={selectedCategory} />
+      <Sidebar
+        categories={categories}
+        selectedCategory={selectedCategory}
+        allPackages={validPackages}
+      />
       <div className="px-4 pt-4 w-full flex flex-col overflow-y-auto">
         <AsyncLazyValueComponent
           loading={<LoadingSpinner />}
-          value={minimalPackages.value}
+          value={corePackages.value}
         >
           <input
             type="search"
@@ -212,9 +254,9 @@ export default function PackageView() {
             spellCheck="false"
           />
 
-          <div>
+          <div className="flex justify-between items-center pt-2">
             <button
-              className="flex gap-2 pt-2"
+              className="flex gap-2"
               onClick={() => onlyShowSelectedPackages.set((s) => !s)}
             >
               <div className="w-7 aspect-square border rounded-md border-stone-600 select-none">
@@ -222,8 +264,19 @@ export default function PackageView() {
                   {onlyShowSelectedPackages.value && <Checkmark />}
                 </div>
               </div>
-              <p className="select-none">Only show selected packages</p>
+              <p className="select-none">
+                Only show {packageInfo.selectedPackages.length} selected package
+                {packageInfo.selectedPackages.length === 1 ? "" : "s"}
+              </p>
             </button>
+
+            <div className="flex gap-1">
+              <Buttons.DefaultButton title="Select All" onClick={selectAll} />
+              <Buttons.DefaultButton
+                title="Deselect All"
+                onClick={deselectAll}
+              />
+            </div>
           </div>
 
           {selectedCategory.value === "Git" && (
@@ -235,19 +288,25 @@ export default function PackageView() {
 
           <div className="flex flex-col gap-2 py-3 w-full">
             {queriedPackages?.map((x, i) => {
-              const existingPackage =
-                newProjectContext.state.packageInfo.selectedPackages.find(
-                  (y) => y.name === x.package_.name
-                );
+              const existingPackage = packageInfo.templatePackages.find(
+                (y) => y.name === x.package_.name
+              );
+              const isSelected = packageInfo.selectedPackages.some(
+                (y) => y.name === x.package_.name
+              );
+
               return (
                 <Package
                   key={i}
                   package_={x}
                   onClick={() =>
-                    togglePackage(x.package_.name, x.package_.version)
+                    togglePackage(
+                      x.package_.name,
+                      existingPackage?.version ?? x.package_.version
+                    )
                   }
                   destroyPackage={destroyPackage}
-                  selected={!!existingPackage}
+                  selected={isSelected}
                   otherVersion={existingPackage?.version}
                 />
               );
@@ -523,9 +582,11 @@ function LocalAdd(props: {
 function Sidebar({
   categories,
   selectedCategory,
+  allPackages,
 }: {
   categories: string[];
   selectedCategory: UseState<string>;
+  allPackages: CategoryPackage[];
 }) {
   const newProjectContext = useContext(NewProjectContext.Context);
 
@@ -534,7 +595,7 @@ function Sidebar({
       {categories.map((x, i) => (
         <button
           className={`flex justify-between border border-stone-700 px-3 py-2 rounded-md hover:bg-stone-700 select-none cursor-pointer box-border ${
-            selectedCategory.value === x
+            selectedCategory.value.toLowerCase() === x.toLowerCase()
               ? "bg-sky-600 text-stone-50 border-stone-900"
               : "text-stone-300"
           }`}
@@ -542,11 +603,22 @@ function Sidebar({
           onClick={() => selectedCategory.set(x)}
         >
           {x}
+          <span>
+            {" "}
+            {
+              allPackages.filter(
+                (y) =>
+                  x === "All" ||
+                  (x === "In Package" && y.inPackage) ||
+                  y.category.toLowerCase() === x.toLowerCase()
+              ).length
+            }
+          </span>
         </button>
       ))}
 
       {newProjectContext.state.initialTemplateInfo.selectedTemplate && (
-        <div className="flex border p-2 text-sm leading-[1.35rem] border-yellow-300 rounded-md mt-auto mb-4 select-none">
+        <div className="flex border p-2 text-sm leading-[1.15rem] border-yellow-300 rounded-md mt-auto mb-4 select-none">
           <p>
             Changing the package list of a provided template can make assets no
             longer compile or function properly!
@@ -600,6 +672,12 @@ function Package({
             >
               <span>
                 {otherVersion && package_.package_.version !== otherVersion && (
+                  <span className="line-through text-stone-500 pr-1">
+                    {package_.package_.version}
+                  </span>
+                )}
+                <span>{otherVersion ?? package_.package_.version}</span>
+                {/* {otherVersion && package_.package_.version !== otherVersion && (
                   <>
                     <span className="line-through text-stone-500 pr-2">
                       {package_.package_.version}
@@ -611,7 +689,7 @@ function Package({
                 {!otherVersion &&
                   (package_.package_.version === ""
                     ? "N/A"
-                    : package_.package_.version)}
+                    : package_.package_.version)} */}
               </span>
             </span>
           </p>
@@ -622,15 +700,15 @@ function Package({
         )}
       </button>
 
-      {package_.package_.type === TauriTypes.PackageType.Local ||
-        (package_.package_.type === TauriTypes.PackageType.Git && (
-          <button
-            className="w-10 p-2 bg-red-900 border-l border-stone-600 rounded-md rounded-tl-none rounded-bl-none hover:bg-red-800"
-            onClick={() => destroyPackage(package_.package_)}
-          >
-            <Delete />
-          </button>
-        ))}
+      {(package_.package_.type === TauriTypes.PackageType.Local ||
+        package_.package_.type === TauriTypes.PackageType.Git) && (
+        <button
+          className="w-10 p-2 bg-red-900 border-l border-stone-600 rounded-md rounded-tl-none rounded-bl-none hover:bg-red-800"
+          onClick={() => destroyPackage(package_.package_)}
+        >
+          <Delete />
+        </button>
+      )}
     </div>
   );
 }

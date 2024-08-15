@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/tauri";
 import { TauriTypes } from "./tauri-types";
+import { convertFileSrc } from "@tauri-apps/api/tauri";
 
 export namespace TauriRouter {
   // app
@@ -90,6 +91,10 @@ export namespace TauriRouter {
     });
   }
 
+  export async function delete_template_cache() {
+    return invoke("cmd_delete_template_cache");
+  }
+
   // project
 
   export async function get_default_project_path(): Promise<string> {
@@ -139,6 +144,16 @@ export namespace TauriRouter {
       projectPath,
       editorVersion,
     });
+  }
+
+  export async function fetch_project_thumbnail(
+    projectPath: string
+  ): Promise<string> {
+    return invoke("cmd_fetch_project_thumbnail", { projectPath }).then(
+      (path) => {
+        return convertFileSrc(path as string);
+      }
+    );
   }
 
   // editor

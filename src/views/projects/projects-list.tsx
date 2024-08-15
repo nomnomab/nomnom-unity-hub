@@ -15,6 +15,7 @@ import {
 import { ProjectViewData } from "./projects-view";
 import LoadingSpinner from "../../components/svg/loading-spinner";
 import useBetterState from "../../hooks/useBetterState";
+import Box from "../../components/svg/box";
 
 export default function ProjectList({
   projectData,
@@ -170,7 +171,7 @@ function Pagination({
               pageCount > 1 ? "calc(100% - 54px - 75px)" : "calc(100% - 75px)",
           }}
         >
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2 py-1">
             {projectData.value.projects.length === 0 && (
               <p className="select-none p-2">No projects to show</p>
             )}
@@ -264,6 +265,7 @@ function Project({
 }) {
   const [isOpening, setIsOpening] = useState(false);
   const { show, hideAll } = useContextMenu({});
+  const thumbnailPath = useBetterState<string | null>(null);
 
   async function openProject() {
     if (isOpening) return;
@@ -302,37 +304,64 @@ function Project({
     }
   }
 
+  useEffect(() => {
+    TauriRouter.fetch_project_thumbnail(project.path)
+      .then((path) => {
+        thumbnailPath.set(path);
+      })
+      .catch((err) => {
+        thumbnailPath.set(null);
+      });
+  }, [project.path]);
+
   return (
     <div
-      className="flex flex-row items-center gap-4 flex-grow rounded-md p-4 hover:bg-stone-700 transition-colors cursor-pointer"
+      className="flex flex-row items-center gap-4 flex-grow rounded-md p-2 hover:bg-stone-700 transition-colors cursor-pointer"
       tabIndex={0}
       onClick={openProject}
     >
       {isOpening && <LoadingSpinner />}
+      <div className="h-[42px] aspect-square select-none bg-stone-800 rounded-md">
+        {!thumbnailPath.value && (
+          <div className="flex items-center justify-center aspect-square p-2 w-full h-full">
+            <Box />
+          </div>
+        )}
+        {thumbnailPath.value && (
+          <img
+            className="rounded-md object-cover h-full w-full"
+            src={thumbnailPath.value}
+            alt="N/A"
+            loading="lazy"
+          />
+        )}
+      </div>
       {/* Name */}
-      <div className="w-4/5">
-        <p className="overflow-ellipsis whitespace-nowrap overflow-x-clip text-stone-50 select-none">
+      <div className="flex-grow overflow-hidden">
+        <p className="overflow-ellipsis whitespace-nowrap text-stone-50 select-none">
           {project.name}
         </p>
-        <p className="text-sm overflow-ellipsis whitespace-nowrap overflow-x-clip select-none">
+        <p className="overflow-hidden text-ellipsis whitespace-nowrap text-sm select-none">
           {project.path}
         </p>
       </div>
 
-      {/* Editor Version */}
-      <div className="flex items-center justify-end  ml-auto">
-        <p className="overflow-ellipsis whitespace-nowrap overflow-x-clip text-md select-none">
-          {project.version}
-        </p>
-      </div>
+      <div className="w-1/5 flex flex-shrink-0">
+        {/* Editor Version */}
+        <div className="flex items-center justify-end ml-auto">
+          <p className="overflow-ellipsis whitespace-nowrap overflow-x-clip text-md select-none">
+            {project.version}
+          </p>
+        </div>
 
-      {/* Options */}
-      <button
-        className="flex items-center justify-center w-12 h-12 aspect-square rounded-md text-stone-50 hover:bg-stone-500"
-        onClick={openOptions}
-      >
-        <EllipsisVertical width={20} height={20} />
-      </button>
+        {/* Options */}
+        <button
+          className="flex items-center justify-center w-12 h-12 aspect-square rounded-md text-stone-50 hover:bg-stone-500"
+          onClick={openOptions}
+        >
+          <EllipsisVertical width={20} height={20} />
+        </button>
+      </div>
 
       <Menu id={"project-" + project.path} theme="dark_custom">
         <Item id="open" onClick={handleItemClick}>

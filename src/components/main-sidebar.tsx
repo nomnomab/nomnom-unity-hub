@@ -7,7 +7,7 @@ import { LazyValue } from "../utils";
 
 export default function MainSidebar() {
   return (
-    <div className="w-48 flex-shrink-0 h-screen bg-stone-800 flex flex-col border-r border-r-stone-700">
+    <div className="w-44 flex-shrink-0 h-screen bg-stone-800 flex flex-col border-r border-r-stone-700">
       <div className="my-2" />
       <Options />
     </div>

@@ -6,8 +6,8 @@
     "distDir": "../dist"
   },
   "package": {
-    "productName": "nomnom-unity-hub",
-    "version": "1.0.0"
+    "productName": "Nomnoms Unity Hub",
+    "version": "1.0.1"
   },
   "tauri": {
     "allowlist": {
@@ -21,6 +21,14 @@
       },
       "window": {
         "show": true
+      },
+      "protocol": {
+        "all": true,
+        "asset": true,
+        "assetScope": ["**", "**/*"]
+      },
+      "path": {
+        "all": true
       }
     },
     "windows": [
@@ -36,7 +44,11 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": {
+        "default-src": "'self'",
+        "media-src": "'self' asset: https://asset.localhost",
+        "img-src": "'self' asset: https://asset.localhost"
+      }
     },
     "bundle": {
       "active": true,
