@@ -206,10 +206,11 @@ function Pagination({
 
         {/* sort dropdown */}
         <button
-          className="rounded-md text-stone-50 px-3 py-1 select-none disabled:cursor-not-allowed disabled:opacity-50 hover:bg-stone-800 transition-colors"
+          className="flex items-center gap-1 rounded-md text-stone-50 px-3 py-1 select-none disabled:cursor-not-allowed disabled:opacity-50 hover:bg-stone-800 transition-colors"
           onClick={openSortMenu}
         >
           <Sort />
+          <span className="text-sm">{sortType.value}</span>
         </button>
 
         <Menu id="projects_sort" theme="dark_custom">

@@ -94,7 +94,7 @@ export default function EditorsList() {
             data.set((s) => ({
               ...s,
               editorGroups: [...s.editorGroups],
-            }))
+            }));
           } catch (e) {
             console.error(e);
           }
@@ -204,6 +204,7 @@ function Editor({ editor }: { editor: TauriTypes.UnityEditorInstall }) {
   }, []);
 
   const { show, hideAll } = useContextMenu({});
+  const projectSettingsFoldoutOpen = useBetterState(false);
 
   function openOptions(event: TriggerEvent) {
     event.stopPropagation();
