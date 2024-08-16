@@ -6,6 +6,7 @@ export namespace TauriTypes {
     path: string;
     version: string;
     isPinned: boolean;
+    addedAt?: BigInt;
     lastOpenedAt?: BigInt;
   }
 

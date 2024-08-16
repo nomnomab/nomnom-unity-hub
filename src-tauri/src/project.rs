@@ -9,7 +9,8 @@ pub struct Project {
   pub path: PathBuf,
   pub version: String,
   pub is_pinned: bool,
-  pub last_opened_at: Option<u128>,
+  pub added_at: u128,
+  pub last_opened_at: u128,
 }
 
 impl Default for Project {
@@ -19,7 +20,8 @@ impl Default for Project {
       path: PathBuf::new(),
       version: String::new(),
       is_pinned: false,
-      last_opened_at: None,
+      added_at: 0u128,
+      last_opened_at: 0u128,
     }
   }
 }
@@ -113,7 +115,7 @@ fn filter_by_sort(sort_by: SortType, projects: &mut Vec<Project>) {
   match sort_by {
     SortType::DateOpened => projects.sort_by(|x, y| y.last_opened_at.cmp(&x.last_opened_at)),
     SortType::Name => projects.sort_by(|x, y| x.name.cmp(&y.name)),
-    // SortType::DateAdded => projects.sort_by(|x, y| y.path.cmp(&x.path)),
+    SortType::DateAdded => projects.sort_by(|x, y| y.added_at.cmp(&x.added_at)),
     SortType::EditorVersion => projects.sort_by(|x, y| y.version.cmp(&x.version)),
     _ => {}
   }
@@ -179,12 +181,16 @@ pub fn cmd_add_project(project_path: PathBuf, app_handle: tauri::AppHandle, app_
   }
   
   let mut projects = app_state.projects.lock()
-  .map_err(|_| errors::str_error("Failed to get projects. Is it locked?"))?;
+    .map_err(|_| errors::str_error("Failed to get projects. Is it locked?"))?;
   if projects.iter().any(|x| x.path == project_path) {
     return Err(errors::str_error("Project already exists"));
   }
   
-  let project = load(project_path)?;
+  let mut project = load(project_path)?;
+  project.added_at = std::time::UNIX_EPOCH
+    .elapsed()
+    .unwrap_or(std::time::Duration::from_secs(0))
+    .as_millis();
   projects.insert(0, project.clone());
   
   app::save_projects_to_disk(&projects, &app_handle)?;
@@ -247,7 +253,7 @@ pub fn cmd_open_project_in_editor(app_handle: tauri::AppHandle, app_state: tauri
     .iter_mut()
     .find(|x| x.path == project_path)
     .ok_or(errors::str_error("Project not found"))?;
-  project.last_opened_at = Some(millis);
+  project.last_opened_at = millis;
 
   app::save_projects_to_disk(&projects, &app_handle)?;
   

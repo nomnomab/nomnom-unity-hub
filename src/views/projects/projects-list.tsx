@@ -86,7 +86,6 @@ function Pagination({
           // sortBy: sortType.value,
         }
       );
-      console.log(projects);
       projectData.set((s) => ({
         ...s,
         projects,
