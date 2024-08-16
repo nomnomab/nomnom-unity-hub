@@ -8,6 +8,7 @@ pub enum PrefsKey {
     HubEditorsPath,
     HubAppDataPath,
     NewProjectPath,
+    ProjectSortType
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -21,6 +22,7 @@ pub struct Prefs {
     pub hub_editors_path: Option<PathBuf>,
     // typically C:\Users\nomno\AppData\Roaming\UnityHub\
     pub hub_appdata_path: Option<PathBuf>,
+    pub project_sort_type: Option<crate::project::SortType>
 }
 
 impl Default for Prefs {
@@ -47,6 +49,8 @@ impl Default for Prefs {
             hub_editors_path: None,
 
             hub_appdata_path: Some(dirs_next::config_dir().unwrap().join("UnityHub")),
+
+            project_sort_type: None
         }
     }
 }
@@ -85,8 +89,11 @@ pub fn cmd_save_prefs(app_handle: tauri::AppHandle, app_state: tauri::State<AppS
 }
 
 #[tauri::command]
-pub fn cmd_set_pref_value(app_state: tauri::State<'_, AppState>, key: PrefsKey, value: serde_json::Value) -> Result<(), errors::AnyError> {
-    let mut prefs = app::get_prefs(&app_state)?;
+pub fn cmd_set_pref_value(app_handle: tauri::AppHandle, app_state: tauri::State<'_, AppState>, key: PrefsKey, value: serde_json::Value) -> Result<(), errors::AnyError> {
+    // let mut prefs = app::get_prefs(&app_state)?;
+    let mut prefs = app_state.prefs.lock()
+        .map_err(|_| errors::str_error("Failed to get prefs. Is it locked?"))?;
+
     match key {
         PrefsKey::NewProjectPath => {
             prefs.new_project_path = serde_json::from_value(value)?;
@@ -100,7 +107,13 @@ pub fn cmd_set_pref_value(app_state: tauri::State<'_, AppState>, key: PrefsKey, 
         PrefsKey::HubAppDataPath => {
             prefs.hub_appdata_path = serde_json::from_value(value)?;
         },
+        PrefsKey::ProjectSortType => {
+            prefs.project_sort_type = serde_json::from_value(value)?;
+        },
         // _ => return Err(errors::str_error("Invalid key")),
     }
+
+    app::save_prefs_to_disk(&prefs, &app_handle)?;
+    
     Ok(())
 }

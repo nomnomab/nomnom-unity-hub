@@ -16,6 +16,9 @@ import { ProjectViewData } from "./projects-view";
 import LoadingSpinner from "../../components/svg/loading-spinner";
 import useBetterState from "../../hooks/useBetterState";
 import Box from "../../components/svg/box";
+import Pin from "../../components/svg/pin";
+import { Buttons } from "../../components/parts/buttons";
+import Sort from "../../components/svg/sort";
 
 export default function ProjectList({
   projectData,
@@ -42,6 +45,18 @@ function Pagination({
   const editors = useBetterState<TauriTypes.UnityEditorInstall[] | null>(null);
   const searchQuery = useBetterState<string | undefined>(undefined);
 
+  const sortType = useBetterState<TauriTypes.SortType>(
+    TauriTypes.SortType.DateAdded
+  );
+
+  useEffect(() => {
+    TauriRouter.get_prefs().then((prefs) => {
+      const newSortType: TauriTypes.SortType =
+        prefs.projectSortType ?? TauriTypes.SortType.DateAdded;
+      sortType.set(newSortType);
+    });
+  }, []);
+
   const pageCount = useMemo(() => {
     return Math.ceil(
       projectData.value.allProjects.filter((x) =>
@@ -62,16 +77,29 @@ function Pagination({
     projectData.set((s) => ({ ...s, allProjects }));
 
     // await new Promise((resolve) => setTimeout(resolve, 1000));
-    const projects = await TauriRouter.get_projects_on_page(
-      projectData.value.currentPage,
-      perPage,
-      searchQuery.value === "" ? undefined : searchQuery.value
-    );
-    projectData.set((s) => ({
-      ...s,
-      projects,
-    }));
-  }, [projectData.value.currentPage, reloadPage.value, searchQuery.value]);
+    try {
+      const projects = await TauriRouter.get_projects_on_page(
+        projectData.value.currentPage,
+        perPage,
+        {
+          nameFilter: searchQuery.value === "" ? undefined : searchQuery.value,
+          // sortBy: sortType.value,
+        }
+      );
+      console.log(projects);
+      projectData.set((s) => ({
+        ...s,
+        projects,
+      }));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [
+    projectData.value.currentPage,
+    reloadPage.value,
+    searchQuery.value,
+    sortType.value,
+  ]);
 
   function changePage(page: number) {
     projectData.set((s) => ({ ...s, currentPage: page }));
@@ -143,9 +171,31 @@ function Pagination({
     );
   }, [pageNumbersAroundCurrent.length, pageCount]);
 
+  const { show, hideAll } = useContextMenu({
+    id: "projects_sort",
+  });
+
+  function openSortMenu(event: TriggerEvent) {
+    event.stopPropagation();
+    show({
+      id: "projects_sort",
+      event,
+      props: {},
+    });
+  }
+
+  function handleItemClick({ id, event, data }: any) {
+    event.stopPropagation();
+    hideAll();
+    TauriRouter.set_pref_value(
+      TauriTypes.PrefsKey.ProjectSortType,
+      id as TauriTypes.SortType
+    ).then(() => sortType.set(id));
+  }
+
   return (
     <>
-      <div className="p-4 flex mt-2">
+      <div className="p-4 flex mt-2 gap-2">
         <input
           type="search"
           className="rounded-md p-2 bg-stone-800 text-stone-50 border border-stone-600 placeholder:text-stone-400 w-full"
@@ -153,6 +203,32 @@ function Pagination({
           value={searchQuery.value ?? ""}
           onChange={(e) => searchQuery.set(e.target.value)}
         />
+
+        {/* sort dropdown */}
+        <button
+          className="rounded-md text-stone-50 px-3 py-1 select-none disabled:cursor-not-allowed disabled:opacity-50 hover:bg-stone-800 transition-colors"
+          onClick={openSortMenu}
+        >
+          <Sort />
+        </button>
+
+        <Menu id="projects_sort" theme="dark_custom">
+          {["Date Added", "Name", "Date Opened", "Editor Version"].map(
+            (value) => (
+              <Item
+                id={value.replace(" ", "")}
+                onClick={handleItemClick}
+                className={
+                  sortType.value === value.replace(" ", "")
+                    ? "bg-sky-600 rounded-md"
+                    : ""
+                }
+              >
+                {value}
+              </Item>
+            )
+          )}
+        </Menu>
       </div>
 
       <AsyncComponent
@@ -272,6 +348,7 @@ function Project({
 
     setIsOpening(true);
     await TauriRouter.open_project_in_editor(project.path, project.version);
+    props.reloadPage();
     await new Promise((resolve) => setTimeout(resolve, 4000));
     setIsOpening(false);
   }
@@ -300,6 +377,16 @@ function Project({
         TauriRouter.change_project_editor_version(project.path, data).then(() =>
           props.reloadPage()
         );
+        break;
+      case "pin":
+        TauriRouter.pin_project(project.path)
+          .then(() => props.reloadPage())
+          .catch((err) => console.error(err));
+        break;
+      case "unpin":
+        TauriRouter.unpin_project(project.path)
+          .then(() => props.reloadPage())
+          .catch((err) => console.error(err));
         break;
     }
   }
@@ -338,32 +425,50 @@ function Project({
       </div>
       {/* Name */}
       <div className="flex-grow overflow-hidden">
-        <p className="overflow-ellipsis whitespace-nowrap text-stone-50 select-none">
-          {project.name}
+        <p className="overflow-ellipsis whitespace-nowrap text-stone-50 select-none relative">
+          {project.name}{" "}
+          {project.isPinned && (
+            <Pin
+              className="inline rotate-45 absolute top-1 ml-1"
+              width={16}
+              height={16}
+            />
+          )}
         </p>
         <p className="overflow-hidden text-ellipsis whitespace-nowrap text-sm select-none">
           {project.path}
         </p>
       </div>
 
-      <div className="w-1/5 flex flex-shrink-0">
+      <div className="flex w-1/5 h-[42px] items-center">
         {/* Editor Version */}
         <div className="flex items-center justify-end ml-auto">
-          <p className="overflow-ellipsis whitespace-nowrap overflow-x-clip text-md select-none">
+          <p className="overflow-ellipsis whitespace-nowrap overflow-x-clip text-md select-none pr-3">
             {project.version}
           </p>
         </div>
 
         {/* Options */}
         <button
-          className="flex items-center justify-center w-12 h-12 aspect-square rounded-md text-stone-50 hover:bg-stone-500"
+          className="flex items-center justify-center h-full aspect-square rounded-md text-stone-50 hover:bg-stone-500"
           onClick={openOptions}
         >
-          <EllipsisVertical width={20} height={20} />
+          <EllipsisVertical width={22} height={22} />
         </button>
       </div>
 
       <Menu id={"project-" + project.path} theme="dark_custom">
+        {!project.isPinned && (
+          <Item id="pin" onClick={handleItemClick}>
+            Add to Favorites
+          </Item>
+        )}
+        {project.isPinned && (
+          <Item id="unpin" onClick={handleItemClick}>
+            Remove from Favorites
+          </Item>
+        )}
+        <Separator />
         <Item id="open" onClick={handleItemClick}>
           Show in Exporer
         </Item>

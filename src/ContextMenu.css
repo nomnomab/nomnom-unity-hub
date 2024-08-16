@@ -8,6 +8,9 @@
 	--contexify-activeRightSlot-color: #fff;
 	--contexify-arrow-color: #6f6e77;
 	--contexify-activeArrow-color: #fff;
+
+  border: 1px solid #44403c;
+  padding: 0.2rem;
 }
 
 @keyframes contexify_fadeIn {
