@@ -26,13 +26,11 @@
 ## Building
 
 ```bash
+pnpm i
+
 # move into src folder
 cd .\src\
 
-# if npm
-npm run tauri build
-
-# if pnpm
 pnpm tauri build
 ```
 
