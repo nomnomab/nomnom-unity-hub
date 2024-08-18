@@ -33,7 +33,7 @@ export default function FirstBoot() {
 
 function LastStage() {
   useEffect(() => {
-    window.localStorage.setItem("pastFirstBoot", "true");
+    window.localStorage.setItem("past_first_boot", "true");
     window.location.reload();
   }, []);
   return null;

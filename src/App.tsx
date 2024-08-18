@@ -13,6 +13,8 @@ import NewProjectView from "./views/new-project/new-project-view";
 import SettingsView from "./views/settings/settings-view";
 import useBetterState from "./hooks/useBetterState";
 import FirstBoot from "./views/first-boot/first-boot";
+import { getVersion } from "@tauri-apps/api/app";
+import { TauriRouter } from "./utils/tauri-router";
 
 function App() {
   const globalContext = useContext(GlobalContext.Context);
@@ -20,8 +22,20 @@ function App() {
   const isFirstBoot = useBetterState(false);
 
   useEffect(() => {
-    // window.localStorage.removeItem("pastFirstBoot");
-    const firstBoot = !window.localStorage.getItem("pastFirstBoot");
+    let version = window.localStorage.getItem("app_version");
+    const check = async () => {
+      const appVersion = await getVersion();
+      if (!version || appVersion !== version) {
+        TauriRouter.delete_template_cache();
+        window.localStorage.setItem("app_version", appVersion);
+      }
+    };
+    check();
+  }, []);
+
+  useEffect(() => {
+    // window.localStorage.removeItem("past_first_boot");
+    const firstBoot = !window.localStorage.getItem("past_first_boot");
 
     const load = async () => {
       isFirstBoot.set(true);

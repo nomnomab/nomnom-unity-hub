@@ -124,9 +124,13 @@ export namespace TauriRouter {
   export async function get_projects_on_page(
     page: number,
     perPageCount: number,
-    search?: string
+    searchOptions: TauriTypes.SearchOptions
   ): Promise<TauriTypes.Project[]> {
-    return invoke("cmd_get_projects_on_page", { page, perPageCount, search });
+    return invoke("cmd_get_projects_on_page", {
+      page,
+      perPageCount,
+      searchOptions,
+    });
   }
 
   export async function open_project_in_editor(
@@ -154,6 +158,14 @@ export namespace TauriRouter {
         return convertFileSrc(path as string);
       }
     );
+  }
+
+  export async function pin_project(projectPath: string): Promise<void> {
+    return invoke("cmd_pin_project", { projectPath });
+  }
+
+  export async function unpin_project(projectPath: string): Promise<void> {
+    return invoke("cmd_unpin_project", { projectPath });
   }
 
   // editor

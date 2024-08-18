@@ -5,6 +5,9 @@ export namespace TauriTypes {
     name: string;
     path: string;
     version: string;
+    isPinned: boolean;
+    addedAt?: BigInt;
+    lastOpenedAt?: BigInt;
   }
 
   export enum PrefsKey {
@@ -12,6 +15,7 @@ export namespace TauriTypes {
     HubEditorsPath = "HubEditorsPath",
     HubAppDataPath = "HubAppDataPath",
     NewProjectPath = "NewProjectPath",
+    ProjectSortType = "ProjectSortType",
   }
 
   export interface Prefs {
@@ -19,6 +23,7 @@ export namespace TauriTypes {
     hubPath?: string;
     hubEditorsPath?: string;
     hubAppdataPath?: string;
+    projectSortType?: SortType;
   }
 
   export interface UserCache {
@@ -94,6 +99,14 @@ export namespace TauriTypes {
     surfaceTemplate: SurfaceTemplate;
     pipelines: UnityPipeline[];
     diskSizeBytes: number;
+  }
+
+  export interface PackageLockJsonDependency {
+    version?: string;
+    depth: number;
+    source?: string;
+    dependencies: Map<string, string>;
+    url?: string;
   }
 
   export interface GitPackage {
@@ -177,6 +190,18 @@ export namespace TauriTypes {
   export interface PackageJson {
     name: string;
     version: string;
+  }
+
+  export enum SortType {
+    DateAdded = "DateAdded",
+    Name = "Name",
+    DateOpened = "DateOpened",
+    EditorVersion = "EditorVersion",
+  }
+
+  export interface SearchOptions {
+    nameFilter?: string;
+    // sortBy?: SortType;
   }
 }
 
