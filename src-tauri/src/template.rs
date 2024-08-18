@@ -109,7 +109,7 @@ pub fn get_core_templates_path(editor_version: String, app_state: &tauri::State<
   
   let templates_path = crate::editor::get_package_manager_folder(&editor)?
     .join("ProjectTemplates");
-  println!("Templates path: {}", templates_path.display());
+  // println!("Templates path: {}", templates_path.display());
   Ok(templates_path)
 }
 
@@ -322,11 +322,11 @@ pub fn extract_template_information(app: &tauri::AppHandle, app_state: &tauri::S
       
       if let Some(dependencies) = package_json.dependencies {
         for (key, value) in dependencies {
-          found_deps.insert(key.clone(), (value, 1));
+          found_deps.insert(key.clone(), (value, 0));
         }
       }
       
-      println!("initial deps: {:?}", found_deps);
+      // println!("initial deps: {:?}", found_deps);
       
       if !package_lock_json_contents.is_empty() {
         let package_lock_json: PackageLockJson = serde_json::from_str(&package_lock_json_contents)
@@ -389,12 +389,15 @@ pub fn extract_template_information(app: &tauri::AppHandle, app_state: &tauri::S
       }
 
       write_editor_version_packages(&app, &surface_template.editor_version, &editor_version_contents)?;
+
+      // println!("found deps: {:?}", found_deps);
       
       let mut final_deps = HashMap::new();
-      for (key, value) in found_deps.iter().filter(|x| x.1.1 == 1) {
+      for (key, value) in found_deps.iter().filter(|x| x.1.1 <= 1) {
         final_deps.insert(key.clone(), value.0.clone());
       }
       
+      // println!("final deps: {:?}", final_deps);
       package_json.dependencies = Some(final_deps);
     }
     
