@@ -101,6 +101,14 @@ export namespace TauriTypes {
     diskSizeBytes: number;
   }
 
+  export interface PackageLockJsonDependency {
+    version?: string;
+    depth: number;
+    source?: string;
+    dependencies: Map<string, string>;
+    url?: string;
+  }
+
   export interface GitPackage {
     url: string;
   }

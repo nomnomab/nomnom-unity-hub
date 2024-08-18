@@ -2,7 +2,7 @@ use std::{collections::HashMap, path::PathBuf};
 
 use flate2::{read::GzDecoder, write::GzEncoder};
 
-use crate::{app::{self, AppState}, editor::{self, UnityEditorInstall}, errors, io_utils, package::{self, MinimalPackage}, template::SurfaceTemplate};
+use crate::{app::{self, AppState}, editor::{self, UnityEditorInstall}, errors, io_utils, package::{self, MinimalPackage}, template::{EditorVersionPackageList, SurfaceTemplate}};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -38,6 +38,8 @@ pub fn generate_project(app: &tauri::AppHandle, app_state: &tauri::State<'_, App
     return Err(errors::str_error(format!("Project already exists at {}", package_cache_dir_out.display()).as_str()));
   }
 
+  let cached_editor_packages = crate::template::read_editor_version_packages(&app, &template_info.editor_version.version.clone())?;
+
   let package_cache_dir = io_utils::get_cache_appended_dir(app, "new_project_package")?;
   if template_info.is_empty {
     // make a new project
@@ -60,7 +62,7 @@ pub fn generate_project(app: &tauri::AppHandle, app_state: &tauri::State<'_, App
 
     let packages_dir = package_cache_dir_out
       .join("Packages");
-    modify_package_json(&packages_dir, &template_info.packages, &package_cache_dir_out)?;
+    modify_package_json(&packages_dir, &template_info.packages, &package_cache_dir_out, &cached_editor_packages)?;
   } else {
     let packages_dir = package_cache_dir
       .join("package")
@@ -68,7 +70,7 @@ pub fn generate_project(app: &tauri::AppHandle, app_state: &tauri::State<'_, App
       .join("Packages");
     
     unpack_package_into_cache(&package_cache_dir, &template_info)?;
-    modify_package_json(&packages_dir, &template_info.packages, &package_cache_dir_out)?;
+    modify_package_json(&packages_dir, &template_info.packages, &package_cache_dir_out, &cached_editor_packages)?;
   }
 
   // create project directory
@@ -117,6 +119,27 @@ pub fn generate_project(app: &tauri::AppHandle, app_state: &tauri::State<'_, App
   std::fs::write(&editor_version_path, editor_version)?;
 
   create_gitignore(package_cache_dir_out)?;
+
+  // create package-lock file
+  let package_lock_path = package_cache_dir_out
+    .join("Packages")
+    .join("packages-lock")
+    .with_extension("json");
+
+  let lock_dependencies = template_info.packages
+    .iter()
+    .filter(|x| cached_editor_packages.packages.get(&x.name).is_some())
+    .collect::<Vec<_>>();
+  let mut serde_hash_map = serde_json::Map::new();
+  for dep in lock_dependencies.iter() {
+    let value = cached_editor_packages.packages.get(&dep.name).unwrap();
+    serde_hash_map.insert(dep.name.clone(), serde_json::to_value(value)?);
+  }
+
+  let json_str = serde_json::json!({
+    "dependencies": serde_hash_map
+  });
+  std::fs::write(&package_lock_path, serde_json::to_string_pretty(&json_str)?)?;
   
   Ok(package_cache_dir_out.clone())
 }
@@ -126,8 +149,10 @@ pub fn generate_template(app: &tauri::AppHandle, app_state: &tauri::State<AppSta
   let package_cache_dir = io_utils::get_cache_appended_dir(app, "new_template_package")?;
   let package_cache_dir_out = io_utils::get_cache_appended_dir(app, "new_template_package_output")?;
 
+  let cached_editor_packages = crate::template::read_editor_version_packages(&app, &template_info.template.editor_version.version.clone())?;
+
   unpack_package_into_cache(&package_cache_dir, &template_info.template)?;
-  modify_package_json(&package_cache_dir, &template_info.template.packages, &package_cache_dir_out)?;
+  modify_package_json(&package_cache_dir, &template_info.template.packages, &package_cache_dir_out, &cached_editor_packages)?;
 
   // modify package.json
   let package_json_path = package_cache_dir
@@ -260,7 +285,7 @@ fn unpack_package_into_cache(output: &PathBuf, template_info: &TemplateInfoForGe
   Ok(())
 }
 
-fn modify_package_json(json_root: &PathBuf, packages: &Vec<MinimalPackage>, output_path: &PathBuf) -> Result<(), errors::AnyError> {
+fn modify_package_json(json_root: &PathBuf, packages: &Vec<MinimalPackage>, output_path: &PathBuf, cached_editor_packages: &EditorVersionPackageList) -> Result<(), errors::AnyError> {
   // modify package.json for dependencies
   std::fs::create_dir_all(&json_root)?;
   
@@ -304,6 +329,23 @@ fn modify_package_json(json_root: &PathBuf, packages: &Vec<MinimalPackage>, outp
     println!("Rest package: {:?}", package);
     let name = package.name.clone();
     let version = package.version.clone();
+
+    let is_bad = {
+      if let Some(package) = cached_editor_packages.packages.get(&name) {
+        if package.source.as_ref().is_some_and(|x| x == "embedded") {
+          true
+        } else {
+          false
+        }
+      } else {
+        false
+      }
+    };
+
+    if is_bad {
+      continue;
+    }
+
     dependencies.insert(name, serde_json::Value::String(version));
   }
 
