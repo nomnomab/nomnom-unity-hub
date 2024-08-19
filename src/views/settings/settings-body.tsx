@@ -97,6 +97,7 @@ function Inputs({
   onBadPref?: (bad: boolean) => void;
 }) {
   const validInputContext = useContext(ValidateInputContext.Context);
+  const needsSave = useBetterState(false);
 
   const prefs = useMemo(() => {
     return lazyPrefs.value?.value;
@@ -108,6 +109,7 @@ function Inputs({
 
   function savePrefs() {
     if (!prefs) return;
+    // console.log(prefs);
     TauriRouter.set_prefs(prefs);
     TauriRouter.save_prefs();
   }
@@ -126,7 +128,14 @@ function Inputs({
 
     if (!path) return;
     setPrefs({ ...prefs, [key]: path as string });
+    needsSave.set(true);
   }
+
+  useEffect(() => {
+    if (!needsSave.value) return;
+    savePrefs();
+    needsSave.set(false);
+  }, [needsSave.value]);
 
   function checkPath(key: string): Promise<boolean> {
     try {
@@ -145,6 +154,14 @@ function Inputs({
 
     return Promise.resolve(false);
   }
+
+  // useEffect(() => {
+  //   console.log("loaded: ", prefs);
+  //   return () => {
+  //     console.log("saving");
+  //     savePrefs();
+  //   };
+  // }, []);
 
   useEffect(() => {
     checkPath("newProjectPath");
