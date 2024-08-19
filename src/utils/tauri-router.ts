@@ -168,6 +168,13 @@ export namespace TauriRouter {
     return invoke("cmd_unpin_project", { projectPath });
   }
 
+  export async function is_open_in_editor(
+    projectPath: string,
+    editorVersion: string
+  ): Promise<boolean> {
+    return invoke("cmd_is_open_in_editor", { projectPath, editorVersion });
+  }
+
   // editor
 
   export async function get_editors(): Promise<

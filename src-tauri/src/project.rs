@@ -319,3 +319,28 @@ pub fn cmd_unpin_project(project_path: PathBuf, app_handle: tauri::AppHandle, ap
   
   Ok(())
 }
+
+#[tauri::command]
+pub fn cmd_is_open_in_editor(project_path: String, editor_version: String, app_state: tauri::State<AppState>) -> Result<bool, errors::AnyError> {
+  use window_titles::{Connection, ConnectionTrait};
+  let connection = Connection::new()
+    .map_err(|_| errors::str_error("Failed to get connection"))?;
+  let titles = connection.window_titles()
+    .map_err(|_| errors::str_error("Failed to get window titles"))?;
+
+  println!("{:?}", titles);
+
+  let project_name = std::path::Path::new(&project_path)
+    .file_name()
+    .ok_or(errors::str_error("Invalid project path"))?
+    .to_str()
+    .ok_or(errors::str_error("Invalid project path"))?
+    .to_string();
+
+  // needs to start with project_name and contain Unity editor_version near the end
+  // todo: make sure this works fine on other platforms
+  let contains_title = titles
+    .iter()
+    .any(|x| x.starts_with(&project_name) && x.contains(format!("Unity {}", editor_version).as_str()));
+  Ok(contains_title)
+}

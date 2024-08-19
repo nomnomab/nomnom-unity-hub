@@ -15,6 +15,7 @@ import useBetterState from "./hooks/useBetterState";
 import FirstBoot from "./views/first-boot/first-boot";
 import { getVersion } from "@tauri-apps/api/app";
 import { TauriRouter } from "./utils/tauri-router";
+import { Toaster } from "react-hot-toast";
 
 function App() {
   const globalContext = useContext(GlobalContext.Context);
@@ -62,6 +63,16 @@ function App() {
 
   return (
     <div className="flex flex-row w-screen h-screen overflow-hidden">
+      <Toaster
+        position="bottom-right"
+        toastOptions={{
+          style: {
+            background: "#292524",
+            color: "#fff",
+            border: "1px solid #57534e",
+          },
+        }}
+      />
       <MainSidebar />
       <div className="flex flex-grow h-screen overflow-hidden">
         {globalContext.state.currentTab === "projects" && <ProjectsView />}

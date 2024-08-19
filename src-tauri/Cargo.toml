@@ -14,7 +14,9 @@ tauri-build = { version = "1", features = [] }
 anyhow = "1.0.86"
 thiserror = "1.0.63"
 showfile = "0.1.1"
-tauri = { version = "1", features = [ "path-all", "protocol-all",
+tauri = { version = "1", features = [
+  "path-all",
+  "protocol-all",
   "window-show",
   "dialog-all",
   "shell-open",
@@ -26,6 +28,7 @@ tar = "0.4.41"
 dirs-next = "2.0.0"
 filesize = "0.2.0"
 tauri-plugin-single-instance = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "v1" }
+window_titles = { path = "third-party/window-titles" }
 
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!
