@@ -1942,6 +1942,7 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-single-instance",
  "thiserror",
+ "walkdir",
  "window_titles",
 ]
 

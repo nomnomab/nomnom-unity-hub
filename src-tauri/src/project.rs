@@ -1,6 +1,6 @@
 use std::{fs, path::{Path, PathBuf}};
 
-use crate::{app::{self, AppState}, errors};
+use crate::{app::{self, AppState}, errors, io_utils, package, template::TgzPackageJson};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(default, rename_all = "camelCase")]
@@ -321,7 +321,7 @@ pub fn cmd_unpin_project(project_path: PathBuf, app_handle: tauri::AppHandle, ap
 }
 
 #[tauri::command]
-pub fn cmd_is_open_in_editor(project_path: String, editor_version: String, app_state: tauri::State<AppState>) -> Result<bool, errors::AnyError> {
+pub fn cmd_is_open_in_editor(project_path: PathBuf, editor_version: String, app_state: tauri::State<AppState>) -> Result<bool, errors::AnyError> {
   use window_titles::{Connection, ConnectionTrait};
   let connection = Connection::new()
     .map_err(|_| errors::str_error("Failed to get connection"))?;
@@ -330,7 +330,7 @@ pub fn cmd_is_open_in_editor(project_path: String, editor_version: String, app_s
 
   println!("{:?}", titles);
 
-  let project_name = std::path::Path::new(&project_path)
+  let project_name = project_path
     .file_name()
     .ok_or(errors::str_error("Invalid project path"))?
     .to_str()
@@ -343,4 +343,101 @@ pub fn cmd_is_open_in_editor(project_path: String, editor_version: String, app_s
     .iter()
     .any(|x| x.starts_with(&project_name) && x.contains(format!("Unity {}", editor_version).as_str()));
   Ok(contains_title)
+}
+
+#[tauri::command]
+pub fn cmd_load_project_files_tree(project_path: PathBuf) -> Result<io_utils::FileDir, errors::AnyError> {
+  let project_path_path = project_path.as_path();
+  let walk = walkdir::WalkDir::new(project_path_path);
+  // let all_files = walk
+  //   .into_iter()
+  //   .filter_map(|x| x.and(|y| y.path()))
+  //   .collect::<Vec<_>>();
+
+  let mut root = io_utils::dir("package");
+
+  // io_utils::build_tree(&mut root, &vec!["package.json".to_string()], 0);
+  
+  // let project_dir = std::path::PathBuf::from("ProjectData~");
+  
+  fn is_hidden(entry: &walkdir::DirEntry) -> bool {
+    entry
+      .file_name()
+      .to_str()
+      .map(|s| s.starts_with('.'))
+      .unwrap_or(false)
+  }
+  
+  fn is_banned(entry: &walkdir::DirEntry) -> bool {
+    let banned_names = ["Library", "obj", "Logs", "Temp", "UserSettings"];
+    banned_names
+      .iter()
+      .any(|s| entry.file_name().to_str().unwrap().starts_with(s))
+  }
+  
+  for file in walk.into_iter().filter_entry(|e| !is_hidden(e) && !is_banned(e)).filter_map(|x| x.ok()) {
+    let file_path = file.path();
+    let file_path = file_path.strip_prefix(project_path_path);
+
+    if let Ok(file_path) = file_path {
+      let depth = file.depth();
+      if depth <= 1 {
+        continue;
+      }
+
+      // let file_path = project_dir.join(file_path);
+      let path_split = file_path
+        .components()
+        .filter_map(|x| {
+        if let std::path::Component::Normal(x) = x {
+          Some(x.to_str().and_then(|x| Some(x.to_string())))
+        } else {
+          None
+        }
+      })
+        .map(|x| x.unwrap())
+        .collect::<Vec<_>>();
+      
+      io_utils::build_tree(&mut root, &path_split, 0);
+    }
+  }
+
+  root.sort();
+
+  let mut id = 0;
+  io_utils::build_ids(&mut root, &mut id);
+
+  Ok(root)
+}
+
+#[tauri::command]
+pub async fn cmd_load_project_packages(app: tauri::AppHandle, app_state: tauri::State<'_, AppState>, project_path: PathBuf, editor_version: String) -> Result<TgzPackageJson, errors::AnyError> {
+  let packages_path = project_path
+    .join("Packages")
+    .join("manifest")
+    .with_extension("json");
+
+  let packages_lock_path = project_path
+    .join("Packages")
+    .join("packages-lock")
+    .with_extension("json");
+
+  let package_json_content = {
+    if packages_path.exists() {
+      std::fs::read_to_string(&packages_path)?
+    } else {
+      String::new()
+    }
+  };
+
+  let packages_lock_content = {
+    if packages_lock_path.exists() {
+      std::fs::read_to_string(&packages_lock_path)?
+    } else {
+      String::new()
+    }
+  };
+  
+  let package = crate::template::extract_packages(&app, &app_state, &editor_version, &package_json_content, &packages_lock_content)?;
+  Ok(package)
 }

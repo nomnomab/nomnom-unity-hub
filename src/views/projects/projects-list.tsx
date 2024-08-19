@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import AsyncComponent from "../../components/async-component";
 import { TauriTypes } from "../../utils/tauri-types";
 import { TauriRouter } from "../../utils/tauri-router";
@@ -21,6 +27,7 @@ import { Buttons } from "../../components/parts/buttons";
 import Sort from "../../components/svg/sort";
 import toast from "react-hot-toast";
 import { routeErrorToToast } from "../../utils/toast-utils";
+import { GlobalContext } from "../../context/global-context";
 
 export default function ProjectList({
   projectData,
@@ -354,6 +361,7 @@ function Project({
   const [isOpening, setIsOpening] = useState(false);
   const { show, hideAll } = useContextMenu({});
   const thumbnailPath = useBetterState<string | null>(null);
+  const globalContext = useContext(GlobalContext.Context);
 
   async function openProject() {
     if (isOpening) return;
@@ -418,6 +426,15 @@ function Project({
           TauriRouter.unpin_project(project.path).then(() =>
             props.reloadPage()
           );
+          break;
+        case "create-template":
+          // todo: enter project creation, force to template creation mode
+          //       and use this project's files as the template root
+          globalContext.dispatch({
+            type: "change_tab",
+            tab: "template_from_project",
+            project: project,
+          });
           break;
       }
     } catch (e) {
@@ -518,6 +535,9 @@ function Project({
             </Item>
           ))}
         </Submenu>
+        <Item id="create-template" onClick={handleItemClick}>
+          Create Template From This
+        </Item>
         <Separator />
         <Item id="remove" onClick={handleItemClick}>
           Remove

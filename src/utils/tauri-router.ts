@@ -175,6 +175,19 @@ export namespace TauriRouter {
     return invoke("cmd_is_open_in_editor", { projectPath, editorVersion });
   }
 
+  export async function load_project_files_tree(
+    projectPath: string
+  ): Promise<TauriTypes.FileDir> {
+    return invoke("cmd_load_project_files_tree", { projectPath });
+  }
+
+  export async function load_project_packages(
+    projectPath: string,
+    editorVersion: string
+  ): Promise<TauriTypes.TgzPackageJson> {
+    return invoke("cmd_load_project_packages", { projectPath, editorVersion });
+  }
+
   // editor
 
   export async function get_editors(): Promise<

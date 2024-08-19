@@ -67,6 +67,8 @@ fn main() {
       project::cmd_pin_project,
       project::cmd_unpin_project,
       project::cmd_is_open_in_editor,
+      project::cmd_load_project_files_tree,
+      project::cmd_load_project_packages,
       // editors
       editor::cmd_get_editors,
       editor::cmd_open_unity_hub,

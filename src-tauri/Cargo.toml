@@ -29,6 +29,7 @@ dirs-next = "2.0.0"
 filesize = "0.2.0"
 tauri-plugin-single-instance = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "v1" }
 window_titles = { path = "third-party/window-titles" }
+walkdir = "2.5.0"
 
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!

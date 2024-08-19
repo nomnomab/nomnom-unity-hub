@@ -77,7 +77,10 @@ function App() {
       <div className="flex flex-grow h-screen overflow-hidden">
         {globalContext.state.currentTab === "projects" && <ProjectsView />}
         {globalContext.state.currentTab === "editors" && <EditorsView />}
-        {globalContext.state.currentTab === "new_project" && <NewProjectView />}
+        {(globalContext.state.currentTab === "new_project" ||
+          globalContext.state.currentTab === "new_template") && (
+          <NewProjectView />
+        )}
         {globalContext.state.currentTab === "settings" && <SettingsView />}
       </div>
     </div>

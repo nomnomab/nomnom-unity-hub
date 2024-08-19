@@ -33,6 +33,13 @@ export default function NewProjectBody() {
   function gotoPreviousTab() {
     const selectedTab = newProjectContext.state.tab;
     if (!NewProjectContext.onFirstTab(selectedTab)) {
+      if (
+        globalContext.state.templateFromProject &&
+        newProjectContext.state.tab === "new-template"
+      ) {
+        globalContext.dispatch({ type: "change_tab", tab: "projects" });
+        return;
+      }
       newProjectContext.dispatch({
         type: "change_tab",
         tab: NewProjectContext.getPreviousTab(selectedTab)!,

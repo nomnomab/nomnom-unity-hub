@@ -1,6 +1,11 @@
-import { createContext, useReducer } from "react";
+import { createContext, useContext, useEffect, useReducer } from "react";
 import { TauriTypes } from "../utils/tauri-types";
-import { LazyVoid } from "../utils";
+import { getAllFileDirIds, LazyVoid } from "../utils";
+import { GlobalContext } from "./global-context";
+import useBetterState from "../hooks/useBetterState";
+import LoadingSpinner from "../components/svg/loading-spinner";
+import { routeErrorToToast } from "../utils/toast-utils";
+import { TauriRouter } from "../utils/tauri-router";
 
 export namespace NewProjectContext {
   interface Type {
@@ -411,12 +416,77 @@ export namespace NewProjectContext {
     }
   };
 
-  export function User(props: React.PropsWithChildren) {
+  type Props = {} & React.PropsWithChildren;
+  export function User(props: Props) {
+    const globalContext = useContext(GlobalContext.Context);
     const [state, dispatch] = useReducer(reducer, initialState);
+    const isLoading = useBetterState(false);
+
+    useEffect(() => {
+      console.log(globalContext.state);
+      if (
+        globalContext.state.currentTab === "new_template" &&
+        globalContext.state.templateFromProject
+      ) {
+        isLoading.set(true);
+        // need to load project files, assign them as the file root,
+        // and anything else here
+
+        const load = async () => {
+          const files = await TauriRouter.load_project_files_tree(
+            globalContext.state.templateFromProject!.path
+          );
+
+          const packages = await TauriRouter.load_project_packages(
+            globalContext.state.templateFromProject!.path,
+            globalContext.state.templateFromProject!.version
+          );
+
+          console.log(files);
+          console.log(packages);
+
+          const packagesDeps = packages.dependencies ?? {};
+          const allPackages = Object.keys(packagesDeps).map(
+            (x) =>
+              ({
+                name: x as string,
+                version: packagesDeps[x as string],
+              } as TauriTypes.MinimalPackage)
+          );
+
+          dispatch({
+            type: "set_files_root",
+            root: files,
+          });
+          dispatch({
+            type: "change_tab",
+            tab: "new-template",
+          });
+          dispatch({
+            type: "set_files_selected_files",
+            files: [...getAllFileDirIds(files)],
+          });
+          dispatch({
+            type: "set_template_packages",
+            packages: allPackages,
+          });
+          dispatch({
+            type: "set_selected_packages",
+            packages: allPackages,
+          });
+          isLoading.set(false);
+        };
+
+        load().catch((err) => {
+          routeErrorToToast(err);
+          isLoading.set(false);
+        });
+      }
+    }, []);
 
     return (
       <Context.Provider value={{ state, dispatch }}>
-        {props.children}
+        {isLoading.value ? <LoadingSpinner /> : props.children}
       </Context.Provider>
     );
   }
