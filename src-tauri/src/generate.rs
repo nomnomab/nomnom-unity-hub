@@ -16,6 +16,16 @@ pub struct TemplateInfoForGeneration {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ProjectTemplateInfoForGeneration {
+  project_path: PathBuf,
+  output_path: PathBuf,
+  editor_version: String,
+  packages: Vec<MinimalPackage>,
+  selected_files: Vec<PathBuf>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ProjectInfoForGeneration {
   name: String,
   path: PathBuf
@@ -261,6 +271,10 @@ pub fn generate_template(app: &tauri::AppHandle, app_state: &tauri::State<AppSta
   Ok(output_path.clone())
 }
 
+fn generate_template_from_project(template_info: &ProjectTemplateInfoForGeneration) -> Result<(), errors::AnyError> {
+  Ok(())
+}
+
 fn unpack_package_into_cache(output: &PathBuf, template_info: &TemplateInfoForGeneration) -> Result<(), errors::AnyError> {
   if template_info.template.is_none() {
     let package_path = output.join("package");
@@ -413,4 +427,10 @@ pub async fn cmd_generate_project(app: tauri::AppHandle, app_state: tauri::State
 pub async fn cmd_generate_template(app: tauri::AppHandle, app_state: tauri::State<'_, AppState>, template_info: NewTemplateInfo) -> Result<PathBuf, errors::AnyError> {
   let output = generate_template(&app, &app_state, &template_info)?;
   Ok(output)
+}
+
+#[tauri::command]
+pub async fn cmd_generate_template_from_project(app: tauri::AppHandle, app_state: tauri::State<'_, AppState>, template_info: ProjectTemplateInfoForGeneration) -> Result<(), errors::AnyError> {
+  generate_template_from_project(&template_info)?;
+  Ok(())
 }
