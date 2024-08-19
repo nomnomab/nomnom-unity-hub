@@ -7,9 +7,9 @@ import {
 } from "../../components/validate-input";
 import { UseState } from "../../utils";
 import { TauriRouter } from "../../utils/tauri-router";
-import { NewProjectData } from "./new-project-body";
 import { open } from "@tauri-apps/api/dialog";
 import { NewProjectContext } from "../../context/new-project-context";
+import { routeErrorToToast } from "../../utils/toast-utils";
 
 export default function BasicInfoView({
   hasFieldError,
@@ -22,15 +22,15 @@ export default function BasicInfoView({
   }, [newProjectContext.state.basicInfo]);
 
   useEffect(() => {
-    TauriRouter.get_default_project_path().then((path) => {
-      newProjectContext.dispatch({
-        type: "set_basic_info_path",
-        path: path as string,
-      });
-    });
+    TauriRouter.get_default_project_path()
+      .then((path) => {
+        newProjectContext.dispatch({
+          type: "set_basic_info_path",
+          path: path as string,
+        });
+      })
+      .catch(routeErrorToToast);
   }, []);
-
-  useEffect(() => {});
 
   return (
     <>
@@ -67,16 +67,18 @@ function Info() {
   }
 
   useEffect(() => {
-    ValidateInputContext.isBadPath(basicInfo.path).then((err) => {
-      validateContext.dispatch({
-        type: "set_error",
-        key: "empty_project_path",
-        value: err,
-      });
-      validateContext.dispatch({
-        type: "refresh",
-      });
-    });
+    ValidateInputContext.isBadPath(basicInfo.path)
+      .then((err) => {
+        validateContext.dispatch({
+          type: "set_error",
+          key: "empty_project_path",
+          value: err,
+        });
+        validateContext.dispatch({
+          type: "refresh",
+        });
+      })
+      .catch(routeErrorToToast);
   }, [basicInfo.name, basicInfo.path]);
 
   useEffect(() => {
