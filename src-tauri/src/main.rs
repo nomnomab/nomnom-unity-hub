@@ -83,6 +83,7 @@ fn main() {
       // generate
       generate::cmd_generate_project,
       generate::cmd_generate_template,
+      generate::cmd_generate_template_from_project,
       // git
       git::cmd_get_git_package_json
     ])

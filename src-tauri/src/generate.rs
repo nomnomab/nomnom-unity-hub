@@ -18,10 +18,6 @@ pub struct TemplateInfoForGeneration {
 #[serde(rename_all = "camelCase")]
 pub struct ProjectTemplateInfoForGeneration {
   project_path: PathBuf,
-  output_path: PathBuf,
-  editor_version: String,
-  packages: Vec<MinimalPackage>,
-  selected_files: Vec<PathBuf>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -271,8 +267,47 @@ pub fn generate_template(app: &tauri::AppHandle, app_state: &tauri::State<AppSta
   Ok(output_path.clone())
 }
 
-fn generate_template_from_project(template_info: &ProjectTemplateInfoForGeneration) -> Result<(), errors::AnyError> {
-  Ok(())
+fn generate_template_from_project(app: &tauri::AppHandle, app_state: &tauri::State<AppState>, template_info: &ProjectTemplateInfoForGeneration, new_template_info: &NewTemplateInfo) -> Result<PathBuf, errors::AnyError> {
+  let cache_path = io_utils::get_cache_appended_dir(&app, "project_template")?;
+  let cache_package_path = cache_path.join("package");
+
+  if !cache_package_path.exists() {
+    std::fs::create_dir_all(&cache_package_path)?;
+  }
+
+  // copy files into cache_path
+  let root_path = "package";
+  for file in &new_template_info.template.selected_files {
+    let file = file.strip_prefix(root_path);
+    if let Ok(file) = file {
+      let file_from = template_info.project_path.join(file);
+      let file_to = cache_package_path.join("ProjectData~").join(file);
+
+      println!("{:?} -> {:?}", file_from, file_to);
+
+      if file_from.is_dir() {
+        std::fs::create_dir_all(file_to)?;
+      } else {
+        let folder_to = file_to.parent()
+          .ok_or(errors::str_error("Bad parent found"))?;
+        std::fs::create_dir_all(&folder_to);
+        std::fs::copy(&file_from, &file_to)?;
+      }
+    }
+  }
+
+  let prefs = app::get_prefs(&app_state)?;
+  let output_path = &prefs.hub_appdata_path.clone()
+    .ok_or(errors::str_error("hub_appdata_path not set"))?
+    .join("Templates")
+    .join(format!("{}-{}.tgz", new_template_info.name, new_template_info.version));
+  
+  // let tgz = GzEncoder::new(std::fs::File::create(output_path)?, flate2::Compression::default());
+  // let mut tar = tar::Builder::new(tgz);
+  // tar.append_dir_all("package", cache_package_path)?;
+  // tar.finish()?;
+
+  Ok(output_path.clone())
 }
 
 fn unpack_package_into_cache(output: &PathBuf, template_info: &TemplateInfoForGeneration) -> Result<(), errors::AnyError> {
@@ -430,7 +465,7 @@ pub async fn cmd_generate_template(app: tauri::AppHandle, app_state: tauri::Stat
 }
 
 #[tauri::command]
-pub async fn cmd_generate_template_from_project(app: tauri::AppHandle, app_state: tauri::State<'_, AppState>, template_info: ProjectTemplateInfoForGeneration) -> Result<(), errors::AnyError> {
-  generate_template_from_project(&template_info)?;
-  Ok(())
+pub async fn cmd_generate_template_from_project(app: tauri::AppHandle, app_state: tauri::State<'_, AppState>, template_info: ProjectTemplateInfoForGeneration, new_template_info: NewTemplateInfo) -> Result<PathBuf, errors::AnyError> {
+  let output = generate_template_from_project(&app, &app_state, &template_info, &new_template_info)?;
+  Ok(output)
 }

@@ -252,6 +252,16 @@ export namespace TauriRouter {
     return invoke("cmd_generate_template", { templateInfo });
   }
 
+  export async function generate_template_from_project(
+    templateInfo: TauriTypes.ProjectTemplateInfoForGeneration,
+    newTemplateInfo: TauriTypes.NewTemplateInfo
+  ): Promise<string> {
+    return invoke("cmd_generate_template_from_project", {
+      templateInfo,
+      newTemplateInfo,
+    });
+  }
+
   // git
 
   export async function get_git_package_json(
