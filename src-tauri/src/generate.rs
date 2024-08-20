@@ -235,8 +235,14 @@ pub fn generate_template(app: &tauri::AppHandle, app_state: &tauri::State<AppSta
   std::fs::remove_dir_all(&package_cache_dir)?;
   std::fs::remove_dir_all(&package_cache_dir_out)?;
 
+  insert_template_into_hub_database(&prefs, template_info)?;
+  
+  Ok(output_path.clone())
+}
+
+fn insert_template_into_hub_database(prefs: &crate::prefs::Prefs, template_info: &NewTemplateInfo) -> Result<(), errors::AnyError> {
   // modify the appdata template manifest.json
-  let template_manifest_path = &prefs.hub_appdata_path
+  let template_manifest_path = &prefs.hub_appdata_path.as_ref()
     .ok_or(errors::str_error("hub_appdata_path not set"))?
     .join("Templates")
     .join("manifest.json");
@@ -263,8 +269,8 @@ pub fn generate_template(app: &tauri::AppHandle, app_state: &tauri::State<AppSta
   dependency_map.insert(template_info.name.clone(), serde_json::Value::String(template_info.version.clone()));
   let template_manifest_str = serde_json::to_string(&template_manifest_json)?;
   std::fs::write(&template_manifest_path, template_manifest_str)?;
-  
-  Ok(output_path.clone())
+
+  Ok(())
 }
 
 fn generate_template_from_project(app: &tauri::AppHandle, app_state: &tauri::State<AppState>, template_info: &ProjectTemplateInfoForGeneration, new_template_info: &NewTemplateInfo) -> Result<PathBuf, errors::AnyError> {
@@ -296,16 +302,52 @@ fn generate_template_from_project(app: &tauri::AppHandle, app_state: &tauri::Sta
     }
   }
 
+  // create package.json file for template
+  let package_json_path = cache_package_path
+    .join("package")
+    .with_extension("json");
+
+  // read packages from project's manifest.json
+  let project_manifest_path = cache_package_path
+    .join("ProjectData~")
+    .join("Packages")
+    .join("manifest")
+    .with_extension("json");
+
+  let package_manifest = std::fs::read_to_string(&project_manifest_path)?;
+  let package_manifest: HashMap<String, serde_json::Value> = serde_json::from_str(&package_manifest)?;
+  let default_map = serde_json::to_value(serde_json::Map::new()).unwrap();
+  let package_manifest_dependencies = package_manifest
+    .get("dependencies")
+    .unwrap_or(&default_map);
+
+  let new_package_json = serde_json::json!({
+    "name": new_template_info.name.clone(),
+    "displayName": new_template_info.display_name.clone(),
+    "version": new_template_info.version.clone(),
+    "type": "template",
+    "host": "hub",
+    "unity": new_template_info.template.editor_version.version.clone(),
+    "description": new_template_info.description.clone(),
+    "dependencies": package_manifest_dependencies,
+  });
+  std::fs::write(&package_json_path, serde_json::to_string_pretty(&new_package_json)?)?;
+
   let prefs = app::get_prefs(&app_state)?;
   let output_path = &prefs.hub_appdata_path.clone()
     .ok_or(errors::str_error("hub_appdata_path not set"))?
     .join("Templates")
     .join(format!("{}-{}.tgz", new_template_info.name, new_template_info.version));
-  
-  // let tgz = GzEncoder::new(std::fs::File::create(output_path)?, flate2::Compression::default());
-  // let mut tar = tar::Builder::new(tgz);
-  // tar.append_dir_all("package", cache_package_path)?;
-  // tar.finish()?;
+
+  let tgz = GzEncoder::new(std::fs::File::create(output_path)?, flate2::Compression::default());
+  let mut tar = tar::Builder::new(tgz);
+  tar.append_dir_all("package", cache_package_path)?;
+  tar.finish()?;
+
+  // clear cache
+  std::fs::remove_dir_all(&cache_path);
+
+  insert_template_into_hub_database(&prefs, &new_template_info)?;
 
   Ok(output_path.clone())
 }
