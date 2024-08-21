@@ -10,6 +10,7 @@ import { Menu, Item, useContextMenu, TriggerEvent } from "react-contexify";
 import { convertBytes, groupBy } from "../../utils";
 import AsyncLazyValueComponent from "../../components/async-lazy-value-component";
 import { GlobalContext } from "../../context/global-context";
+import { routeErrorToToast } from "../../utils/toast-utils";
 
 interface UnityEditorInstallGroup {
   version: string;
@@ -30,30 +31,34 @@ export default function EditorsList() {
 
   const loadEditors = useCallback(async () => {
     // await new Promise((resolve) => setTimeout(resolve, 1000));
-    const editors = await TauriRouter.get_editors();
+    try {
+      const editors = await TauriRouter.get_editors();
 
-    // split editors into groups by their root version
-    const groups = groupBy(editors, (x) => x.version.split(".")[0]);
-    const keys = Object.keys(groups);
-    const filledGroups = keys
-      .map((x) => {
-        return {
-          version: x,
-          editors: groups[x],
-        };
-      })
-      .reverse();
+      // split editors into groups by their root version
+      const groups = groupBy(editors, (x) => x.version.split(".")[0]);
+      const keys = Object.keys(groups);
+      const filledGroups = keys
+        .map((x) => {
+          return {
+            version: x,
+            editors: groups[x],
+          };
+        })
+        .reverse();
 
-    if (filledGroups.length === 0) {
-      data.set((s) => ({ ...s, selectedGroup: "", editorGroups: [] }));
-      return;
+      if (filledGroups.length === 0) {
+        data.set((s) => ({ ...s, selectedGroup: "", editorGroups: [] }));
+        return;
+      }
+
+      data.set((s) => ({
+        ...s,
+        selectedGroup: filledGroups[0].version,
+        editorGroups: filledGroups,
+      }));
+    } catch (e) {
+      routeErrorToToast(e);
     }
-
-    data.set((s) => ({
-      ...s,
-      selectedGroup: filledGroups[0].version,
-      editorGroups: filledGroups,
-    }));
   }, []);
 
   const selectedGroup = useMemo(() => {
@@ -85,7 +90,6 @@ export default function EditorsList() {
             };
 
             const size = await TauriRouter.estimate_editor_size(editor.version);
-            console.log("size:", size);
             editor.diskSize = {
               status: "success",
               value: size,
@@ -96,17 +100,16 @@ export default function EditorsList() {
               editorGroups: [...s.editorGroups],
             }));
           } catch (e) {
-            console.error(e);
+            routeErrorToToast(e);
           }
         }
       }
 
       await new Promise((resolve) => setTimeout(resolve, 100));
       calculatingEditorSize.set(false);
-      console.log("calculatingEditorSize:", calculatingEditorSize.value);
     };
 
-    calculateDiskSizes();
+    calculateDiskSizes().catch(routeErrorToToast);
   }, [calculatingEditorSize]);
 
   return (

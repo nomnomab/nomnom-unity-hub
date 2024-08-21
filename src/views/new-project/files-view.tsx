@@ -1,7 +1,7 @@
 import { useContext, useEffect, useMemo, useRef } from "react";
 import { NewProjectContext } from "../../context/new-project-context";
 import useBetterState from "../../hooks/useBetterState";
-import { LazyValue, LazyVoid, UseState } from "../../utils";
+import { getAllFileDirIds, LazyValue, LazyVoid, UseState } from "../../utils";
 import { TauriTypes } from "../../utils/tauri-types";
 import AsyncLazyValueComponent, {
   AsyncLazyVoidComponent,
@@ -118,20 +118,6 @@ export default function FilesView(props: { startAtRoot?: boolean }) {
     return count;
   }, [filesInfo.selectedFiles]);
 
-  function getAllIds(data: TauriTypes.FileDir | null) {
-    if (!data) {
-      return [];
-    }
-
-    const ids = [data.id];
-    if (data.children) {
-      data.children.forEach((child) => {
-        ids.push(...getAllIds(child));
-      });
-    }
-    return ids;
-  }
-
   useEffect(() => {
     const load = async () => {
       newProjectContext.dispatch({
@@ -167,7 +153,7 @@ export default function FilesView(props: { startAtRoot?: boolean }) {
 
         newProjectContext.dispatch({
           type: "set_files_selected_files",
-          files: [...getAllIds(newFiles)],
+          files: [...getAllFileDirIds(newFiles)],
         });
       } else {
         isNewFile.set(false);
@@ -191,7 +177,7 @@ export default function FilesView(props: { startAtRoot?: boolean }) {
   // }, [isNewFile.value, filesInfo.root]);
 
   function selectAll() {
-    const workingFiles = getAllIds(fileRoot);
+    const workingFiles = getAllFileDirIds(fileRoot);
 
     const existingFiles = filesInfo.selectedFiles;
     const toSelect = existingFiles
@@ -205,8 +191,8 @@ export default function FilesView(props: { startAtRoot?: boolean }) {
   }
 
   function deselectAll() {
-    const files = getAllIds(filesInfo.root).slice(1);
-    const workingFiles = getAllIds(fileRoot).slice(1);
+    const files = getAllFileDirIds(filesInfo.root).slice(1);
+    const workingFiles = getAllFileDirIds(fileRoot).slice(1);
 
     const existingFiles = filesInfo.selectedFiles;
     const toSelect = existingFiles
@@ -300,9 +286,9 @@ type TreeProps = {
 
 function Tree({ data, indent, ...props }: TreeProps) {
   return isFile(data) ? (
-    <File data={data} indent={indent} />
+    <File key={data.id} data={data} indent={indent} />
   ) : (
-    <Folder data={data} indent={indent} />
+    <Folder key={data.id} data={data} indent={indent} />
   );
 }
 
@@ -508,7 +494,7 @@ function CheckBox(props: { selected: boolean; onClick: () => void }) {
       className="ml-1 aspect-square rounded-md border border-stone-600"
       onClick={props.onClick}
     >
-      <div className="p-1 w-[22px] h-[22px]">
+      <div className="flex items-center justify-center w-[22px] h-[22px]">
         {props.selected && <Checkmark width={16} height={16} />}
       </div>
     </button>

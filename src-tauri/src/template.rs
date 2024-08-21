@@ -214,6 +214,8 @@ pub fn read_editor_version_packages(app: &tauri::AppHandle, editor_version: &Str
     .ok_or(errors::str_error("Invalid app cache dir"))?
     .join("templates");
 
+  std::fs::create_dir_all(&cache_dir)?;
+
   let editor_version_json_path = cache_dir
     .clone()
     .join(editor_version.replace(".", "_"))
@@ -245,6 +247,97 @@ pub fn write_editor_version_packages(app: &tauri::AppHandle, editor_version: &St
   std::fs::write(&editor_version_json_path, json)
     .map_err(|_| errors::str_error("Invalid editor-version.json"))?;
   Ok(())
+}
+
+pub fn extract_packages(app: &tauri::AppHandle, app_state: &tauri::State<AppState>, editor_version: &String, package_json_contents: &String, packages_lock_contents: &String) -> Result<TgzPackageJson, errors::AnyError> {
+  let mut package_json: TgzPackageJson = serde_json::from_str(&package_json_contents)
+    .map_err(|_| errors::str_error("Invalid package.json"))?;
+
+  let mut found_deps = HashMap::new();
+  let mut found_raw_deps = HashMap::new();
+  let mut found_manifest_deps = HashMap::new();
+  
+  if let Some(dependencies) = package_json.dependencies {
+    for (key, value) in dependencies {
+      found_deps.insert(key.clone(), (value, 0));
+    }
+  }
+  
+  // println!("initial deps: {:?}", found_deps);
+  
+  if !packages_lock_contents.is_empty() {
+    let package_lock_json: PackageLockJson = serde_json::from_str(&packages_lock_contents)
+      .map_err(|_| errors::str_error("Invalid package-lock.json"))?;
+    
+    for (key, value) in package_lock_json.dependencies.iter() {
+      found_raw_deps.insert(key.clone(), value.clone());
+
+      // if value.depth != 0 || value.version.as_ref().is_some_and(|y| y.contains("preview")) {
+      if value.depth != 0 || value.version.as_ref().is_none() || value.version.as_ref().is_some_and(|x| x.contains("preview")) {
+        continue;
+      }
+      
+      if let Some(version) = value.version.as_ref() {            
+        if let Some(exists) = found_deps.get(key) {
+          found_deps.insert(key.clone(), (version.clone(), exists.1 + 1));
+        } else {
+          found_deps.insert(key.clone(), (version.clone(), 1));
+        }
+      }
+    }
+  } else {
+    if let Ok(manifest) = crate::editor::read_package_manager_manifest(editor_version.clone(), &app_state) {
+      manifest
+        .packages
+        .iter()
+        .for_each(|(key, value)| {
+          found_manifest_deps.insert(key.clone(), value.clone());
+        });
+
+      manifest
+        .packages
+        .iter()
+        .filter(|x| x.1.deprecated.is_none() && x.1.is_discoverable.is_some_and(|x| x) && x.1.is_default.is_some_and(|x| x) && x.1.version.is_some())
+        .for_each(|(key, value)| {
+        if let Some(version) = value.version.as_ref() {
+          if let Some(exists) = found_deps.get(key) {
+            found_deps.insert(key.clone(), (version.clone(), exists.1 + 1));
+          } else {
+            found_deps.insert(key.clone(), (version.clone(), 1));
+          } 
+        };
+      });
+    }
+  }
+
+  // cache all found_deps
+  let mut editor_version_contents = read_editor_version_packages(&app, &editor_version)?;
+
+  for (key, value) in found_raw_deps {
+    editor_version_contents
+      .packages
+      .insert(key.clone(), value);
+  }
+
+  for (key, value) in found_manifest_deps {
+    editor_version_contents
+      .manifest_packages
+      .insert(key.clone(), value);
+  }
+
+  write_editor_version_packages(&app, &editor_version, &editor_version_contents)?;
+
+  // println!("found deps: {:?}", found_deps);
+  
+  let mut final_deps = HashMap::new();
+  for (key, value) in found_deps.iter().filter(|x| x.1.1 <= 1) {
+    final_deps.insert(key.clone(), value.0.clone());
+  }
+  
+  // println!("final deps: {:?}", final_deps);
+  package_json.dependencies = Some(final_deps);
+  
+  Ok(package_json)
 }
 
 pub fn extract_template_information(app: &tauri::AppHandle, app_state: &tauri::State<AppState>, surface_template: &SurfaceTemplate) -> Result<TgzPackageJsonRecord, errors::AnyError> {
@@ -312,94 +405,104 @@ pub fn extract_template_information(app: &tauri::AppHandle, app_state: &tauri::S
   
   if let Some(package_json_contents) = package_json_contents {
     // load json contents then save to disk
-    let mut package_json: TgzPackageJson = serde_json::from_str(&package_json_contents)
-      .map_err(|_| errors::str_error("Invalid package.json"))?;
-    
-    if let Some(package_lock_json_contents) = package_lock_json_contents {
-      let mut found_deps = HashMap::new();
-      let mut found_raw_deps = HashMap::new();
-      let mut found_manifest_deps = HashMap::new();
-      
-      if let Some(dependencies) = package_json.dependencies {
-        for (key, value) in dependencies {
-          found_deps.insert(key.clone(), (value, 0));
-        }
-      }
-      
-      // println!("initial deps: {:?}", found_deps);
-      
-      if !package_lock_json_contents.is_empty() {
-        let package_lock_json: PackageLockJson = serde_json::from_str(&package_lock_json_contents)
-          .map_err(|_| errors::str_error("Invalid package-lock.json"))?;
-        
-        for (key, value) in package_lock_json.dependencies.iter() {
-          found_raw_deps.insert(key.clone(), value.clone());
+    // let package_json: TgzPackageJson = serde_json::from_str(&package_json_contents)
+    //  .map_err(|_| errors::str_error("Invalid package.json"))?;
 
-          // if value.depth != 0 || value.version.as_ref().is_some_and(|y| y.contains("preview")) {
-          if value.depth != 0 || value.version.as_ref().is_none() || value.version.as_ref().is_some_and(|x| x.contains("preview")) {
-            continue;
-          }
-          
-          if let Some(version) = value.version.as_ref() {            
-            if let Some(exists) = found_deps.get(key) {
-              found_deps.insert(key.clone(), (version.clone(), exists.1 + 1));
-            } else {
-              found_deps.insert(key.clone(), (version.clone(), 1));
-            }
-          }
-        }
+    let package_lock_json = {
+      if let Some(package_lock_json_contents) = package_lock_json_contents {  
+        package_lock_json_contents 
       } else {
-        if let Ok(manifest) = crate::editor::read_package_manager_manifest(surface_template.editor_version.clone(), &app_state) {
-          manifest
-            .packages
-            .iter()
-            .for_each(|(key, value)| {
-              found_manifest_deps.insert(key.clone(), value.clone());
-            });
-
-          manifest
-            .packages
-            .iter()
-            .filter(|x| x.1.deprecated.is_none() && x.1.is_discoverable.is_some_and(|x| x) && x.1.is_default.is_some_and(|x| x) && x.1.version.is_some())
-            .for_each(|(key, value)| {
-            if let Some(version) = value.version.as_ref() {
-              if let Some(exists) = found_deps.get(key) {
-                found_deps.insert(key.clone(), (version.clone(), exists.1 + 1));
-              } else {
-                found_deps.insert(key.clone(), (version.clone(), 1));
-              } 
-            };
-          });
-        }
+        String::new()
       }
+    };
 
-      // cache all found_deps
-      let mut editor_version_contents = read_editor_version_packages(&app, &surface_template.editor_version)?;
-
-      for (key, value) in found_raw_deps {
-        editor_version_contents
-          .packages
-          .insert(key.clone(), value);
-      }
-
-      for (key, value) in found_manifest_deps {
-        editor_version_contents
-          .manifest_packages
-          .insert(key.clone(), value);
-      }
-
-      write_editor_version_packages(&app, &surface_template.editor_version, &editor_version_contents)?;
-
-      // println!("found deps: {:?}", found_deps);
+    let package_json = extract_packages(app, app_state, &surface_template.editor_version, &package_json_contents, &package_lock_json)?;
+    
+    // if let Some(package_lock_json_contents) = package_lock_json_contents {
+    //   let mut found_deps = HashMap::new();
+    //   let mut found_raw_deps = HashMap::new();
+    //   let mut found_manifest_deps = HashMap::new();
       
-      let mut final_deps = HashMap::new();
-      for (key, value) in found_deps.iter().filter(|x| x.1.1 <= 1) {
-        final_deps.insert(key.clone(), value.0.clone());
-      }
+    //   if let Some(dependencies) = package_json.dependencies {
+    //     for (key, value) in dependencies {
+    //       found_deps.insert(key.clone(), (value, 0));
+    //     }
+    //   }
       
-      // println!("final deps: {:?}", final_deps);
-      package_json.dependencies = Some(final_deps);
-    }
+    //   // println!("initial deps: {:?}", found_deps);
+      
+    //   if !package_lock_json_contents.is_empty() {
+    //     let package_lock_json: PackageLockJson = serde_json::from_str(&package_lock_json_contents)
+    //       .map_err(|_| errors::str_error("Invalid package-lock.json"))?;
+        
+    //     for (key, value) in package_lock_json.dependencies.iter() {
+    //       found_raw_deps.insert(key.clone(), value.clone());
+
+    //       // if value.depth != 0 || value.version.as_ref().is_some_and(|y| y.contains("preview")) {
+    //       if value.depth != 0 || value.version.as_ref().is_none() || value.version.as_ref().is_some_and(|x| x.contains("preview")) {
+    //         continue;
+    //       }
+          
+    //       if let Some(version) = value.version.as_ref() {            
+    //         if let Some(exists) = found_deps.get(key) {
+    //           found_deps.insert(key.clone(), (version.clone(), exists.1 + 1));
+    //         } else {
+    //           found_deps.insert(key.clone(), (version.clone(), 1));
+    //         }
+    //       }
+    //     }
+    //   } else {
+    //     if let Ok(manifest) = crate::editor::read_package_manager_manifest(surface_template.editor_version.clone(), &app_state) {
+    //       manifest
+    //         .packages
+    //         .iter()
+    //         .for_each(|(key, value)| {
+    //           found_manifest_deps.insert(key.clone(), value.clone());
+    //         });
+
+    //       manifest
+    //         .packages
+    //         .iter()
+    //         .filter(|x| x.1.deprecated.is_none() && x.1.is_discoverable.is_some_and(|x| x) && x.1.is_default.is_some_and(|x| x) && x.1.version.is_some())
+    //         .for_each(|(key, value)| {
+    //         if let Some(version) = value.version.as_ref() {
+    //           if let Some(exists) = found_deps.get(key) {
+    //             found_deps.insert(key.clone(), (version.clone(), exists.1 + 1));
+    //           } else {
+    //             found_deps.insert(key.clone(), (version.clone(), 1));
+    //           } 
+    //         };
+    //       });
+    //     }
+    //   }
+
+    //   // cache all found_deps
+    //   let mut editor_version_contents = read_editor_version_packages(&app, &surface_template.editor_version)?;
+
+    //   for (key, value) in found_raw_deps {
+    //     editor_version_contents
+    //       .packages
+    //       .insert(key.clone(), value);
+    //   }
+
+    //   for (key, value) in found_manifest_deps {
+    //     editor_version_contents
+    //       .manifest_packages
+    //       .insert(key.clone(), value);
+    //   }
+
+    //   write_editor_version_packages(&app, &surface_template.editor_version, &editor_version_contents)?;
+
+    //   // println!("found deps: {:?}", found_deps);
+      
+    //   let mut final_deps = HashMap::new();
+    //   for (key, value) in found_deps.iter().filter(|x| x.1.1 <= 1) {
+    //     final_deps.insert(key.clone(), value.0.clone());
+    //   }
+      
+    //   // println!("final deps: {:?}", final_deps);
+    //   package_json.dependencies = Some(final_deps);
+    // }
     
     let package_record = TgzPackageJsonRecord {
       tgz_package: package_json.clone(),

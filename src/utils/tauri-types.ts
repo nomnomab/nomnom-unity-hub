@@ -187,6 +187,10 @@ export namespace TauriTypes {
     description: string;
   }
 
+  export interface ProjectTemplateInfoForGeneration {
+    projectPath: string;
+  }
+
   export interface PackageJson {
     name: string;
     version: string;

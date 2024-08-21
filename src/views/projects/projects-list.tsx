@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import AsyncComponent from "../../components/async-component";
 import { TauriTypes } from "../../utils/tauri-types";
 import { TauriRouter } from "../../utils/tauri-router";
@@ -19,6 +25,9 @@ import Box from "../../components/svg/box";
 import Pin from "../../components/svg/pin";
 import { Buttons } from "../../components/parts/buttons";
 import Sort from "../../components/svg/sort";
+import toast from "react-hot-toast";
+import { routeErrorToToast } from "../../utils/toast-utils";
+import { GlobalContext } from "../../context/global-context";
 
 export default function ProjectList({
   projectData,
@@ -50,11 +59,13 @@ function Pagination({
   );
 
   useEffect(() => {
-    TauriRouter.get_prefs().then((prefs) => {
-      const newSortType: TauriTypes.SortType =
-        prefs.projectSortType ?? TauriTypes.SortType.DateAdded;
-      sortType.set(newSortType);
-    });
+    TauriRouter.get_prefs()
+      .then((prefs) => {
+        const newSortType: TauriTypes.SortType =
+          prefs.projectSortType ?? TauriTypes.SortType.DateAdded;
+        sortType.set(newSortType);
+      })
+      .catch(routeErrorToToast);
   }, []);
 
   const pageCount = useMemo(() => {
@@ -72,12 +83,13 @@ function Pagination({
       return;
     }
 
-    await TauriRouter.remove_missing_projects();
-    const allProjects = await TauriRouter.get_projects();
-    projectData.set((s) => ({ ...s, allProjects }));
+    await TauriRouter.remove_missing_projects().catch(routeErrorToToast);
 
     // await new Promise((resolve) => setTimeout(resolve, 1000));
     try {
+      const allProjects = await TauriRouter.get_projects();
+      projectData.set((s) => ({ ...s, allProjects }));
+
       const projects = await TauriRouter.get_projects_on_page(
         projectData.value.currentPage,
         perPage,
@@ -91,7 +103,7 @@ function Pagination({
         projects,
       }));
     } catch (e) {
-      console.error(e);
+      routeErrorToToast(e);
     }
   }, [
     projectData.value.currentPage,
@@ -140,9 +152,13 @@ function Pagination({
   useEffect(() => {
     const load = async () => {
       editors.set(null);
-      const newEditors = await TauriRouter.get_editors();
-      const userCache = await TauriRouter.get_user_cache();
-      editors.set(newEditors);
+      try {
+        const newEditors = await TauriRouter.get_editors();
+        const userCache = await TauriRouter.get_user_cache();
+        editors.set(newEditors);
+      } catch (e) {
+        routeErrorToToast(e);
+      }
     };
     load();
   }, []);
@@ -189,7 +205,9 @@ function Pagination({
     TauriRouter.set_pref_value(
       TauriTypes.PrefsKey.ProjectSortType,
       id as TauriTypes.SortType
-    ).then(() => sortType.set(id));
+    )
+      .then(() => sortType.set(id))
+      .catch(routeErrorToToast);
   }
 
   return (
@@ -216,6 +234,7 @@ function Pagination({
           {["Date Added", "Name", "Date Opened", "Editor Version"].map(
             (value) => (
               <Item
+                key={value}
                 id={value.replace(" ", "")}
                 onClick={handleItemClick}
                 className={
@@ -342,14 +361,34 @@ function Project({
   const [isOpening, setIsOpening] = useState(false);
   const { show, hideAll } = useContextMenu({});
   const thumbnailPath = useBetterState<string | null>(null);
+  const globalContext = useContext(GlobalContext.Context);
 
   async function openProject() {
     if (isOpening) return;
 
     setIsOpening(true);
-    await TauriRouter.open_project_in_editor(project.path, project.version);
-    props.reloadPage();
-    await new Promise((resolve) => setTimeout(resolve, 4000));
+
+    try {
+      const is_open_already = await TauriRouter.is_open_in_editor(
+        project.path,
+        project.version
+      );
+
+      if (is_open_already) {
+        toast.error("Project is already open!");
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        setIsOpening(false);
+        return;
+      }
+
+      await TauriRouter.open_project_in_editor(project.path, project.version);
+      props.reloadPage();
+      await new Promise((resolve) => setTimeout(resolve, 4000));
+    } catch (e) {
+      routeErrorToToast(e);
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+
     setIsOpening(false);
   }
 
@@ -365,29 +404,41 @@ function Project({
   function handleItemClick({ id, event, data }: any) {
     event.stopPropagation();
     hideAll();
-    switch (id) {
-      case "open":
-        TauriRouter.show_path_in_file_manager(project.path);
-        break;
-      case "remove":
-        TauriRouter.remove_project(project.path);
-        props.reloadPage();
-        break;
-      case "version":
-        TauriRouter.change_project_editor_version(project.path, data).then(() =>
-          props.reloadPage()
-        );
-        break;
-      case "pin":
-        TauriRouter.pin_project(project.path)
-          .then(() => props.reloadPage())
-          .catch((err) => console.error(err));
-        break;
-      case "unpin":
-        TauriRouter.unpin_project(project.path)
-          .then(() => props.reloadPage())
-          .catch((err) => console.error(err));
-        break;
+
+    try {
+      switch (id) {
+        case "open":
+          TauriRouter.show_path_in_file_manager(project.path);
+          break;
+        case "remove":
+          TauriRouter.remove_project(project.path);
+          props.reloadPage();
+          break;
+        case "version":
+          TauriRouter.change_project_editor_version(project.path, data).then(
+            () => props.reloadPage()
+          );
+          break;
+        case "pin":
+          TauriRouter.pin_project(project.path).then(() => props.reloadPage());
+          break;
+        case "unpin":
+          TauriRouter.unpin_project(project.path).then(() =>
+            props.reloadPage()
+          );
+          break;
+        case "create-template":
+          // todo: enter project creation, force to template creation mode
+          //       and use this project's files as the template root
+          globalContext.dispatch({
+            type: "change_tab",
+            tab: "template_from_project",
+            project: project,
+          });
+          break;
+      }
+    } catch (e) {
+      routeErrorToToast(e);
     }
   }
 
@@ -484,6 +535,9 @@ function Project({
             </Item>
           ))}
         </Submenu>
+        <Item id="create-template" onClick={handleItemClick}>
+          Create Template From This
+        </Item>
         <Separator />
         <Item id="remove" onClick={handleItemClick}>
           Remove

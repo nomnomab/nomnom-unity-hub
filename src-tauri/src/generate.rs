@@ -16,6 +16,12 @@ pub struct TemplateInfoForGeneration {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ProjectTemplateInfoForGeneration {
+  project_path: PathBuf,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ProjectInfoForGeneration {
   name: String,
   path: PathBuf
@@ -87,15 +93,15 @@ pub fn generate_project(app: &tauri::AppHandle, app_state: &tauri::State<'_, App
         .map_err(|_| errors::str_error("Failed to strip prefix"))?;
       let from = package_cache_dir.join(file);
       let dest = package_cache_dir_out.join(trimmed_file);
-      println!("Copying {} to {}", from.display(), dest.display());
+      // println!("Copying {} to {}", from.display(), dest.display());
 
       // std::fs::create_dir_all(&dest)?;
       
       if dest.extension().is_none() {
-        println!("Creating directory dest: {}", dest.display());
+        // println!("Creating directory dest: {}", dest.display());
         std::fs::create_dir_all(&dest)?;
       } else {
-        println!("Creating directory parent: {} for {}", dest.parent().unwrap().display(), dest.display());
+        // println!("Creating directory parent: {} for {}", dest.parent().unwrap().display(), dest.display());
         std::fs::create_dir_all(dest.parent().unwrap())?;
         if let Err(err) = std::fs::copy(&from, &dest) {
           println!("Failed to copy from {} to {}: {}", from.display(), dest.display(), err);
@@ -120,26 +126,35 @@ pub fn generate_project(app: &tauri::AppHandle, app_state: &tauri::State<'_, App
 
   create_gitignore(package_cache_dir_out)?;
 
-  // create package-lock file
-  let package_lock_path = package_cache_dir_out
+  let manifest_path = package_cache_dir_out
     .join("Packages")
-    .join("packages-lock")
+    .join("manifest")
     .with_extension("json");
+  let package_contents = std::fs::read_to_string(&manifest_path)?;
+  let package_contents: HashMap<String, serde_json::Value> = serde_json::from_str(&package_contents)?;
 
-  let lock_dependencies = template_info.packages
-    .iter()
-    .filter(|x| cached_editor_packages.packages.get(&x.name).is_some())
-    .collect::<Vec<_>>();
-  let mut serde_hash_map = serde_json::Map::new();
-  for dep in lock_dependencies.iter() {
-    let value = cached_editor_packages.packages.get(&dep.name).unwrap();
-    serde_hash_map.insert(dep.name.clone(), serde_json::to_value(value)?);
+  if !package_contents.contains_key("from_project") {
+    // create package-lock file
+    let package_lock_path = package_cache_dir_out
+      .join("Packages")
+      .join("packages-lock")
+      .with_extension("json");
+
+    let lock_dependencies = template_info.packages
+      .iter()
+      .filter(|x| cached_editor_packages.packages.get(&x.name).is_some())
+      .collect::<Vec<_>>();
+    let mut serde_hash_map = serde_json::Map::new();
+    for dep in lock_dependencies.iter() {
+      let value = cached_editor_packages.packages.get(&dep.name).unwrap();
+      serde_hash_map.insert(dep.name.clone(), serde_json::to_value(value)?);
+    }
+
+    let json_str = serde_json::json!({
+      "dependencies": serde_hash_map
+    });
+    std::fs::write(&package_lock_path, serde_json::to_string_pretty(&json_str)?)?;
   }
-
-  let json_str = serde_json::json!({
-    "dependencies": serde_hash_map
-  });
-  std::fs::write(&package_lock_path, serde_json::to_string_pretty(&json_str)?)?;
   
   Ok(package_cache_dir_out.clone())
 }
@@ -186,13 +201,13 @@ pub fn generate_template(app: &tauri::AppHandle, app_state: &tauri::State<AppSta
       .map_err(|_| errors::str_error("Failed to strip prefix"))?;
     let from = package_cache_dir.join(file);
     let dest = package_cache_dir_out.join(trimmed_file);
-    println!("Copying {} to {}", from.display(), dest.display());
+    // println!("Copying {} to {}", from.display(), dest.display());
     
     if dest.extension().is_none() {
-      println!("Creating directory dest: {}", dest.display());
+      // println!("Creating directory dest: {}", dest.display());
       std::fs::create_dir_all(&dest)?;
     } else {
-      println!("Creating directory parent: {} for {}", dest.parent().unwrap().display(), dest.display());
+      // println!("Creating directory parent: {} for {}", dest.parent().unwrap().display(), dest.display());
       std::fs::create_dir_all(dest.parent().unwrap())?;
       if let Err(err) = std::fs::copy(&from, &dest) {
         println!("Failed to copy from {} to {}: {}", from.display(), dest.display(), err);
@@ -229,8 +244,14 @@ pub fn generate_template(app: &tauri::AppHandle, app_state: &tauri::State<AppSta
   std::fs::remove_dir_all(&package_cache_dir)?;
   std::fs::remove_dir_all(&package_cache_dir_out)?;
 
+  insert_template_into_hub_database(&prefs, template_info)?;
+  
+  Ok(output_path.clone())
+}
+
+fn insert_template_into_hub_database(prefs: &crate::prefs::Prefs, template_info: &NewTemplateInfo) -> Result<(), errors::AnyError> {
   // modify the appdata template manifest.json
-  let template_manifest_path = &prefs.hub_appdata_path
+  let template_manifest_path = &prefs.hub_appdata_path.as_ref()
     .ok_or(errors::str_error("hub_appdata_path not set"))?
     .join("Templates")
     .join("manifest.json");
@@ -257,7 +278,87 @@ pub fn generate_template(app: &tauri::AppHandle, app_state: &tauri::State<AppSta
   dependency_map.insert(template_info.name.clone(), serde_json::Value::String(template_info.version.clone()));
   let template_manifest_str = serde_json::to_string(&template_manifest_json)?;
   std::fs::write(&template_manifest_path, template_manifest_str)?;
-  
+
+  Ok(())
+}
+
+fn generate_template_from_project(app: &tauri::AppHandle, app_state: &tauri::State<AppState>, template_info: &ProjectTemplateInfoForGeneration, new_template_info: &NewTemplateInfo) -> Result<PathBuf, errors::AnyError> {
+  let cache_path = io_utils::get_cache_appended_dir(&app, "project_template")?;
+  let cache_package_path = cache_path.join("package");
+
+  if !cache_package_path.exists() {
+    std::fs::create_dir_all(&cache_package_path)?;
+  }
+
+  // copy files into cache_path
+  let root_path = "package";
+  for file in &new_template_info.template.selected_files {
+    let file = file.strip_prefix(root_path);
+    if let Ok(file) = file {
+      let file_from = template_info.project_path.join(file);
+      let file_to = cache_package_path.join("ProjectData~").join(file);
+
+      // println!("{:?} -> {:?}", file_from, file_to);
+
+      if file_from.is_dir() {
+        std::fs::create_dir_all(file_to)?;
+      } else {
+        let folder_to = file_to.parent()
+          .ok_or(errors::str_error("Bad parent found"))?;
+        std::fs::create_dir_all(&folder_to);
+        std::fs::copy(&file_from, &file_to)?;
+      }
+    }
+  }
+
+  // create package.json file for template
+  let package_json_path = cache_package_path
+    .join("package")
+    .with_extension("json");
+
+  // read packages from project's manifest.json
+  let project_manifest_path = cache_package_path
+    .join("ProjectData~")
+    .join("Packages")
+    .join("manifest")
+    .with_extension("json");
+
+  let package_manifest = std::fs::read_to_string(&project_manifest_path)?;
+  let package_manifest: HashMap<String, serde_json::Value> = serde_json::from_str(&package_manifest)?;
+  let default_map = serde_json::to_value(serde_json::Map::new()).unwrap();
+  let package_manifest_dependencies = package_manifest
+    .get("dependencies")
+    .unwrap_or(&default_map);
+
+  let new_package_json = serde_json::json!({
+    "name": new_template_info.name.clone(),
+    "displayName": new_template_info.display_name.clone(),
+    "version": new_template_info.version.clone(),
+    "type": "template",
+    "host": "hub",
+    "unity": new_template_info.template.editor_version.version.clone(),
+    "description": new_template_info.description.clone(),
+    "dependencies": package_manifest_dependencies,
+    "from_project": true
+  });
+  std::fs::write(&package_json_path, serde_json::to_string_pretty(&new_package_json)?)?;
+
+  let prefs = app::get_prefs(&app_state)?;
+  let output_path = &prefs.hub_appdata_path.clone()
+    .ok_or(errors::str_error("hub_appdata_path not set"))?
+    .join("Templates")
+    .join(format!("{}-{}.tgz", new_template_info.name, new_template_info.version));
+
+  let tgz = GzEncoder::new(std::fs::File::create(output_path)?, flate2::Compression::default());
+  let mut tar = tar::Builder::new(tgz);
+  tar.append_dir_all("package", cache_package_path)?;
+  tar.finish()?;
+
+  // clear cache
+  std::fs::remove_dir_all(&cache_path);
+
+  insert_template_into_hub_database(&prefs, &new_template_info)?;
+
   Ok(output_path.clone())
 }
 
@@ -412,5 +513,11 @@ pub async fn cmd_generate_project(app: tauri::AppHandle, app_state: tauri::State
 #[tauri::command]
 pub async fn cmd_generate_template(app: tauri::AppHandle, app_state: tauri::State<'_, AppState>, template_info: NewTemplateInfo) -> Result<PathBuf, errors::AnyError> {
   let output = generate_template(&app, &app_state, &template_info)?;
+  Ok(output)
+}
+
+#[tauri::command]
+pub async fn cmd_generate_template_from_project(app: tauri::AppHandle, app_state: tauri::State<'_, AppState>, template_info: ProjectTemplateInfoForGeneration, new_template_info: NewTemplateInfo) -> Result<PathBuf, errors::AnyError> {
+  let output = generate_template_from_project(&app, &app_state, &template_info, &new_template_info)?;
   Ok(output)
 }

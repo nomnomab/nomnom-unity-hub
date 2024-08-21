@@ -12,6 +12,7 @@ import { TauriTypes } from "../../utils/tauri-types";
 import Popup from "reactjs-popup";
 import LoadingSpinner from "../../components/svg/loading-spinner";
 import NewTemplateView from "./new-template-view";
+import { routeErrorToToast } from "../../utils/toast-utils";
 
 export type NewProjectData = {
   projectName: string;
@@ -33,6 +34,13 @@ export default function NewProjectBody() {
   function gotoPreviousTab() {
     const selectedTab = newProjectContext.state.tab;
     if (!NewProjectContext.onFirstTab(selectedTab)) {
+      if (
+        globalContext.state.templateFromProject &&
+        newProjectContext.state.tab === "new-template"
+      ) {
+        globalContext.dispatch({ type: "change_tab", tab: "projects" });
+        return;
+      }
       newProjectContext.dispatch({
         type: "change_tab",
         tab: NewProjectContext.getPreviousTab(selectedTab)!,
@@ -44,150 +52,195 @@ export default function NewProjectBody() {
 
   async function gotoNextTab() {
     const selectedTab = newProjectContext.state.tab;
-    if (selectedTab === "new-template") {
-      isLoading.set(true);
+    try {
+      if (selectedTab === "new-template") {
+        isLoading.set(true);
 
-      // create template
-      const initialTemplateInfo = newProjectContext.state.initialTemplateInfo;
-      const pack = newProjectContext.state.packageInfo;
-      const files = newProjectContext.state.filesInfo;
-      const newTemplateInfo = newProjectContext.state.newTemplateInfo;
+        // create template
+        const initialTemplateInfo = newProjectContext.state.initialTemplateInfo;
+        const pack = newProjectContext.state.packageInfo;
+        const files = newProjectContext.state.filesInfo;
+        const newTemplateInfo = newProjectContext.state.newTemplateInfo;
 
-      const packages = await TauriRouter.get_default_editor_packages(
-        initialTemplateInfo.editorVersion.version
-      ).then((x) => x.concat(pack.gitPackages).concat(pack.localPackages));
+        let paths: string[] = [];
+        let rootMap = new Map<string, number>();
 
-      let paths: string[] = [];
-      let rootMap = new Map<string, number>();
+        if (files.root) {
+          fileDirToPaths(files.selectedFiles, files.root, "", paths, rootMap);
+        }
 
-      if (files.root) {
-        fileDirToPaths(files.selectedFiles, files.root, "", paths, rootMap);
-      }
+        const trimmedPaths = paths.filter((path) => rootMap.get(path) === 1);
+        const finalFiles = [...trimmedPaths];
 
-      // isLoading.set(false);
-      // console.log("packages", packages);
-      // console.log("selectedPackages", pack.selectedPackages);
-      // console.log("templatePackages", pack.templatePackages);
-      // console.log("gitPackages", pack.gitPackages);
-      // console.log("localPackages", pack.localPackages);
+        if (globalContext.state.templateFromProject) {
+          try {
+            const project = globalContext.state.templateFromProject!;
+            console.log(project);
+            console.log(newProjectContext);
+            const template: TauriTypes.TemplateInfoForGeneration = {
+              editorVersion: {
+                version: project.version,
+                exePath: "",
+                modules: [],
+              },
+              packages:
+                newProjectContext.state.packageInfo.selectedPackages.map(
+                  (x) => ({
+                    name: x.name,
+                    version: x.version ?? "",
+                    isFile: false,
+                    isDiscoverable: false,
+                    type: TauriTypes.PackageType.Internal,
+                  })
+                ),
+              selectedFiles: finalFiles,
+              isEmpty: false,
+            };
+            const projectTemplate: TauriTypes.ProjectTemplateInfoForGeneration =
+              {
+                projectPath: project.path,
+              };
+            const output = await TauriRouter.generate_template_from_project(
+              projectTemplate,
+              {
+                ...newProjectContext.state.newTemplateInfo,
+                template,
+              }
+            );
+          } catch (err) {
+            routeErrorToToast(err);
+          }
 
-      const finalPackages: TauriTypes.MinimalPackage[] =
-        pack.selectedPackages.map((x) => ({
-          name: x.name,
-          version: x.version ?? "",
-          isDiscoverable: true,
-          isFile: false,
-          type:
-            packages.find((y) => y.name === x.name)?.type ??
-            TauriTypes.PackageType.Internal,
-        }));
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          isLoading.set(false);
 
-      const trimmedPaths = paths.filter((path) => rootMap.get(path) === 1);
-      const templateInfo: TauriTypes.TemplateInfoForGeneration = {
-        template: initialTemplateInfo.selectedTemplate,
-        editorVersion: initialTemplateInfo.editorVersion,
-        packages: finalPackages,
-        selectedFiles: [
-          "package/package.json",
-          "package/package.json.meta",
-          ...trimmedPaths,
-        ],
-        isEmpty: false,
-      };
-      const template: TauriTypes.NewTemplateInfo = {
-        template: templateInfo,
-        ...newTemplateInfo,
-      };
+          globalContext.dispatch({ type: "change_tab", tab: "projects" });
+          await new Promise((resolve) => setTimeout(resolve, 5));
+          globalContext.dispatch({ type: "change_tab", tab: "new_project" });
+          return;
+        }
 
-      try {
-        const output = await TauriRouter.generate_template(template);
+        const packages = await TauriRouter.get_default_editor_packages(
+          initialTemplateInfo.editorVersion.version
+        ).then((x) => x.concat(pack.gitPackages).concat(pack.localPackages));
 
-        // console.log(output);
+        const finalPackages: TauriTypes.MinimalPackage[] =
+          pack.selectedPackages.map((x) => ({
+            name: x.name,
+            version: x.version ?? "",
+            isDiscoverable: true,
+            isFile: false,
+            type:
+              packages.find((y) => y.name === x.name)?.type ??
+              TauriTypes.PackageType.Internal,
+          }));
 
-        // await TauriRouter.add_project(output);
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        const templateInfo: TauriTypes.TemplateInfoForGeneration = {
+          template: initialTemplateInfo.selectedTemplate,
+          editorVersion: initialTemplateInfo.editorVersion,
+          packages: finalPackages,
+          selectedFiles: [
+            "package/package.json",
+            "package/package.json.meta",
+            ...finalFiles,
+          ],
+          isEmpty: false,
+        };
+        const template: TauriTypes.NewTemplateInfo = {
+          template: templateInfo,
+          ...newTemplateInfo,
+        };
 
-        isLoading.set(false);
+        try {
+          const output = await TauriRouter.generate_template(template);
 
-        globalContext.dispatch({ type: "change_tab", tab: "projects" });
-        await new Promise((resolve) => setTimeout(resolve, 5));
-        globalContext.dispatch({ type: "change_tab", tab: "new_project" });
-      } catch (e) {
-        console.error(e);
-        isLoading.set(false);
-      }
+          // console.log(output);
 
-      isLoading.set(false);
-      return;
-    }
+          // await TauriRouter.add_project(output);
+          await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    if (!NewProjectContext.onLastTab(selectedTab)) {
-      newProjectContext.dispatch({
-        type: "change_tab",
-        tab: NewProjectContext.getNextTab(selectedTab)!,
-      });
-    } else if (selectedTab === "info") {
-      isLoading.set(true);
+          isLoading.set(false);
 
-      // create project
-      const basicInfo = newProjectContext.state.basicInfo;
-      const template = newProjectContext.state.initialTemplateInfo;
-      const pack = newProjectContext.state.packageInfo;
-      const files = newProjectContext.state.filesInfo;
-
-      const packages = await TauriRouter.get_default_editor_packages(
-        template.editorVersion.version
-      ).then((x) => x.concat(pack.gitPackages).concat(pack.localPackages));
-
-      let paths: string[] = [];
-      let rootMap = new Map<string, number>();
-
-      if (files.root) {
-        fileDirToPaths(files.selectedFiles, files.root, "", paths, rootMap);
-      }
-
-      const finalPackages: TauriTypes.MinimalPackage[] =
-        pack.selectedPackages.map((x) => ({
-          name: x.name,
-          version: x.version ?? "",
-          isDiscoverable: true,
-          isFile: false,
-          type:
-            packages.find((y) => y.name === x.name)?.type ??
-            TauriTypes.PackageType.Internal,
-        }));
-
-      const trimmedPaths = paths.filter((path) => rootMap.get(path) === 1);
-      const templateInfo: TauriTypes.TemplateInfoForGeneration = {
-        template: template.selectedTemplate,
-        editorVersion: template.editorVersion,
-        packages: finalPackages,
-        selectedFiles: trimmedPaths,
-        isEmpty: template.selectedTemplate === undefined,
-      };
-      const projectInfo: TauriTypes.ProjectInfoForGeneration = {
-        name: basicInfo.name,
-        path: basicInfo.path,
-      };
-
-      try {
-        const output = await TauriRouter.generate_project(
-          projectInfo,
-          templateInfo
-        );
-
-        // console.log(output);
-
-        await TauriRouter.add_project(output);
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+          globalContext.dispatch({ type: "change_tab", tab: "projects" });
+          await new Promise((resolve) => setTimeout(resolve, 5));
+          globalContext.dispatch({ type: "change_tab", tab: "new_project" });
+        } catch (e) {
+          routeErrorToToast(e);
+        }
 
         isLoading.set(false);
-
-        globalContext.dispatch({ type: "change_tab", tab: "projects" });
-      } catch (e) {
-        console.error(e);
-        isLoading.set(false);
+        return;
       }
+
+      if (!NewProjectContext.onLastTab(selectedTab)) {
+        newProjectContext.dispatch({
+          type: "change_tab",
+          tab: NewProjectContext.getNextTab(selectedTab)!,
+        });
+      } else if (selectedTab === "info") {
+        isLoading.set(true);
+
+        // create project
+        const basicInfo = newProjectContext.state.basicInfo;
+        const template = newProjectContext.state.initialTemplateInfo;
+        const pack = newProjectContext.state.packageInfo;
+        const files = newProjectContext.state.filesInfo;
+
+        const packages = await TauriRouter.get_default_editor_packages(
+          template.editorVersion.version
+        ).then((x) => x.concat(pack.gitPackages).concat(pack.localPackages));
+
+        let paths: string[] = [];
+        let rootMap = new Map<string, number>();
+
+        if (files.root) {
+          fileDirToPaths(files.selectedFiles, files.root, "", paths, rootMap);
+        }
+
+        const finalPackages: TauriTypes.MinimalPackage[] =
+          pack.selectedPackages.map((x) => ({
+            name: x.name,
+            version: x.version ?? "",
+            isDiscoverable: true,
+            isFile: false,
+            type:
+              packages.find((y) => y.name === x.name)?.type ??
+              TauriTypes.PackageType.Internal,
+          }));
+
+        const trimmedPaths = paths.filter((path) => rootMap.get(path) === 1);
+        const templateInfo: TauriTypes.TemplateInfoForGeneration = {
+          template: template.selectedTemplate,
+          editorVersion: template.editorVersion,
+          packages: finalPackages,
+          selectedFiles: trimmedPaths,
+          isEmpty: template.selectedTemplate === undefined,
+        };
+        const projectInfo: TauriTypes.ProjectInfoForGeneration = {
+          name: basicInfo.name,
+          path: basicInfo.path,
+        };
+
+        try {
+          const output = await TauriRouter.generate_project(
+            projectInfo,
+            templateInfo
+          );
+
+          // console.log(output);
+
+          await TauriRouter.add_project(output);
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+
+          isLoading.set(false);
+
+          globalContext.dispatch({ type: "change_tab", tab: "projects" });
+        } catch (e) {
+          routeErrorToToast(e);
+        }
+      }
+    } catch (e) {
+      routeErrorToToast(e);
     }
 
     isLoading.set(false);

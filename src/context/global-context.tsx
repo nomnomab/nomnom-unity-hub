@@ -1,4 +1,5 @@
 import { createContext, PropsWithChildren, useReducer } from "react";
+import { TauriTypes } from "../utils/tauri-types";
 
 export namespace GlobalContext {
   type Type = {
@@ -15,6 +16,7 @@ export namespace GlobalContext {
 
   type State = {
     currentTab: TabName;
+    templateFromProject?: TauriTypes.Project;
   };
 
   const initialState: State = {
@@ -26,12 +28,29 @@ export namespace GlobalContext {
     dispatch: () => {},
   } as Type);
 
-  type Action = { type: "change_tab"; tab: TabName };
+  type Action =
+    | { type: "change_tab"; tab: TabName }
+    | {
+        type: "change_tab";
+        tab: "template_from_project";
+        project: TauriTypes.Project;
+      };
 
   const reducer = (state: State, action: Action): State => {
     switch (action.type) {
       case "change_tab":
-        return { ...state, currentTab: action.tab };
+        if (action.tab === "template_from_project") {
+          return {
+            ...state,
+            currentTab: "new_template",
+            templateFromProject: action.project,
+          };
+        }
+        return {
+          ...state,
+          currentTab: action.tab,
+          templateFromProject: undefined,
+        };
       default:
         return state;
     }

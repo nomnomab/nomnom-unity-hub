@@ -1,3 +1,5 @@
+import { TauriTypes } from "./utils/tauri-types";
+
 // A little bit simplified version
 export const groupBy = <T, K extends keyof any>(arr: T[], key: (i: T) => K) =>
   arr.reduce((groups, item) => {
@@ -45,4 +47,18 @@ export function toUseState<T>(
   state: [T, React.Dispatch<React.SetStateAction<T>>]
 ): UseState<T> {
   return { value: state[0], set: state[1] };
+}
+
+export function getAllFileDirIds(data: TauriTypes.FileDir | null) {
+  if (!data) {
+    return [];
+  }
+
+  const ids = [data.id];
+  if (data.children) {
+    data.children.forEach((child) => {
+      ids.push(...getAllFileDirIds(child));
+    });
+  }
+  return ids;
 }

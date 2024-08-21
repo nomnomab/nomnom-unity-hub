@@ -66,6 +66,9 @@ fn main() {
       project::cmd_fetch_project_thumbnail,
       project::cmd_pin_project,
       project::cmd_unpin_project,
+      project::cmd_is_open_in_editor,
+      project::cmd_load_project_files_tree,
+      project::cmd_load_project_packages,
       // editors
       editor::cmd_get_editors,
       editor::cmd_open_unity_hub,
@@ -80,6 +83,7 @@ fn main() {
       // generate
       generate::cmd_generate_project,
       generate::cmd_generate_template,
+      generate::cmd_generate_template_from_project,
       // git
       git::cmd_get_git_package_json
     ])

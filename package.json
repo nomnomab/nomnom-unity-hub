@@ -1,7 +1,7 @@
 {
   "name": "nomnom-unity-hub",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.3",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -15,6 +15,7 @@
     "react": "^18.2.0",
     "react-contexify": "^6.0.0",
     "react-dom": "^18.2.0",
+    "react-hot-toast": "^2.4.1",
     "react-select": "^5.8.0",
     "reactjs-popup": "^2.0.6"
   },
