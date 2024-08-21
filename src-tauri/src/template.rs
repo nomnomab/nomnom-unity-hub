@@ -214,6 +214,8 @@ pub fn read_editor_version_packages(app: &tauri::AppHandle, editor_version: &Str
     .ok_or(errors::str_error("Invalid app cache dir"))?
     .join("templates");
 
+  std::fs::create_dir_all(&cache_dir)?;
+
   let editor_version_json_path = cache_dir
     .clone()
     .join(editor_version.replace(".", "_"))

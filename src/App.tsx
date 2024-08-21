@@ -1,6 +1,7 @@
 import "./App.css";
 import "react-contexify/ReactContexify.css";
 import "./ContextMenu.css";
+// import "react-toastify/dist/ReactToastify.css";
 // import "reactjs-popup/dist/index.css";
 
 // import "reactjs-popup/dist/index.css";
@@ -17,6 +18,7 @@ import { getVersion } from "@tauri-apps/api/app";
 import { TauriRouter } from "./utils/tauri-router";
 import toast, { Toaster } from "react-hot-toast";
 import { routeErrorToToast } from "./utils/toast-utils";
+import { fetch } from "@tauri-apps/api/http";
 
 function App() {
   const globalContext = useContext(GlobalContext.Context);
@@ -62,8 +64,21 @@ function App() {
     const url =
       "https://raw.githubusercontent.com/nomnomab/nomnom-unity-hub/master/package.json";
     try {
-      const response = await fetch(url);
-      const data = await response.json();
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      const data = response.data as {
+        version: string;
+      };
+
+      if (!data || !data.version || data.version === "") {
+        routeErrorToToast(new Error("No version found"));
+        return;
+      }
 
       if (data.version !== window.localStorage.getItem("app_version")) {
         toast(

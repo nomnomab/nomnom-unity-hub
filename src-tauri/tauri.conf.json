@@ -29,6 +29,13 @@
       },
       "path": {
         "all": true
+      },
+      "http": {
+        "all": true,
+        "request": true,
+        "scope": [
+          "https://raw.githubusercontent.com/*"
+        ]
       }
     },
     "windows": [
@@ -47,7 +54,8 @@
       "csp": {
         "default-src": "'self'",
         "media-src": "'self' asset: https://asset.localhost",
-        "img-src": "'self' asset: https://asset.localhost"
+        "img-src": "'self' asset: https://asset.localhost",
+        "style-src": "'self' 'unsafe-inline'"
       }
     },
     "bundle": {

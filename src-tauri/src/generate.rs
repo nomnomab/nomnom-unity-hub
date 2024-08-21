@@ -289,7 +289,7 @@ fn generate_template_from_project(app: &tauri::AppHandle, app_state: &tauri::Sta
       let file_from = template_info.project_path.join(file);
       let file_to = cache_package_path.join("ProjectData~").join(file);
 
-      println!("{:?} -> {:?}", file_from, file_to);
+      // println!("{:?} -> {:?}", file_from, file_to);
 
       if file_from.is_dir() {
         std::fs::create_dir_all(file_to)?;
