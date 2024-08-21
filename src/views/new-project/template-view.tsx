@@ -294,6 +294,7 @@ export default function TemplateView() {
                   initialTemplateInfo.selectedTemplate?.name ===
                   x._template.name
                 }
+                // selected={isSelected}
               />
             ))}
           </div>

@@ -56,7 +56,7 @@ export default function PackageView() {
     };
 
     load();
-  }, [packageInfo.gitPackages, packageInfo.localPackages]);
+  }, []);
 
   const validPackages = useMemo(() => {
     const packages: CategoryPackage[] = (corePackages.value.value ?? [])
@@ -149,23 +149,24 @@ export default function PackageView() {
     load();
   }, []);
 
-  function selectPackage(name: string, version?: string) {
+  function selectPackage(package_: CategoryPackage, version?: string) {
     const packages = packageInfo.selectedPackages;
-    const filtered = packages.filter((y) => y.name !== name);
-
     newProjectContext.dispatch({
       type: "set_selected_packages",
-      packages: [...filtered, { name, version }],
+      packages: [
+        ...packages,
+        { name: package_.package_.name, version: version },
+      ],
     });
   }
 
-  function removePackage(name: string, version: string) {
+  function removePackage(package_: CategoryPackage, version: string) {
     const packages = packageInfo.selectedPackages;
-    const filtered = packages.filter((y) => y.name !== name);
-
     newProjectContext.dispatch({
       type: "set_selected_packages",
-      packages: filtered,
+      packages: packages.filter(
+        (x) => !(x.name === package_.package_.name && x.version === version)
+      ),
     });
   }
 
@@ -197,12 +198,11 @@ export default function PackageView() {
     });
   }
 
-  function togglePackage(name: string, version: string) {
-    const selected = packageInfo.selectedPackages;
-    if (selected.find((x) => x.name === name)) {
-      removePackage(name, version);
+  function togglePackage(package_: CategoryPackage, version: string) {
+    if (isSelected(package_, version)) {
+      removePackage(package_, version);
     } else {
-      selectPackage(name, version);
+      selectPackage(package_, version);
     }
   }
 
@@ -231,6 +231,48 @@ export default function PackageView() {
       });
     }
   }
+
+  function getValidPackageMatches(package_: CategoryPackage) {
+    const matches = queriedPackages.filter(
+      (x) => x.package_.name === package_.package_.name
+    );
+
+    return matches;
+  }
+
+  function getValidSelectedPackageMatches(package_: CategoryPackage) {
+    const matches = getValidPackageMatches(package_).filter((x) =>
+      newProjectContext.state.packageInfo.selectedPackages.some(
+        (y) => y.name === x.package_.name
+      )
+    );
+
+    return matches;
+  }
+
+  const isSelected = (package_: CategoryPackage, version?: string) => {
+    const matches = getValidSelectedPackageMatches(package_);
+    version = version || package_.package_.version;
+
+    if (matches.length === 0) return false;
+    if (matches.length === 1) {
+      return true;
+    }
+
+    const selected = newProjectContext.state.packageInfo.selectedPackages;
+    for (const x of matches) {
+      if (
+        x.package_.version === version &&
+        selected.some(
+          (y) => y.name === x.package_.name && y.version === x.package_.version
+        )
+      ) {
+        return true;
+      }
+    }
+
+    return false;
+  };
 
   return (
     <div className="flex h-full">
@@ -291,22 +333,19 @@ export default function PackageView() {
               const existingPackage = packageInfo.templatePackages.find(
                 (y) => y.name === x.package_.name
               );
-              const isSelected = packageInfo.selectedPackages.some(
-                (y) => y.name === x.package_.name
-              );
-
+              const selected = isSelected(x);
               return (
                 <Package
                   key={i}
                   package_={x}
                   onClick={() =>
                     togglePackage(
-                      x.package_.name,
+                      x,
                       existingPackage?.version ?? x.package_.version
                     )
                   }
                   destroyPackage={destroyPackage}
-                  selected={isSelected}
+                  selected={selected}
                   otherVersion={existingPackage?.version}
                 />
               );
@@ -319,7 +358,7 @@ export default function PackageView() {
 }
 
 function GitAdd(props: {
-  selectPackage: (name: string, version?: string) => void;
+  selectPackage: (package_: CategoryPackage, version?: string) => void;
 }) {
   const newProjectContext = useContext(NewProjectContext.Context);
   const gitPackageJson = useBetterState("");
@@ -360,7 +399,20 @@ function GitAdd(props: {
       gitPackageId.set("");
       gitPackageUrl.set("");
 
-      props.selectPackage(gitPackageId.value, gitPackageUrl.value);
+      props.selectPackage(
+        {
+          package_: {
+            name: gitPackageId.value,
+            version: gitPackageUrl.value,
+            type: TauriTypes.PackageType.Git,
+            isFile: false,
+            isDiscoverable: true,
+          },
+          category: "Git",
+          inPackage: false,
+        },
+        gitPackageUrl.value
+      );
     } else {
       if (gitPackageJson.value === "") return;
 
@@ -381,13 +433,15 @@ function GitAdd(props: {
           return;
         }
 
-        await TauriRouter.add_git_package_to_cache({
+        const package_ = {
           name,
           version,
           isFile: false,
           isDiscoverable: true,
           type: TauriTypes.PackageType.Git,
-        });
+        };
+
+        await TauriRouter.add_git_package_to_cache(package_);
 
         newProjectContext.dispatch({
           type: "add_git_package",
@@ -397,7 +451,14 @@ function GitAdd(props: {
           },
         });
 
-        props.selectPackage(name, version);
+        props.selectPackage(
+          {
+            package_,
+            category: "Git",
+            inPackage: false,
+          },
+          version
+        );
 
         gitPackageJson.set("");
       } catch (e) {
@@ -490,7 +551,7 @@ function GitAdd(props: {
 }
 
 function LocalAdd(props: {
-  selectPackage: (name: string, version?: string) => void;
+  selectPackage: (package_: CategoryPackage, version?: string) => void;
 }) {
   const newProjectContext = useContext(NewProjectContext.Context);
   const localPackage = useBetterState("");
@@ -522,7 +583,20 @@ function LocalAdd(props: {
       },
     });
 
-    props.selectPackage(localPackage.value, undefined);
+    props.selectPackage(
+      {
+        package_: {
+          name: localPackage.value,
+          version: "",
+          type: TauriTypes.PackageType.Local,
+          isFile: false,
+          isDiscoverable: true,
+        },
+        category: "Local",
+        inPackage: false,
+      },
+      undefined
+    );
 
     localPackage.set("");
   }
