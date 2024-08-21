@@ -126,26 +126,35 @@ pub fn generate_project(app: &tauri::AppHandle, app_state: &tauri::State<'_, App
 
   create_gitignore(package_cache_dir_out)?;
 
-  // create package-lock file
-  let package_lock_path = package_cache_dir_out
+  let manifest_path = package_cache_dir_out
     .join("Packages")
-    .join("packages-lock")
+    .join("manifest")
     .with_extension("json");
+  let package_contents = std::fs::read_to_string(&manifest_path)?;
+  let package_contents: HashMap<String, serde_json::Value> = serde_json::from_str(&package_contents)?;
 
-  let lock_dependencies = template_info.packages
-    .iter()
-    .filter(|x| cached_editor_packages.packages.get(&x.name).is_some())
-    .collect::<Vec<_>>();
-  let mut serde_hash_map = serde_json::Map::new();
-  for dep in lock_dependencies.iter() {
-    let value = cached_editor_packages.packages.get(&dep.name).unwrap();
-    serde_hash_map.insert(dep.name.clone(), serde_json::to_value(value)?);
+  if !package_contents.contains_key("from_project") {
+    // create package-lock file
+    let package_lock_path = package_cache_dir_out
+      .join("Packages")
+      .join("packages-lock")
+      .with_extension("json");
+
+    let lock_dependencies = template_info.packages
+      .iter()
+      .filter(|x| cached_editor_packages.packages.get(&x.name).is_some())
+      .collect::<Vec<_>>();
+    let mut serde_hash_map = serde_json::Map::new();
+    for dep in lock_dependencies.iter() {
+      let value = cached_editor_packages.packages.get(&dep.name).unwrap();
+      serde_hash_map.insert(dep.name.clone(), serde_json::to_value(value)?);
+    }
+
+    let json_str = serde_json::json!({
+      "dependencies": serde_hash_map
+    });
+    std::fs::write(&package_lock_path, serde_json::to_string_pretty(&json_str)?)?;
   }
-
-  let json_str = serde_json::json!({
-    "dependencies": serde_hash_map
-  });
-  std::fs::write(&package_lock_path, serde_json::to_string_pretty(&json_str)?)?;
   
   Ok(package_cache_dir_out.clone())
 }
@@ -192,13 +201,13 @@ pub fn generate_template(app: &tauri::AppHandle, app_state: &tauri::State<AppSta
       .map_err(|_| errors::str_error("Failed to strip prefix"))?;
     let from = package_cache_dir.join(file);
     let dest = package_cache_dir_out.join(trimmed_file);
-    println!("Copying {} to {}", from.display(), dest.display());
+    // println!("Copying {} to {}", from.display(), dest.display());
     
     if dest.extension().is_none() {
-      println!("Creating directory dest: {}", dest.display());
+      // println!("Creating directory dest: {}", dest.display());
       std::fs::create_dir_all(&dest)?;
     } else {
-      println!("Creating directory parent: {} for {}", dest.parent().unwrap().display(), dest.display());
+      // println!("Creating directory parent: {} for {}", dest.parent().unwrap().display(), dest.display());
       std::fs::create_dir_all(dest.parent().unwrap())?;
       if let Err(err) = std::fs::copy(&from, &dest) {
         println!("Failed to copy from {} to {}: {}", from.display(), dest.display(), err);
@@ -330,6 +339,7 @@ fn generate_template_from_project(app: &tauri::AppHandle, app_state: &tauri::Sta
     "unity": new_template_info.template.editor_version.version.clone(),
     "description": new_template_info.description.clone(),
     "dependencies": package_manifest_dependencies,
+    "from_project": true
   });
   std::fs::write(&package_json_path, serde_json::to_string_pretty(&new_package_json)?)?;
 
