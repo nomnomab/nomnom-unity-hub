@@ -40,28 +40,28 @@ Then find the exe in `\src-tauri\target\release\`
 
 #### Projects
 
-![Projects](.github\assets\projects.png)
+![Projects](.github/assets/projects.png)
 
 #### Editors
 
-![Editors](.github\assets\editors.png)
+![Editors](.github/assets/editors.png)
 
 #### Templates
 
-![Templates](.github\assets\templates.png)
+![Templates](.github/assets/templates.png)
 
 #### Packages
 
-![Packages](.github\assets\packages.png)
+![Packages](.github/assets/packages.png)
 
 #### Git Packages
 
-![Git Packages](.github\assets\git-packages.png)
+![Git Packages](.github/assets/git-packages.png)
 
 #### File View
 
-![Files](.github\assets\file-view.png)
+![Files](.github/assets/file-view.png)
 
 #### Template Creation
 
-![Template Creation](.github\assets\new-template.png)
+![Template Creation](.github/assets/new-template.png)
