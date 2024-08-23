@@ -90,7 +90,7 @@ pub fn remove_missing_projects(app_state: &tauri::State<AppState>) -> anyhow::Re
     .map_err(|_| errors::str_error("Failed to lock projects"))?;
   let missing_projects = projects
     .iter()
-    .filter(|x| !x.path.clone().exists())
+    .filter(|x| !x.path.clone().exists() || !x.path.clone().join("Assets").exists())
     .map(|x| x.clone())
     .collect::<Vec<_>>();
   
@@ -167,7 +167,7 @@ pub fn cmd_get_default_project_path(app_state: tauri::State<AppState>) -> Result
 }
 
 #[tauri::command]
-pub fn cmd_remove_missing_projects(app_handle: tauri::AppHandle, app_state: tauri::State<AppState>) -> Result<Vec<Project>, errors::AnyError> {
+pub async fn cmd_remove_missing_projects(app_handle: tauri::AppHandle, app_state: tauri::State<'_, AppState>) -> Result<Vec<Project>, errors::AnyError> {
   let removed_projects = remove_missing_projects(&app_state)?;
   let projects = app::get_projects(&app_state)?;
   app::save_projects_to_disk(&projects, &app_handle)?;
