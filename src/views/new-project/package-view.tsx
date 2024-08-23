@@ -302,8 +302,10 @@ export default function PackageView() {
               onClick={() => onlyShowSelectedPackages.set((s) => !s)}
             >
               <div className="w-7 aspect-square border rounded-md border-stone-600 select-none">
-                <div className="p-1">
-                  {onlyShowSelectedPackages.value && <Checkmark />}
+                <div className="flex items-center justify-center w-full h-full">
+                  {onlyShowSelectedPackages.value && (
+                    <Checkmark width={16} height={16} />
+                  )}
                 </div>
               </div>
               <p className="select-none">
