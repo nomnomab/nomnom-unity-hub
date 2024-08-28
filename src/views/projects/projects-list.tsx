@@ -23,7 +23,6 @@ import LoadingSpinner from "../../components/svg/loading-spinner";
 import useBetterState from "../../hooks/useBetterState";
 import Box from "../../components/svg/box";
 import Pin from "../../components/svg/pin";
-import { Buttons } from "../../components/parts/buttons";
 import Sort from "../../components/svg/sort";
 import toast from "react-hot-toast";
 import { routeErrorToToast } from "../../utils/toast-utils";

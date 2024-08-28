@@ -11,6 +11,7 @@ import FolderOpen from "../../components/svg/folder-open";
 import { open } from "@tauri-apps/api/dialog";
 import Delete from "../../components/svg/delete";
 import { Buttons } from "../../components/parts/buttons";
+import toast from "react-hot-toast";
 
 const categories = ["All", "In Package", "Default", "Internal", "Git", "Local"];
 
@@ -370,8 +371,16 @@ function GitAdd(props: {
 
   async function addPackage() {
     if (tab.value === "url") {
-      if (gitPackageId.value === "") return;
-      if (gitPackageUrl.value === "") return;
+      if (gitPackageId.value === "") {
+        toast.error(
+          "Invalid package name. You can find this in the package.json"
+        );
+        return;
+      }
+      if (gitPackageUrl.value === "") {
+        toast.error("Invalid URL");
+        return;
+      }
       if (
         newProjectContext.state.packageInfo.gitPackages.some(
           (x) =>
@@ -382,9 +391,11 @@ function GitAdd(props: {
         return;
       }
 
+      const id = gitPackageId.value.trim();
+      const version = gitPackageUrl.value.trim();
       await TauriRouter.add_git_package_to_cache({
-        name: gitPackageId.value,
-        version: gitPackageUrl.value,
+        name: id,
+        version,
         isFile: false,
         isDiscoverable: true,
         type: TauriTypes.PackageType.Git,
@@ -393,8 +404,8 @@ function GitAdd(props: {
       newProjectContext.dispatch({
         type: "add_git_package",
         package: {
-          id: gitPackageId.value,
-          url: gitPackageUrl.value,
+          id,
+          url: version,
         },
       });
 
@@ -416,11 +427,19 @@ function GitAdd(props: {
         gitPackageUrl.value
       );
     } else {
-      if (gitPackageJson.value === "") return;
+      if (gitPackageJson.value === "") {
+        toast.error("Invalid JSON");
+        return;
+      }
 
       try {
+        // make json more acceptable
+        let gitPackageJson_ = gitPackageJson.value.trim();
+        if (gitPackageJson_.endsWith(",")) {
+          gitPackageJson_ = gitPackageJson_.slice(0, -1);
+        }
         const obj: { [key: string]: string } = JSON.parse(
-          `{${gitPackageJson.value}}`
+          `{${gitPackageJson_}}`
         );
         const [name, version] = Object.entries(obj)[0];
 
