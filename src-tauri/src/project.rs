@@ -42,8 +42,14 @@ pub struct SearchOptions {
 }
 
 // load a project at a given path
-pub fn load(path: impl AsRef<Path>) -> anyhow::Result<Project> {
+pub fn load(path: impl AsRef<Path>) -> Result<Project, errors::AnyError> {
   let path = path.as_ref();
+  let assets_path = path.join("Assets");
+
+  if !assets_path.exists() {
+    return Err(errors::io_not_found("Invalid project path"));
+  }
+  
   let file_name = path
     .file_name()
     .ok_or(errors::io_not_found("Invalid project path"))?;

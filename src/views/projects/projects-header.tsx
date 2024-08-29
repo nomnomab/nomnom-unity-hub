@@ -6,6 +6,7 @@ import { TauriRouter } from "../../utils/tauri-router";
 import { open } from "@tauri-apps/api/dialog";
 import { UseState } from "../../utils";
 import { ProjectViewData } from "./projects-view";
+import { routeErrorToToast } from "../../utils/toast-utils";
 
 export default function ProjectsHeader({
   projectData,
@@ -21,14 +22,18 @@ export default function ProjectsHeader({
     });
     if (!folder) return;
 
-    const project = await TauriRouter.add_project(folder as string);
-    // console.log("project:", project);
+    try {
+      const project = await TauriRouter.add_project(folder as string);
+      // console.log("project:", project);
 
-    const results = await TauriRouter.get_projects();
-    // console.log("projects:", results);
+      const results = await TauriRouter.get_projects();
+      // console.log("projects:", results);
 
-    projectData.set((s) => ({ ...s, projects: results }));
-    // dispatch({ type: "set_projects", projects: results });
+      projectData.set((s) => ({ ...s, projects: results }));
+      // dispatch({ type: "set_projects", projects: results });
+    } catch (error) {
+      routeErrorToToast(error);
+    }
   }
 
   async function startNewProject() {
