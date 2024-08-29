@@ -35,3 +35,33 @@ pnpm tauri build
 ```
 
 Then find the exe in `\src-tauri\target\release\`
+
+## Screenshots
+
+#### Projects
+
+![Projects](.github/assets/projects.png)
+
+#### Editors
+
+![Editors](.github/assets/editors.png)
+
+#### Templates
+
+![Templates](.github/assets/templates.png)
+
+#### Packages
+
+![Packages](.github/assets/packages.png)
+
+#### Git Packages
+
+![Git Packages](.github/assets/git-packages.png)
+
+#### File View
+
+![Files](.github/assets/file-view.png)
+
+#### Template Creation
+
+![Template Creation](.github/assets/new-template.png)
