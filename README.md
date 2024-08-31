@@ -36,6 +36,12 @@ pnpm tauri build
 
 Then find the exe in `\src-tauri\target\release\`
 
+## FAQ
+
+### Why does my local package.json file keeps failing to be read?
+
+Makes sure the file is set to UTF8 encoding.
+
 ## Screenshots
 
 #### Projects
