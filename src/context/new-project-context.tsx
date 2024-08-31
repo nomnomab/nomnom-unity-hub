@@ -376,9 +376,7 @@ export namespace NewProjectContext {
           packageInfo: {
             ...state.packageInfo,
             gitPackages: state.packageInfo.gitPackages.filter(
-              (x) =>
-                x.name !== action.package.name &&
-                x.version !== action.package.version
+              (x) => x !== action.package
             ),
           },
         };
@@ -388,9 +386,7 @@ export namespace NewProjectContext {
           packageInfo: {
             ...state.packageInfo,
             localPackages: state.packageInfo.localPackages.filter(
-              (x) =>
-                x.name !== action.package.name &&
-                x.version !== action.package.version
+              (x) => x !== action.package
             ),
           },
         };

@@ -161,12 +161,16 @@ export default function PackageView() {
     });
   }
 
-  function removePackage(package_: CategoryPackage, version: string) {
+  function removePackage(package_: CategoryPackage, version?: string) {
     const packages = packageInfo.selectedPackages;
     newProjectContext.dispatch({
       type: "set_selected_packages",
       packages: packages.filter(
-        (x) => !(x.name === package_.package_.name && x.version === version)
+        (x) =>
+          !(
+            x.name === package_.package_.name &&
+            (x.version === version || (x.version ?? "") === version)
+          )
       ),
     });
   }
@@ -199,7 +203,7 @@ export default function PackageView() {
     });
   }
 
-  function togglePackage(package_: CategoryPackage, version: string) {
+  function togglePackage(package_: CategoryPackage, version?: string) {
     if (isSelected(package_, version)) {
       removePackage(package_, version);
     } else {
@@ -344,7 +348,9 @@ export default function PackageView() {
                   onClick={() =>
                     togglePackage(
                       x,
-                      existingPackage?.version ?? x.package_.version
+                      existingPackage?.version ??
+                        x.package_.version ??
+                        undefined
                     )
                   }
                   destroyPackage={destroyPackage}
