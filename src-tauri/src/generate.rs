@@ -57,12 +57,6 @@ pub fn generate_project(app: &tauri::AppHandle, app_state: &tauri::State<'_, App
       .to_str()
       .ok_or(errors::str_error("Failed to convert path to string"))?
       .to_string();
-    // let tmp_path = package_cache_dir
-    //   .join("project")
-    //   .join("ProjectData~")
-    //   .to_str()
-    //   .ok_or(errors::str_error("Failed to convert path to string"))?
-    //   .to_string();
     let args = vec!["-createProject".to_string(), package_cache_dir_out_str, "-quit".to_string()];
     editor::open(editor_version.clone(), args, &app_state, true)?;
 
@@ -465,17 +459,17 @@ fn modify_package_json(json_root: &PathBuf, packages: &Vec<MinimalPackage>, outp
       None => package_json_path.clone()
     };
 
+    #[derive(serde::Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct JsonData {
+      name: String,
+    }
+
     let json = std::fs::read_to_string(&package_json_path)?;
-    let json: serde_json::Value = serde_json::from_str(&json)?;
-    let name = json.as_object()
-      .ok_or(errors::str_error(&format!("Failed to get json object from {}", package_json_path.display())))?
-      .get("name")
-      .ok_or(errors::str_error(&format!("Failed to get name from {}", package_json_path.display())))?
-      .as_str()
-      .ok_or(errors::str_error(&format!("Failed to get name from {}", package_json_path.display())))?
-      .to_string();
+    let json: JsonData = serde_json::from_str(&json)
+      .map_err(|err| errors::str_error(&format!("Failed to parse json from {}, error: {:?}", package_json_path.display(), err)))?;
     
-    let name = name.clone();
+    let name = json.name.clone();
     let version = format!("file:{}", relative_path
       .to_str()
       .ok_or(errors::str_error("Failed to get str"))?
