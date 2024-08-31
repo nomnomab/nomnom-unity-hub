@@ -396,14 +396,10 @@ export namespace NewProjectContext {
           packageInfo: {
             ...state.packageInfo,
             templatePackages: state.packageInfo.templatePackages.filter(
-              (x) =>
-                x.name !== action.package.name &&
-                x.version !== action.package.version
+              (x) => x !== action.package
             ),
             selectedPackages: state.packageInfo.selectedPackages.filter(
-              (x) =>
-                x.name !== action.package.name &&
-                x.version !== action.package.version
+              (x) => x !== action.package
             ),
           },
         };
