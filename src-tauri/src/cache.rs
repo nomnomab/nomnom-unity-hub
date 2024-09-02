@@ -82,7 +82,7 @@ pub fn cmd_add_local_package_to_cache(app_handle: tauri::AppHandle, app_state: t
 pub fn cmd_remove_git_package_from_cache(app_handle: tauri::AppHandle, app_state: tauri::State<AppState>, package: package::MinimalPackage) -> Result<(), errors::AnyError> {
   let mut user_cache = app_state.user_cache.lock()
     .map_err(|_| errors::str_error("Failed to get user_cache. Is it locked?"))?;
-  user_cache.git_packages.retain(|p| p.name != package.name && p.version != package.version);
+  user_cache.git_packages.retain(|p| !(p.name == package.name && (p.version == package.version || (p.version.is_empty() && package.version.is_empty()))));
   app::save_user_cache_to_disk(&user_cache, &app_handle)?;
   Ok(())
 }
@@ -91,7 +91,7 @@ pub fn cmd_remove_git_package_from_cache(app_handle: tauri::AppHandle, app_state
 pub fn cmd_remove_local_package_from_cache(app_handle: tauri::AppHandle, app_state: tauri::State<AppState>, package: package::MinimalPackage) -> Result<(), errors::AnyError> {
   let mut user_cache = app_state.user_cache.lock()
     .map_err(|_| errors::str_error("Failed to get user_cache. Is it locked?"))?;
-  user_cache.local_packages.retain(|p| p.name != package.name);
+  user_cache.local_packages.retain(|p| !(p.name == package.name && (p.version == package.version || (p.version.is_empty() && package.version.is_empty()))));
   app::save_user_cache_to_disk(&user_cache, &app_handle)?;
   Ok(())
 }
