@@ -108,9 +108,11 @@ export namespace TauriRouter {
   }
 
   export async function add_project(
-    projectPath: string
+    projectPath: string,
+    andOpen?: boolean
   ): Promise<TauriTypes.Project> {
-    return invoke("cmd_add_project", { projectPath });
+    const andOpenBool = andOpen ? true : false;
+    return invoke("cmd_add_project", { projectPath, andOpen: andOpenBool });
   }
 
   export async function remove_project(projectPath: string): Promise<void> {
