@@ -116,7 +116,7 @@ pub fn generate_project(app: &tauri::AppHandle, app_state: &tauri::State<'_, App
 
   let editor_version = template_info.editor_version.version.clone();
   let editor_version = format!("m_EditorVersion: {}", editor_version);
-  std::fs::write(&editor_version_path, editor_version)?;
+  std::fs::write(&editor_version_path, &editor_version)?;
 
   create_gitignore(package_cache_dir_out)?;
 
@@ -149,6 +149,9 @@ pub fn generate_project(app: &tauri::AppHandle, app_state: &tauri::State<'_, App
     });
     std::fs::write(&package_lock_path, serde_json::to_string_pretty(&json_str)?)?;
   }
+
+  // crate::project::update_project_open_time(app_state, package_cache_dir_out.clone(), app)?;
+  // crate::project::cmd_open_project_in_editor(app.clone(), app_state.clone(), package_cache_dir_out.clone(), editor_version.clone())?;
   
   Ok(package_cache_dir_out.clone())
 }
@@ -399,12 +402,12 @@ fn modify_package_json(json_root: &PathBuf, packages: &Vec<MinimalPackage>, outp
   // read any local packages
   let local_packages = packages
     .iter()
-    .filter(|x| x._type == package::PackageType::Local)
+    .filter(|x| x._type == package::PackageType::Local && !x.name.starts_with("com.unity.template."))
     .collect::<Vec<_>>();
 
   let rest_packages = packages
     .iter()
-    .filter(|x| x._type != package::PackageType::Local)
+    .filter(|x| x._type != package::PackageType::Local && !x.name.starts_with("com.unity.template."))
     .collect::<Vec<_>>();
 
   let manifest_json_contents = {

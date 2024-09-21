@@ -13,6 +13,7 @@ import Popup from "reactjs-popup";
 import LoadingSpinner from "../../components/svg/loading-spinner";
 import NewTemplateView from "./new-template-view";
 import { routeErrorToToast } from "../../utils/toast-utils";
+import { ValidateInputContext } from "../../components/validate-input";
 
 export type NewProjectData = {
   projectName: string;
@@ -75,8 +76,6 @@ export default function NewProjectBody() {
         if (globalContext.state.templateFromProject) {
           try {
             const project = globalContext.state.templateFromProject!;
-            console.log(project);
-            console.log(newProjectContext);
             const template: TauriTypes.TemplateInfoForGeneration = {
               editorVersion: {
                 version: project.version,
@@ -186,6 +185,14 @@ export default function NewProjectBody() {
         const pack = newProjectContext.state.packageInfo;
         const files = newProjectContext.state.filesInfo;
 
+        const path = basicInfo.path + "\\" + basicInfo.name;
+        if (await TauriRouter.is_valid_dir(path)) {
+          routeErrorToToast(new Error(`${path} is already in use.`));
+
+          isLoading.set(false);
+          return;
+        }
+
         const packages = await TauriRouter.get_default_editor_packages(
           template.editorVersion.version
         ).then((x) => x.concat(pack.gitPackages).concat(pack.localPackages));
@@ -229,7 +236,7 @@ export default function NewProjectBody() {
 
           // console.log(output);
 
-          await TauriRouter.add_project(output);
+          await TauriRouter.add_project(output, true);
           await new Promise((resolve) => setTimeout(resolve, 1000));
 
           isLoading.set(false);

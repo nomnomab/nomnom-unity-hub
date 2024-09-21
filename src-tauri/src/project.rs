@@ -159,6 +159,41 @@ pub fn get_projects_on_page(app_state: &tauri::State<AppState>, page: usize, per
   Ok(projects)
 }
 
+pub fn update_project_open_time(app_state: &tauri::State<AppState>, project_path: PathBuf, app_handle: &tauri::AppHandle) -> Result<(), errors::AnyError> {
+  let time = std::time::UNIX_EPOCH
+    .elapsed()
+    .unwrap_or(std::time::Duration::from_secs(0));
+  let millis = time.as_millis();
+
+  let mut projects = app_state.projects.lock()
+    .map_err(|_| errors::str_error("Failed to get projects. Is it locked?"))?;
+  let project = projects
+    .iter_mut()
+    .find(|x| x.path == project_path)
+    .ok_or(errors::str_error(format!("Project not found at {:?}", project_path).as_str()))?;
+  project.last_opened_at = millis;
+
+  app::save_projects_to_disk(&projects, &app_handle)?;
+
+  Ok(())
+}
+
+pub fn open_project(project_path: PathBuf, editor_version: String, app_state: &tauri::State<AppState>, app_handle: &tauri::AppHandle) -> Result<(), errors::AnyError> {
+  if !project_path.exists() {
+    return Err(errors::io_not_found("Invalid project path"));
+  }
+  
+  let project_path_str = project_path.to_str()
+    .ok_or(errors::str_error("Invalid project path"))?
+    .to_string();
+  
+  let args = vec!["-projectPath".to_string(), project_path_str];
+  crate::editor::open(editor_version, args, &app_state, false)?;
+
+  update_project_open_time(&app_state, project_path, &app_handle)?;
+  Ok(())
+}
+
 // commands
 
 #[tauri::command]
@@ -181,26 +216,38 @@ pub async fn cmd_remove_missing_projects(app_handle: tauri::AppHandle, app_state
 }
 
 #[tauri::command]
-pub fn cmd_add_project(project_path: PathBuf, app_handle: tauri::AppHandle, app_state: tauri::State<AppState>) -> Result<Project, errors::AnyError> {
+pub fn cmd_add_project(project_path: PathBuf, and_open: bool, app_handle: tauri::AppHandle, app_state: tauri::State<AppState>) -> Result<Project, errors::AnyError> {
   if !Path::new(&project_path).exists() {
     return Err(errors::io_not_found("Invalid project path"));
   }
   
-  let mut projects = app_state.projects.lock()
-    .map_err(|_| errors::str_error("Failed to get projects. Is it locked?"))?;
-  if projects.iter().any(|x| x.path == project_path) {
-    return Err(errors::str_error("Project already exists"));
+  {
+    let projects = app::get_projects(&app_state)?;
+    if projects.iter().any(|x| x.path == project_path) {
+      return Err(errors::str_error("Project already exists"));
+    }
   }
   
-  let mut project = load(project_path)?;
+  let mut project = load(project_path.clone())?;
   project.added_at = std::time::UNIX_EPOCH
     .elapsed()
     .unwrap_or(std::time::Duration::from_secs(0))
     .as_millis();
-  projects.insert(0, project.clone());
-  
-  app::save_projects_to_disk(&projects, &app_handle)?;
-  
+
+  {
+    let mut projects = app_state.projects.lock()
+      .map_err(|_| errors::str_error("Failed to get projects. Is it locked?"))?;
+    projects.insert(0, project.clone());
+
+    app::save_projects_to_disk(&projects, &app_handle)?;
+  }
+
+  if and_open {
+    let editor_version = &project.version;
+    update_project_open_time(&app_state, project_path.clone(), &app_handle)?;
+    open_project(project_path, editor_version.to_string(), &app_state, &app_handle)?;
+  }
+
   Ok(project)
 }
 
@@ -237,32 +284,7 @@ pub async fn cmd_get_projects_on_page(app_state: tauri::State<'_, AppState>, pag
 
 #[tauri::command]
 pub fn cmd_open_project_in_editor(app_handle: tauri::AppHandle, app_state: tauri::State<AppState>, project_path: PathBuf, editor_version: String) -> Result<(), errors::AnyError> {
-  if !project_path.exists() {
-    return Err(errors::io_not_found("Invalid project path"));
-  }
-  
-  let project_path_str = project_path.to_str()
-    .ok_or(errors::str_error("Invalid project path"))?
-    .to_string();
-  
-  let args = vec!["-projectPath".to_string(), project_path_str];
-  crate::editor::open(editor_version, args, &app_state, false)?;
-
-  let time = std::time::UNIX_EPOCH
-    .elapsed()
-    .unwrap_or(std::time::Duration::from_secs(0));
-  let millis = time.as_millis();
-
-  let mut projects = app_state.projects.lock()
-    .map_err(|_| errors::str_error("Failed to get projects. Is it locked?"))?;
-  let project = projects
-    .iter_mut()
-    .find(|x| x.path == project_path)
-    .ok_or(errors::str_error("Project not found"))?;
-  project.last_opened_at = millis;
-
-  app::save_projects_to_disk(&projects, &app_handle)?;
-  
+  open_project(project_path, editor_version, &app_state, &app_handle)?;
   Ok(())
 }
 
