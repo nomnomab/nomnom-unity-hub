@@ -297,6 +297,9 @@ export default function TemplateView() {
                 // selected={isSelected}
               />
             ))}
+            <p className="text-stone-400 text-sm select-none">
+              To get more templates, use the Unity Hub.
+            </p>
           </div>
         </AsyncComponent>
       </div>

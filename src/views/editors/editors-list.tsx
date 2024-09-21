@@ -175,6 +175,9 @@ export default function EditorsList() {
                 editors={selectedGroup.editors}
               />
             )}
+            <p className="text-stone-400 text-sm select-none">
+              To get more editors, use the Unity Hub.
+            </p>
           </div>
         </div>
       </AsyncComponent>
