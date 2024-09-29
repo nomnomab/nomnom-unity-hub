@@ -365,6 +365,8 @@ pub fn cmd_is_open_in_editor(project_path: PathBuf, editor_version: String, app_
     .ok_or(errors::str_error("Invalid project path"))?
     .to_string();
 
+  let project_name = format!("{} - ", project_name);
+
   // needs to start with project_name and contain Unity editor_version near the end
   // todo: make sure this works fine on other platforms
   let contains_title = titles

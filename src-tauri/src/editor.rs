@@ -264,6 +264,9 @@ pub fn open(
     .clone();
   
   let exe_path = get_real_exe_path(&editor)?;
+
+  println!("Opening editor: {}", exe_path.display());
+  println!("Arguments: {:?}", arguments);
   
   if wait {
     std::process::Command::new(&exe_path)

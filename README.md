@@ -36,6 +36,11 @@ pnpm tauri build
 
 Then find the exe in `\src-tauri\target\release\`
 
+## Notes
+
+If you know how to get the package versions for a specific unity template, please let me know. Things like the built-in package somehow
+have updated package versions that aren't the recommended version, but aren't the versions in their template file anywhere.
+
 ## FAQ
 
 ### Why does my local package.json file keeps failing to be read?
