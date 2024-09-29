@@ -174,6 +174,27 @@ pub fn generate_project(app: &tauri::AppHandle, app_state: &tauri::State<'_, App
     std::fs::write(&project_settings_path, project_settings)?;
   }
 
+  // let out_path = package_cache_dir_out
+  //   .to_str()
+  //   .ok_or(errors::str_error("Failed to convert path to string"))?
+  //   .to_string();
+  // println!("out path: {}", out_path);
+  
+  // let embedded_cs_script = include_str!("assets/PackageClientTest.cs");
+  // let embedded_cs_script_path = package_cache_dir_out
+  //   .join("Assets")
+  //   .join("PackageClientTest.cs");
+
+  // println!("writing script: {}", embedded_cs_script_path.display());
+  // std::fs::write(&embedded_cs_script_path, embedded_cs_script)?;
+
+  // println!("running script: {}", embedded_cs_script_path.display());
+  // crate::editor::open(template_info.editor_version.version.clone(), vec!["-quit".to_string(), "-batchmode".to_string(), "-projectPath".to_string(), format!("{}", out_path).to_string(), "-executeMethod".to_string(), "PackageClientTest.PerformCheck".to_string()], app_state, true)?;
+
+  // // delete script
+  // println!("deleting script: {}", embedded_cs_script_path.display());
+  // std::fs::remove_file(&embedded_cs_script_path)?;
+  
   // crate::project::update_project_open_time(app_state, package_cache_dir_out.clone(), app)?;
   // crate::project::cmd_open_project_in_editor(app.clone(), app_state.clone(), package_cache_dir_out.clone(), editor_version.clone())?;
   
