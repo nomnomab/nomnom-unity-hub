@@ -156,9 +156,21 @@ pub fn generate_project(app: &tauri::AppHandle, app_state: &tauri::State<'_, App
 
   if project_settings_path.is_file() {
     let project_settings = std::fs::read_to_string(&project_settings_path)?;
-    let project_settings = project_settings
-      .replace("companyName: ", "DefaultCompany")
-      .replace("productName: ", &project_info.name.clone());
+    let mut lines = project_settings.lines().collect::<Vec<_>>();
+
+    for line in lines.iter_mut() {
+      let trimmed_line = line.trim();
+      if trimmed_line.starts_with("companyName: ") {
+        *line = "  companyName: DefaultCompany";
+        continue;
+      }
+
+      if trimmed_line.starts_with("productName: ") {
+        *line = &format!("  productName: {}", project_info.name.clone());
+        break;
+      }
+    }
+
     std::fs::write(&project_settings_path, project_settings)?;
   }
 
