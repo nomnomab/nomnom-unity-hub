@@ -7,7 +7,7 @@
   },
   "package": {
     "productName": "Nomnoms Unity Hub",
-    "version": "1.0.6"
+    "version": "1.0.7"
   },
   "tauri": {
     "allowlist": {
@@ -33,9 +33,7 @@
       "http": {
         "all": true,
         "request": true,
-        "scope": [
-          "https://raw.githubusercontent.com/*"
-        ]
+        "scope": ["https://raw.githubusercontent.com/*"]
       }
     },
     "windows": [

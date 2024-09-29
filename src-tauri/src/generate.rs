@@ -150,6 +150,18 @@ pub fn generate_project(app: &tauri::AppHandle, app_state: &tauri::State<'_, App
     std::fs::write(&package_lock_path, serde_json::to_string_pretty(&json_str)?)?;
   }
 
+  let project_settings_path = package_cache_dir_out
+    .join("ProjectSettings")
+    .join("ProjectSettings.asset");
+
+  if project_settings_path.is_file() {
+    let project_settings = std::fs::read_to_string(&project_settings_path)?;
+    let project_settings = project_settings
+      .replace("companyName: ", "DefaultCompany")
+      .replace("productName: ", &project_info.name.clone());
+    std::fs::write(&project_settings_path, project_settings)?;
+  }
+
   // crate::project::update_project_open_time(app_state, package_cache_dir_out.clone(), app)?;
   // crate::project::cmd_open_project_in_editor(app.clone(), app_state.clone(), package_cache_dir_out.clone(), editor_version.clone())?;
   
